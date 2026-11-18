@@ -1,0 +1,12 @@
+:root {
+  --bg: #ffffff;
+  --ink: #1a1a1a;
+  --line: #ececec;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
