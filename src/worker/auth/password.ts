@@ -1,4 +1,4 @@
-const ITERATIONS = 100000;
+const ITERATIONS = 20000;
 const MIN_LEN = 8;
 const MAX_LEN = 128;
 export const PASSWORD_LENGTH_MSG = "비밀번호는 8~128자로 정해 주세요";
