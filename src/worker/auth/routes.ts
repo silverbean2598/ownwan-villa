@@ -54,10 +54,16 @@ auth.post("/api/login", async (c) => {
   if (user.locked_until && user.locked_until > t) return jsonError(c, 423, "로그인을 5번 실패해서 15분 동안 잠겼어요");
 
   if (!(await verifyPassword(password, user.password_hash))) {
-    // 잠금이 풀린 뒤의 첫 실패는 새로 센다
-    const fails = (user.locked_until ? 0 : user.failed_logins) + 1;
-    await c.env.DB.prepare("UPDATE users SET failed_logins = ?, locked_until = ? WHERE id = ?")
-      .bind(fails, fails >= MAX_FAILS ? t + LOCK_MS : null, user.id)
+    // 동시 요청에도 횟수가 유실되지 않도록 SQL 한 문장으로 원자적으로 갱신한다.
+    // 잠금이 풀린 뒤의 첫 실패는 1로 새로 센다.
+    const expired = "(locked_until IS NOT NULL AND locked_until <= ?)";
+    const count = `CASE WHEN ${expired} THEN 1 ELSE failed_logins + 1 END`;
+    await c.env.DB.prepare(
+      `UPDATE users SET failed_logins = ${count},
+         locked_until = CASE WHEN ${count} >= ? THEN ? WHEN ${expired} THEN NULL ELSE locked_until END
+       WHERE id = ?`,
+    )
+      .bind(t, t, MAX_FAILS, t + LOCK_MS, t, user.id)
       .run();
     return jsonError(c, 401, BAD_LOGIN);
   }

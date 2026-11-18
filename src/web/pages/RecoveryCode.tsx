@@ -49,7 +49,7 @@ export function RecoveryCode() {
         <input id="saved" type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} />
         복구 코드를 저장했어요
       </label>
-      <button className="btn" type="button" disabled={!saved} onClick={() => nav("/")} style={{ marginTop: 16 }}>다음</button>
+      <button className="btn" type="button" disabled={!saved} onClick={() => nav("/", { replace: true })} style={{ marginTop: 16 }}>다음</button>
     </main>
   );
 }

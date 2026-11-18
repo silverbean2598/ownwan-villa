@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it } from "vitest";
 import { app } from "../index";
 import { setNow } from "../clock";
+import { hashPassword, verifyPassword } from "./password";
 
 let n = 0;
 const uname = () => `user${Date.now().toString(36)}${n++}`.slice(0, 16);
@@ -99,5 +100,64 @@ describe("login / me", () => {
     });
     expect((await post("/api/logout", {}, cookie)).status).toBe(200);
     expect((await app.request("/api/me", { headers: { cookie } }, env)).status).toBe(401);
+  });
+});
+
+const wrong = (username: string) => post("/api/login", { username, password: "wrongpass1" });
+const failsOf = async (username: string) =>
+  (await env.DB.prepare("SELECT failed_logins f, locked_until l FROM users WHERE username = ?").bind(username).first<{ f: number; l: number | null }>())!;
+
+describe("lockout and session edges", () => {
+  it("concurrent_failures_still_lock", async () => {
+    const body = valid();
+    await post("/api/signup", body);
+    await Promise.all(Array.from({ length: 8 }, () => wrong(body.username)));
+    expect((await failsOf(body.username)).f).toBeGreaterThanOrEqual(5);
+    const res = await post("/api/login", { username: body.username, password: body.password });
+    expect(res.status).toBe(423);
+  });
+
+  it("success_resets_failed_logins", async () => {
+    const body = valid();
+    await post("/api/signup", body);
+    await wrong(body.username);
+    await wrong(body.username);
+    expect((await failsOf(body.username)).f).toBe(2);
+    expect((await post("/api/login", { username: body.username, password: body.password })).status).toBe(200);
+    expect(await failsOf(body.username)).toEqual({ f: 0, l: null });
+  });
+
+  it("first_failure_after_expired_lock_counts_as_1", async () => {
+    let t = 1_700_000_000_000;
+    setNow(() => t);
+    const body = valid();
+    await post("/api/signup", body);
+    for (let i = 0; i < 5; i++) await wrong(body.username);
+    t += 15 * 60 * 1000 + 1;
+    expect((await wrong(body.username)).status).toBe(401);
+    expect(await failsOf(body.username)).toEqual({ f: 1, l: null });
+    for (let i = 0; i < 3; i++) await wrong(body.username);
+    expect((await post("/api/login", { username: body.username, password: body.password })).status).toBe(200);
+  });
+
+  it("expired_session_is_rejected", async () => {
+    let t = 1_700_000_000_000;
+    setNow(() => t);
+    const res = await post("/api/signup", valid());
+    const cookie = res.headers.get("set-cookie")!.split(";")[0];
+    expect((await app.request("/api/me", { headers: { cookie } }, env)).status).toBe(200);
+    t += 30 * 24 * 60 * 60 * 1000 + 1;
+    expect((await app.request("/api/me", { headers: { cookie } }, env)).status).toBe(401);
+  });
+
+  it("hash_format_and_legacy_iterations_verify", async () => {
+    expect(await hashPassword("password1")).toMatch(/^pbkdf2\$100000\$/);
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode("password1"), "PBKDF2", false, ["deriveBits"]);
+    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 1000 }, key, 256);
+    const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
+    const stored = `pbkdf2$1000$${b64(salt)}$${b64(new Uint8Array(bits))}`;
+    expect(await verifyPassword("password1", stored)).toBe(true);
+    expect(await verifyPassword("password2", stored)).toBe(false);
   });
 });
