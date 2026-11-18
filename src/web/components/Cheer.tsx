@@ -119,7 +119,6 @@ export function CommentThread({ certId, onCount }: { certId: string; onCount: (n
       .then((r) => {
         if (!alive) return;
         setList(r);
-        onCount(r.length);
       })
       .catch((e) => alive && setError(msg(e)));
     return () => {
@@ -129,6 +128,14 @@ export function CommentThread({ certId, onCount }: { certId: string; onCount: (n
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [certId]);
 
+  // 응답이 엇갈려 와도(보내고 바로 지우기) 가장 최근 목록에 이어서 바꾼다
+  const update = (f: (xs: Comment[]) => Comment[]) => setList((prev) => f(prev ?? []));
+  // 개수는 목록이 바뀐 뒤 목록에서 센다
+  useEffect(() => {
+    if (list) onCount(list.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list]);
+
   const body = text.trim();
   async function send(e: FormEvent) {
     e.preventDefault();
@@ -137,9 +144,7 @@ export function CommentThread({ certId, onCount }: { certId: string; onCount: (n
     setError("");
     try {
       const c = await api<Comment>(`/api/certs/${certId}/comments`, { method: "POST", body: JSON.stringify({ body }) });
-      const next = [...(list ?? []), c];
-      setList(next);
-      onCount(next.length);
+      update((xs) => [...xs, c]);
       setText("");
     } catch (e) {
       setError(msg(e));
@@ -152,9 +157,7 @@ export function CommentThread({ certId, onCount }: { certId: string; onCount: (n
     setError("");
     try {
       await api(`/api/comments/${id}`, { method: "DELETE" });
-      const next = (list ?? []).filter((c) => c.id !== id);
-      setList(next);
-      onCount(next.length);
+      update((xs) => xs.filter((c) => c.id !== id));
     } catch (e) {
       setError(msg(e));
     }

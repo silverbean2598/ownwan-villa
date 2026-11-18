@@ -93,14 +93,17 @@ cheer.post("/api/certs/:id/comments", requireUser, async (c) => {
   const t = now();
   const dayStart = Date.parse(`${kstDay(t)}T00:00:00+09:00`);
   const id = crypto.randomUUID();
-  // 하루 개수 제한과 기록이 아직 보이는지를 INSERT 안에서 함께 판정한다 (동시에 써도 넘치지 않게)
-  const r = await c.env.DB.prepare(
-    `INSERT INTO comments (id, cert_id, user_id, body, created_at)
-     SELECT ?2, ?1, ?3, ?4, ?5 WHERE ${VISIBLE}
-       AND (SELECT COUNT(*) FROM comments WHERE user_id = ?3 AND created_at >= ?6) < ?7`,
-  )
-    .bind(cert.id, id, userId, body, t, dayStart, COMMENTS_PER_DAY)
-    .run();
+  // 하루 개수 제한과 기록이 아직 보이는지를 INSERT 안에서 함께 판정한다 (동시에 써도 넘치지 않게).
+  // 개수는 comment_log 에서 센다: 지운 댓글도 세어 지우고 다시 쓰기로 제한 · 알림을 늘리지 못한다.
+  // 같은 batch(트랜잭션)에서 댓글이 실제로 들어갔을 때만(changes() = 1) 기록을 남긴다
+  const [r] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `INSERT INTO comments (id, cert_id, user_id, body, created_at)
+       SELECT ?2, ?1, ?3, ?4, ?5 WHERE ${VISIBLE}
+         AND (SELECT COUNT(*) FROM comment_log WHERE user_id = ?3 AND created_at >= ?6) < ?7`,
+    ).bind(cert.id, id, userId, body, t, dayStart, COMMENTS_PER_DAY),
+    c.env.DB.prepare("INSERT INTO comment_log (user_id, created_at) SELECT ?1, ?2 WHERE changes() = 1").bind(userId, t),
+  ]);
   if (!r.meta.changes) {
     const again = await findCert(c.env, userId, cert.id);
     return again.error ? jsonError(c, again.error.status, again.error.message) : jsonError(c, 429, TOO_MANY);
@@ -135,6 +138,7 @@ cheer.delete("/api/comments/:id", requireUser, async (c) => {
 export function cheerCleanupForCert(env: Env, certId: string): D1PreparedStatement[] {
   return [
     env.DB.prepare(`DELETE FROM events WHERE id IN (SELECT ${COMMENT_EVENT} FROM comments WHERE cert_id = ?)`).bind(certId),
+    env.DB.prepare(`DELETE FROM events WHERE substr(id, 1, length(?1) + 9) = 'cheered:' || ?1 || ':'`).bind(certId),
     env.DB.prepare("DELETE FROM cheers WHERE cert_id = ?").bind(certId),
     env.DB.prepare("DELETE FROM comments WHERE cert_id = ?").bind(certId),
   ];
@@ -145,7 +149,9 @@ export function cheerCleanupForUser(env: Env, userId: string): D1PreparedStateme
   const mine = "user_id = ?1 OR cert_id IN (SELECT id FROM certs WHERE user_id = ?1)";
   return [
     env.DB.prepare(`DELETE FROM events WHERE id IN (SELECT ${COMMENT_EVENT} FROM comments WHERE user_id = ?1)`).bind(userId),
+    env.DB.prepare(`DELETE FROM events WHERE id LIKE 'cheered:%' AND substr(id, -length(?1) - 1) = ':' || ?1`).bind(userId),
     env.DB.prepare(`DELETE FROM cheers WHERE ${mine}`).bind(userId),
+    env.DB.prepare("DELETE FROM comment_log WHERE user_id = ?").bind(userId),
     env.DB.prepare(`DELETE FROM comments WHERE ${mine}`).bind(userId),
   ];
 }

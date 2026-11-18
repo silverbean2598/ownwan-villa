@@ -189,6 +189,18 @@ describe("comments", () => {
     expect((await comment(friend, certId, "새 날")).status).toBe(200);
   });
 
+  it("deleted_comments_still_count_toward_daily_limit", async () => {
+    const { friend, certId } = await setup();
+    setNow(() => Date.parse("2026-11-20T12:00:00+09:00"));
+    for (let i = 0; i < 20; i++) {
+      const c = (await (await comment(friend, certId, `댓글${i}`)).json()) as { id: string };
+      expect((await delComment(friend, c.id)).status).toBe(200);
+    }
+    const r = await comment(friend, certId, "21번째");
+    expect(r.status).toBe(429);
+    expect(await errorOf(r)).toBe("오늘은 댓글을 너무 많이 썼어요");
+  });
+
   it("commented_event_to_owner_not_self", async () => {
     const { author, friend, certId } = await setup();
     await comment(friend, certId, "오늘도 멋진 오운완이에요 최고");
@@ -257,6 +269,20 @@ describe("cleanup", () => {
     expect(await count("SELECT COUNT(*) AS n FROM cheers WHERE cert_id = ?", certId)).toBe(0);
     expect(await count("SELECT COUNT(*) AS n FROM comments WHERE cert_id = ?", certId)).toBe(0);
     expect(await ofType(author, "commented")).toEqual([]);
+    expect(await count("SELECT COUNT(*) AS n FROM events WHERE id LIKE ?", `cheered:${certId}:%`)).toBe(0);
+  });
+
+  it("account_deletion_removes_my_cheered_events", async () => {
+    const { owner, author, friend, certId } = await setup();
+    await clear(owner);
+    const ownerCert = await routine(owner);
+    await cheer(friend, certId);
+    await cheer(friend, ownerCert);
+    await cheer(owner, certId);
+    expect((await send("DELETE", "/api/me", friend.cookie)).status).toBe(200);
+    expect(await count("SELECT COUNT(*) AS n FROM events WHERE id LIKE ?", `cheered:%:${friend.id}`)).toBe(0);
+    expect(await ofType(owner, "cheered")).toEqual([]);
+    expect((await ofType(author, "cheered")).map((e) => e.payload.nickname)).toEqual(["방장"]);
   });
 
   it("account_deletion_removes_my_cheers_and_comments_everywhere_and_those_on_my_certs", async () => {
