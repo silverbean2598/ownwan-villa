@@ -12,7 +12,8 @@ export function RoomTile({ member, isMe, isOwner, penthouse = false }: Props) {
   return (
     <button
       type="button"
-      className={`room ${lit ? "on" : "off"}${isMe ? " me" : ""}`}
+      className={`room ${lit ? "on" : "off"}${isMe ? " me" : ""}${penthouse ? " ph-wide" : ""}`}
+      data-penthouse={penthouse ? "true" : undefined}
       aria-label={label}
       onClick={() => nav(`/room/${member.userId}`)}
     >

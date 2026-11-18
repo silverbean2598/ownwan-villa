@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
-import { layoutFloors, type Member } from "./Building";
+import { Building, layoutFloors, type Member } from "./Building";
 import { RoomTile } from "./RoomTile";
 import { DEFAULT_AVATAR } from "../../shared/avatar";
 
@@ -76,5 +76,21 @@ describe("RoomTile", () => {
     expect(h).not.toContain("room on");
     expect(h).toContain(">z<");
     expect(h).toContain("헬스");
+  });
+});
+
+describe("Building penthouse row", () => {
+  it("renders_penthouse_room_as_single_full_width_room", () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <Building members={[m("a", 12, 50), m("b", 1)]} penthouseUserId="a" ownerId="a" meId="a" />
+      </MemoryRouter>,
+    );
+    const ph = html.match(/<div class="ph"[^]*?<\/button>/)![0];
+    expect(ph).toContain("PENTHOUSE");
+    expect(ph).toContain("ph-wide");
+    expect(ph).toContain('data-penthouse="true"');
+    expect(ph.match(/class="room /g)).toHaveLength(1);
+    expect(html.match(/data-penthouse="true"/g)).toHaveLength(1);
   });
 });

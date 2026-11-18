@@ -16,7 +16,9 @@
 .roof { height: 10px; background: var(--ink); border-radius: 4px 4px 0 0; margin: 0 -6px; }
 .ph { background: linear-gradient(180deg,#FBF7EA,#fff); border: 2px solid var(--gold); border-bottom: none; border-radius: 10px 10px 0 0; padding: 8px; display: flex; gap: 8px; align-items: stretch; }
 .ph-label { writing-mode: vertical-rl; font-weight: 700; color: var(--gold); font-size: 12px; letter-spacing: 2px; display: flex; align-items: center; }
-.ph .room { flex: 1; max-width: 170px; margin: 0 auto; }
+.ph .room { flex: 1; min-width: 0; max-width: none; margin: 0; }
+.ph .room.ph-wide { width: 100%; }
+.ph .tag { font-size: 13px; padding: 4px 10px 6px; }
 .floor { display: grid; grid-template-columns: 30px repeat(3, minmax(0, 1fr)); gap: 6px; padding: 6px; border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); border-top: 1px solid var(--line); }
 .fl { font-weight: 700; font-size: 14px; color: var(--muted); display: flex; align-items: center; justify-content: center; }
 .gap { border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); border-top: 1px dashed var(--line); padding: 6px 8px; color: var(--muted); font-size: 12px; text-align: center; background: repeating-linear-gradient(90deg, transparent 0 22px, #F1F3F6 22px 24px); }
