@@ -208,4 +208,43 @@ describe("villa", () => {
     expect((await send("PATCH", `/api/villas/${id}`, { name: "새이름" }, a.cookie)).status).toBe(200);
     expect((await env.DB.prepare("SELECT name FROM villas WHERE id = ?").bind(id).first<any>()).name).toBe("새이름");
   });
+
+  it("concurrent leaves keep a valid owner", async () => {
+    let t = 1_000_000;
+    setNow(() => (t += 1000));
+    const owner = await signup();
+    const { id, inviteToken } = await create(owner);
+    const b = await signup();
+    const c = await signup();
+    await join(b, inviteToken);
+    await join(c, inviteToken);
+    await Promise.all([send("POST", "/api/villas/leave", undefined, owner.cookie), send("POST", "/api/villas/leave", undefined, b.cookie)]);
+    const v = await villaRow(id);
+    expect(v!.owner_id).toBe(c.id);
+    expect(v!.penthouse_user_id).toBe(c.id);
+    expect(v!.dissolved_at).toBeNull();
+  });
+
+  it("concurrent leave of everyone dissolves", async () => {
+    const owner = await signup();
+    const { id, inviteToken } = await create(owner);
+    const b = await signup();
+    await join(b, inviteToken);
+    await Promise.all([send("POST", "/api/villas/leave", undefined, owner.cookie), send("POST", "/api/villas/leave", undefined, b.cookie)]);
+    expect((await villaRow(id))!.dissolved_at).not.toBeNull();
+    expect(await active(id)).toBe(0);
+  });
+
+  it("join recomputes penthouse immediately", async () => {
+    const owner = await signup();
+    const { id, inviteToken } = await create(owner);
+    const b = await signup();
+    await join(b, inviteToken);
+    expect((await villaRow(id))!.penthouse_user_id).toBe(owner.id);
+    await env.DB.prepare("UPDATE users SET streak = 9 WHERE id = ?").bind(b.id).run();
+    await env.DB.prepare("UPDATE memberships SET floor = 1 WHERE user_id = ?").bind(owner.id).run();
+    const c = await signup();
+    await join(c, inviteToken);
+    expect((await villaRow(id))!.penthouse_user_id).toBe(b.id);
+  });
 });

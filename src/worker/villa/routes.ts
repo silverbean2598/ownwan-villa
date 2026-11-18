@@ -136,16 +136,20 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
   try {
     const res = await c.env.DB.prepare(
       `INSERT INTO memberships (id, user_id, villa_id, floor, floor_reached_at, joined_at)
-       SELECT ?, ?, ?, 1, ?, ? WHERE (SELECT COUNT(*) FROM memberships WHERE villa_id = ? AND left_at IS NULL) < ?`,
+       SELECT ?, ?, ?, 1, ?, ? WHERE (SELECT COUNT(*) FROM memberships WHERE villa_id = ? AND left_at IS NULL) < ?
+         AND EXISTS (SELECT 1 FROM villas WHERE id = ? AND dissolved_at IS NULL)`,
     )
-      .bind(crypto.randomUUID(), userId, v.id, t, t, v.id, MAX_MEMBERS)
+      .bind(crypto.randomUUID(), userId, v.id, t, t, v.id, MAX_MEMBERS, v.id)
       .run();
     changes = res.meta.changes;
   } catch (e) {
     if (isUnique(e)) return jsonError(c, 409, IN_VILLA);
     throw e;
   }
-  if (changes === 0) return jsonError(c, 409, "빌라가 꽉 찼어요");
+  if (changes === 0) {
+    const alive = await c.env.DB.prepare("SELECT 1 AS x FROM villas WHERE id = ? AND dissolved_at IS NULL").bind(v.id).first();
+    return alive ? jsonError(c, 409, "빌라가 꽉 찼어요") : jsonError(c, 404, EXPIRED);
+  }
   await recomputePenthouse(c.env, v.id);
   return c.json({ ok: true });
 });

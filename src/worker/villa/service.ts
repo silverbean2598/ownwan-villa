@@ -29,23 +29,20 @@ export async function leaveVilla(env: Env, userId: string): Promise<void> {
     .bind(userId)
     .first<{ villaId: string }>();
   if (!m) throw new NotInVillaError();
-  await env.DB.prepare("UPDATE memberships SET left_at = ? WHERE user_id = ? AND left_at IS NULL")
-    .bind(now(), userId)
-    .run();
-  const next = await env.DB.prepare(
-    "SELECT user_id FROM memberships WHERE villa_id = ? AND left_at IS NULL ORDER BY joined_at ASC, rowid ASC LIMIT 1",
-  )
-    .bind(m.villaId)
-    .first<{ user_id: string }>();
-  if (!next) {
-    await env.DB.prepare("UPDATE villas SET dissolved_at = ?, penthouse_user_id = NULL WHERE id = ?")
-      .bind(now(), m.villaId)
-      .run();
-    return;
-  }
-  await env.DB.prepare("UPDATE villas SET owner_id = ? WHERE id = ? AND owner_id = ?")
-    .bind(next.user_id, m.villaId, userId)
-    .run();
+  const t = now();
+  const active = "SELECT user_id FROM memberships WHERE villa_id = ? AND left_at IS NULL";
+  // 한 트랜잭션: 나가기 → 방장 승계(남은 입주민 중 가장 먼저 입주한 사람) → 아무도 없으면 해체
+  await env.DB.batch([
+    env.DB.prepare("UPDATE memberships SET left_at = ? WHERE user_id = ? AND villa_id = ? AND left_at IS NULL").bind(t, userId, m.villaId),
+    env.DB.prepare(
+      `UPDATE villas SET owner_id = COALESCE((${active} ORDER BY joined_at ASC, rowid ASC LIMIT 1), owner_id)
+       WHERE id = ? AND owner_id = ?`,
+    ).bind(m.villaId, m.villaId, userId),
+    env.DB.prepare(
+      `UPDATE villas SET dissolved_at = ?, penthouse_user_id = NULL
+       WHERE id = ? AND dissolved_at IS NULL AND NOT EXISTS (${active})`,
+    ).bind(t, m.villaId, m.villaId),
+  ]);
   await recomputePenthouse(env, m.villaId);
 }
 

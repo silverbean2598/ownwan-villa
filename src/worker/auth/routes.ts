@@ -86,7 +86,8 @@ auth.post("/api/logout", async (c) => {
 auth.get("/api/me", requireUser, async (c) => {
   const u = await c.env.DB.prepare(
     `SELECT u.id, u.username, u.nickname, u.sport, u.avatar, u.points, u.streak,
-       (SELECT villa_id FROM memberships WHERE user_id = u.id AND left_at IS NULL) AS villaId
+       (SELECT m.villa_id FROM memberships m JOIN villas v ON v.id = m.villa_id
+         WHERE m.user_id = u.id AND m.left_at IS NULL AND v.dissolved_at IS NULL) AS villaId
      FROM users u WHERE u.id = ?`,
   )
     .bind(c.get("userId"))
