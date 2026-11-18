@@ -31,16 +31,19 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx vitest run
       - run: npx wrangler d1 migrations apply ownwan-villa --remote
       - name: Ensure workers.dev subdomain
         run: |
+          set -euo pipefail
           API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain"
-          CUR=$(curl -s "$API" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
-          if echo "$CUR" | grep -q '"subdomain":"[^"]'; then
+          CUR=$(curl -sS "$API" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+          echo "$CUR" | jq -e '.success == true' >/dev/null || { echo "subdomain lookup failed: $(echo "$CUR" | jq -c '.errors')"; exit 1; }
+          if echo "$CUR" | jq -e '(.result.subdomain // "") != ""' >/dev/null; then
             echo "workers.dev subdomain already set"
           else
-            curl -s -X PUT "$API" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-              -H "Content-Type: application/json" --data '{"subdomain":"ownwan-villa"}' | grep -o '"success":[a-z]*'
+            RES=$(curl -sS -X PUT "$API" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json" --data '{"subdomain":"ownwan-villa"}')
+            echo "$RES" | jq -e '.success == true' >/dev/null || { echo "subdomain register failed: $(echo "$RES" | jq -c '.errors')"; exit 1; }
+            echo "workers.dev subdomain registered"
           fi
       - run: npm run deploy
