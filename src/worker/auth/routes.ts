@@ -9,6 +9,8 @@ import { PASSWORD_LENGTH_MSG, hashPassword, isValidPasswordLength, needsRehash, 
 import { normalizeUsername } from "./username";
 import { LOCKED_MSG, isLocked, recordFailure, resetFailures } from "./lockout";
 import { createSession, endSession, requireUser, setSessionCookie } from "./session";
+import { CERTIFIED_PHOTO } from "../cert/certified";
+import { kstDay } from "../../shared/rules/day";
 
 export const auth = new Hono<AppEnv>();
 
@@ -84,15 +86,16 @@ auth.get("/api/me", requireUser, async (c) => {
   const u = await c.env.DB.prepare(
     `SELECT u.id, u.username, u.nickname, u.sport, u.avatar, u.points, u.streak,
        (SELECT m.villa_id FROM memberships m JOIN villas v ON v.id = m.villa_id
-         WHERE m.user_id = u.id AND m.left_at IS NULL AND v.dissolved_at IS NULL) AS villaId
+         WHERE m.user_id = u.id AND m.left_at IS NULL AND v.dissolved_at IS NULL) AS villaId,
+       EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ? AND ${CERTIFIED_PHOTO}) AS certifiedToday
      FROM users u WHERE u.id = ?`,
   )
-    .bind(c.get("userId"))
-    .first<{ avatar: string } & Record<string, unknown>>();
+    .bind(kstDay(now()), c.get("userId"))
+    .first<{ avatar: string; certifiedToday: number } & Record<string, unknown>>();
   if (!u) return jsonError(c, 401, "로그인이 필요해요");
   let stored: unknown = null;
   try {
     stored = JSON.parse(u.avatar);
   } catch {}
-  return c.json({ ...u, avatar: parseAvatar(stored) ?? DEFAULT_AVATAR });
+  return c.json({ ...u, avatar: parseAvatar(stored) ?? DEFAULT_AVATAR, certifiedToday: !!u.certifiedToday });
 });

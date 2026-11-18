@@ -4,6 +4,7 @@ import { CERTIFIED_PHOTO } from "../cert/certified";
 import { kstDay } from "../../shared/rules/day";
 import { displayFloor, displayStreak } from "../../shared/rules/streak";
 import { pickPenthouse } from "../../shared/rules/penthouse";
+import { logEvents } from "../events/log";
 
 export const MAX_MEMBERS = 10;
 
@@ -13,15 +14,16 @@ export function newInviteToken(): string {
 }
 
 export async function recomputePenthouse(env: Env, villaId: string): Promise<string | null> {
+  const prev = await env.DB.prepare("SELECT penthouse_user_id AS id FROM villas WHERE id = ?").bind(villaId).first<{ id: string | null }>();
   const { results } = await env.DB.prepare(
-    `SELECT m.user_id AS userId, m.floor, u.streak, m.floor_reached_at AS floorReachedAt,
+    `SELECT m.user_id AS userId, u.nickname, m.floor, u.streak, m.floor_reached_at AS floorReachedAt,
        EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ? AND ${CERTIFIED_PHOTO}) AS certifiedToday,
        (SELECT MIN(c.created_at) FROM certs c WHERE c.user_id = u.id AND c.day = ? AND ${CERTIFIED_PHOTO}) AS firstCertAt
      FROM memberships m JOIN users u ON u.id = m.user_id
      WHERE m.villa_id = ? AND m.left_at IS NULL`,
   )
     .bind(kstDay(now()), kstDay(now()), villaId)
-    .all<{ userId: string; floor: number; streak: number; floorReachedAt: number; certifiedToday: number; firstCertAt: number | null }>();
+    .all<{ userId: string; nickname: string; floor: number; streak: number; floorReachedAt: number; certifiedToday: number; firstCertAt: number | null }>();
   // 오늘 인증까지 친 연속 기록과 층(7일째면 바로 +1)으로 비교한다. 저장된 층은 자정 정산 때만 바뀐다
   const id = pickPenthouse(
     results.map((r) => {
@@ -32,7 +34,21 @@ export async function recomputePenthouse(env: Env, villaId: string): Promise<str
       return { userId: r.userId, floor, streak: displayStreak(r.streak, cert), floorReachedAt };
     }),
   );
-  await env.DB.prepare("UPDATE villas SET penthouse_user_id = ? WHERE id = ?").bind(id, villaId).run();
+  // 실제로 바뀐 경우에만 changes = 1 → 동시에 다시 계산해도 알림은 한 번
+  const res = await env.DB.prepare("UPDATE villas SET penthouse_user_id = ?1 WHERE id = ?2 AND penthouse_user_id IS NOT ?1")
+    .bind(id, villaId)
+    .run();
+  if (res.meta.changes === 1 && id) {
+    const prevId = prev?.id ?? null;
+    const holder = results.find((r) => r.userId === id)!;
+    await logEvents(env, [
+      { userId: id, type: "penthouse_in" },
+      // 빌라를 나간 전 1등에게는 알리지 않는다
+      ...(prevId && prevId !== id && results.some((r) => r.userId === prevId)
+        ? [{ userId: prevId, type: "penthouse_out" as const, payload: { nickname: holder.nickname, userId: id } }]
+        : []),
+    ]);
+  }
   return id;
 }
 

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { jsonError, requireUser } from "../http";
 import { findItem, isSlot, slotType } from "../../shared/catalog";
+import { logEvents } from "../events/log";
 
 export const shop = new Hono<AppEnv>();
 
@@ -40,6 +41,7 @@ shop.post("/api/shop/buy", requireUser, async (c) => {
     const owned = await c.env.DB.prepare("SELECT 1 FROM inventory WHERE user_id = ? AND item_id = ?").bind(userId, item.id).first();
     return owned ? jsonError(c, 409, "이미 갖고 있는 가구예요") : jsonError(c, 400, "포인트가 모자라요");
   }
+  await logEvents(c.env, [{ userId, type: "bought", payload: { itemId: item.id, itemName: item.name }, key: `bought:${userId}:${item.id}` }]);
   const row = await c.env.DB.prepare("SELECT points FROM users WHERE id = ?").bind(userId).first<{ points: number }>();
   return c.json({ points: row!.points });
 });

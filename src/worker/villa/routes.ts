@@ -8,6 +8,7 @@ import { kstDay } from "../../shared/rules/day";
 import { displayFloor } from "../../shared/rules/streak";
 import { MAX_MEMBERS, NotInVillaError, leaveVilla, newInviteToken, recomputePenthouse } from "./service";
 import { CERTIFIED_PHOTO } from "../cert/certified";
+import { logEvents } from "../events/log";
 
 export const villa = new Hono<AppEnv>();
 
@@ -37,12 +38,13 @@ villa.post("/api/villas", requireUser, async (c) => {
   const id = crypto.randomUUID();
   const inviteToken = newInviteToken();
   const t = now();
+  const membershipId = crypto.randomUUID();
   try {
     await c.env.DB.batch([
       // 이미 빌라에 살면 one_active_villa 위반으로 전체가 취소된다
       c.env.DB.prepare(
         "INSERT INTO memberships (id, user_id, villa_id, floor, floor_reached_at, joined_at) VALUES (?, ?, ?, 1, ?, ?)",
-      ).bind(crypto.randomUUID(), userId, id, t, t),
+      ).bind(membershipId, userId, id, t, t),
       c.env.DB.prepare(
         "INSERT INTO villas (id, name, owner_id, invite_token, penthouse_user_id, created_at) VALUES (?, ?, ?, ?, ?, ?)",
       ).bind(id, name, userId, inviteToken, userId, t),
@@ -51,6 +53,7 @@ villa.post("/api/villas", requireUser, async (c) => {
     if (isUnique(e)) return jsonError(c, 409, IN_VILLA);
     throw e;
   }
+  await logEvents(c.env, [{ userId, type: "welcome", payload: { villaName: name }, key: `welcome:${membershipId}` }]);
   return c.json({ id, inviteToken }, 201);
 });
 
@@ -169,6 +172,7 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
   if (mine === v.id) return c.json({ ok: true, alreadyMember: true });
   if (mine) return jsonError(c, 409, IN_VILLA);
   const t = now();
+  const membershipId = crypto.randomUUID();
   let changes = 0;
   try {
     const res = await c.env.DB.prepare(
@@ -176,7 +180,7 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
        SELECT ?, ?, ?, 1, ?, ? WHERE (SELECT COUNT(*) FROM memberships WHERE villa_id = ? AND left_at IS NULL) < ?
          AND EXISTS (SELECT 1 FROM villas WHERE id = ? AND dissolved_at IS NULL)`,
     )
-      .bind(crypto.randomUUID(), userId, v.id, t, t, v.id, MAX_MEMBERS, v.id)
+      .bind(membershipId, userId, v.id, t, t, v.id, MAX_MEMBERS, v.id)
       .run();
     changes = res.meta.changes;
   } catch (e) {
@@ -187,6 +191,27 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
     const alive = await c.env.DB.prepare("SELECT 1 AS x FROM villas WHERE id = ? AND dissolved_at IS NULL").bind(v.id).first();
     return alive ? jsonError(c, 409, "빌라가 꽉 찼어요") : jsonError(c, 404, EXPIRED);
   }
+  await logJoinEvents(c.env, userId, v.id, membershipId).catch((e) => console.error("join events failed", e));
   await recomputePenthouse(c.env, v.id);
   return c.json({ ok: true });
 });
+
+/** 입주 알림: 들어온 사람에게 welcome, 원래 살던 입주민 모두에게 friend_joined (입주 한 번당 한 번) */
+async function logJoinEvents(env: AppEnv["Bindings"], userId: string, villaId: string, membershipId: string) {
+  const [villaRow, me, others] = await env.DB.batch([
+    env.DB.prepare("SELECT name FROM villas WHERE id = ?").bind(villaId),
+    env.DB.prepare("SELECT nickname, avatar FROM users WHERE id = ?").bind(userId),
+    env.DB.prepare("SELECT user_id AS userId FROM memberships WHERE villa_id = ? AND left_at IS NULL AND user_id != ?").bind(villaId, userId),
+  ]);
+  const name = (villaRow.results[0] as { name: string } | undefined)?.name ?? "";
+  const u = me.results[0] as { nickname: string; avatar: string } | undefined;
+  await logEvents(env, [
+    { userId, type: "welcome", payload: { villaName: name }, key: `welcome:${membershipId}` },
+    ...(others.results as { userId: string }[]).map((o) => ({
+      userId: o.userId,
+      type: "friend_joined" as const,
+      payload: { nickname: u?.nickname ?? "", avatar: safeAvatar(u?.avatar ?? "") },
+      key: `friend_joined:${membershipId}:${o.userId}`,
+    })),
+  ]);
+}

@@ -4,6 +4,7 @@ import { settleDay } from "../../shared/rules/floor";
 import { nextDay } from "../../shared/rules/day";
 import { recomputePenthouse } from "../villa/service";
 import { CERTIFIED_PHOTO } from "../cert/certified";
+import { logEvents, type NewEvent } from "../events/log";
 
 type Row = {
   id: string;
@@ -84,6 +85,7 @@ export async function applySettlement(env: Env, day: string): Promise<boolean> {
        ON CONFLICT(key) DO UPDATE SET value = excluded.value WHERE substr(settings.value, 1, 10) < ?`,
     ).bind(token, day),
   ];
+  const downs: NewEvent[] = [];
   for (const r of results) {
     const { next, floorChanged } = settleDay({ streak: r.streak, missRun: r.missRun, floor: r.floor }, !!r.certified);
     stmts.push(
@@ -93,10 +95,15 @@ export async function applySettlement(env: Env, day: string): Promise<boolean> {
       stmts.push(
         env.DB.prepare(`UPDATE memberships SET floor = ?, floor_reached_at = ? WHERE id = ? AND ${guard}`).bind(next.floor, t, r.membershipId, token),
       );
+      if (floorChanged === "down") {
+        downs.push({ userId: r.id, type: "floor_down", payload: { floor: next.floor }, key: `floor_down:${r.membershipId}:${day}` });
+      }
     }
   }
   await env.DB.batch(stmts);
 
   const won = await env.DB.prepare("SELECT value FROM settings WHERE key = 'last_settled_day'").first<{ value: string }>();
+  // 이 날짜를 선점해 실제로 층을 내린 경우에만 알린다
+  if (won?.value === token) await logEvents(env, downs);
   return won?.value === token;
 }

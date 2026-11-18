@@ -5,6 +5,8 @@ import { jsonError, requireUser } from "../http";
 import { deletePhotoBlob, getPhotoBlob, putPhotoBlob } from "../storage";
 import { CERTIFIED_PHOTO } from "./certified";
 import { recomputeUserPenthouse } from "../villa/service";
+import { logEvents, type NewEvent } from "../events/log";
+import { displayFloor, displayStreak } from "../../shared/rules/streak";
 import { kstDay } from "../../shared/rules/day";
 import { DUPLICATE_HAMMING, hamming } from "../../shared/rules/dhash";
 import { photoPoints, routinePoints } from "../../shared/rules/points";
@@ -89,9 +91,45 @@ cert.post("/api/certs/photo", requireUser, async (c) => {
   )
     .bind(userId, day)
     .first();
+  const evs = await certEvents(c.env, userId, day, row!.points, !!duplicate, !!today).catch((e) => {
+    console.error("cert events failed", e);
+    return [];
+  });
+  await logEvents(c.env, evs);
   if (today) await recomputeUserPenthouse(c.env, userId);
   return c.json({ certId: id, points: row!.points, duplicate: !!duplicate, certifiedToday: !!today });
 });
+
+/**
+ * 사진 인증 뒤 알림: 그날 첫 인증(certified), 연속 6일째(streak6), 7의 배수(빌라에 살면 floor_up 하나, 아니면 streak7).
+ * 키를 날짜로 고정해 하루 한 번만 남는다 (같은 날 두 번째 사진 · 지웠다 다시 올린 사진에는 다시 생기지 않는다).
+ */
+async function certEvents(env: Env, userId: string, day: string, points: number, duplicate: boolean, certifiedToday: boolean): Promise<NewEvent[]> {
+  const evs: NewEvent[] = [];
+  if (!duplicate) evs.push({ userId, type: "certified", payload: { points }, key: `certified:${userId}:${day}` });
+  if (!certifiedToday) return evs;
+  const u = await env.DB.prepare(
+    `SELECT u.streak,
+       (SELECT m.floor FROM memberships m JOIN villas v ON v.id = m.villa_id
+         WHERE m.user_id = u.id AND m.left_at IS NULL AND v.dissolved_at IS NULL) AS floor
+     FROM users u WHERE u.id = ?`,
+  )
+    .bind(userId)
+    .first<{ streak: number; floor: number | null }>();
+  if (!u) return evs;
+  const streak = displayStreak(u.streak, true);
+  const key = `streak:${userId}:${day}`;
+  if (streak % 7 === 0) {
+    evs.push(
+      u.floor !== null
+        ? { userId, type: "floor_up", payload: { floor: displayFloor(u.floor, u.streak, true), streak }, key }
+        : { userId, type: "streak7", payload: { streak }, key },
+    );
+  } else if (streak % 7 === 6) {
+    evs.push({ userId, type: "streak6", payload: { streak }, key });
+  }
+  return evs;
+}
 
 cert.post("/api/certs/routine", requireUser, async (c) => {
   const userId = c.get("userId");

@@ -8,6 +8,7 @@ import { cert } from "./cert/routes";
 import { shop } from "./shop/routes";
 import { report } from "./report/routes";
 import { badges } from "./badges/routes";
+import { events } from "./events/routes";
 import { settleThrough } from "./cron/settle";
 import { now } from "./clock";
 import { kstDay } from "../shared/rules/day";
@@ -24,6 +25,7 @@ app.route("/", cert);
 app.route("/", shop);
 app.route("/", report);
 app.route("/", badges);
+app.route("/", events);
 
 // 자정(KST) 정산: 방금 끝난 날까지, 밀린 날이 있으면 함께 정산한다.
 // 끝까지 기다려 실패가 실행 결과(Workers Logs)에 그대로 드러나게 한다.

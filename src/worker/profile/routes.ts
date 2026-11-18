@@ -85,6 +85,7 @@ profile.delete("/api/me", requireUser, async (c) => {
     q("DELETE FROM placements WHERE user_id = ?"),
     q("DELETE FROM sessions WHERE user_id = ?"),
     q("DELETE FROM recovery_requests WHERE user_id = ?"),
+    q("DELETE FROM events WHERE user_id = ?"),
     q("DELETE FROM memberships WHERE user_id = ?"),
     q("DELETE FROM users WHERE id = ?"),
   ]);
