@@ -175,7 +175,7 @@ describe("lockout and session edges", () => {
   });
 
   it("hash_format_and_legacy_iterations_verify", async () => {
-    expect(await hashPassword("password1")).toMatch(/^pbkdf2\$20000\$/);
+    expect(await hashPassword("password1")).toMatch(/^pbkdf2\$10000\$/);
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const key = await crypto.subtle.importKey("raw", new TextEncoder().encode("password1"), "PBKDF2", false, ["deriveBits"]);
     const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 1000 }, key, 256);
@@ -188,21 +188,23 @@ describe("lockout and session edges", () => {
   it("login_rehashes_old_iteration_count", async () => {
     const body = valid();
     await post("/api/signup", body);
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode("password1"), "PBKDF2", false, ["deriveBits"]);
-    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 100000 }, key, 256);
     const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
-    const old = `pbkdf2$100000$${b64(salt)}$${b64(new Uint8Array(bits))}`;
     const setHash = (h: string) => env.DB.prepare("UPDATE users SET password_hash = ? WHERE username = ?").bind(h, body.username).run();
     const getHash = async () =>
       (await env.DB.prepare("SELECT password_hash AS h FROM users WHERE username = ?").bind(body.username).first<{ h: string }>())!.h;
-    await setHash(old);
-    expect((await post("/api/login", { username: body.username, password: "password1" })).status).toBe(200);
-    expect(await getHash()).toMatch(/^pbkdf2\$20000\$/);
-    expect((await post("/api/login", { username: body.username, password: "password1" })).status).toBe(200);
-    // 실패한 로그인은 다시 해시하지 않는다
-    await setHash(old);
-    expect((await post("/api/login", { username: body.username, password: "wrongpass" })).status).toBe(401);
-    expect(await getHash()).toBe(old);
+    for (const iterations of [100000, 20000]) {
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const key = await crypto.subtle.importKey("raw", new TextEncoder().encode("password1"), "PBKDF2", false, ["deriveBits"]);
+      const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, 256);
+      const old = `pbkdf2$${iterations}$${b64(salt)}$${b64(new Uint8Array(bits))}`;
+      await setHash(old);
+      expect((await post("/api/login", { username: body.username, password: "password1" })).status).toBe(200);
+      expect(await getHash()).toMatch(/^pbkdf2\$10000\$/);
+      expect((await post("/api/login", { username: body.username, password: "password1" })).status).toBe(200);
+      // 실패한 로그인은 다시 해시하지 않는다
+      await setHash(old);
+      expect((await post("/api/login", { username: body.username, password: "wrongpass" })).status).toBe(401);
+      expect(await getHash()).toBe(old);
+    }
   });
 });
