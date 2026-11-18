@@ -62,6 +62,7 @@ export function Recover() {
         <div className="row" style={{ flexDirection: "column", gap: 12 }}>
           <button className="btn" type="button" onClick={() => go("code")}>복구 코드로 되찾기</button>
           <button className="btn ghost" type="button" onClick={() => go("request")}>복구 코드도 없어요</button>
+          <button className="btn ghost" type="button" onClick={() => go("complete")}>요청 번호가 있어요</button>
         </div>
         <p className="muted" style={{ marginTop: 20 }}><Link to="/login">로그인으로 돌아가기</Link></p>
       </main>

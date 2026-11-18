@@ -138,14 +138,37 @@ describe("approver", () => {
     expect(await r2.json()).toEqual({ error: "아이디를 확인해 주세요" });
   });
 
-  it("new_request_cancels_previous_open_one", async () => {
+  it("new_request_rules", async () => {
     const owner = await signup();
     const member = await signup();
     await villa(owner, [{ u: member, joinedAt: 5 }]);
+    const t0 = Date.now();
+    setNow(() => t0);
     const first = (await (await post("/api/recover/request", { username: member.username })).json()) as { ticket: string };
-    await post("/api/recover/request", { username: member.username });
+    setNow(() => t0 + 30 * 60 * 1000);
+    const soon = await post("/api/recover/request", { username: member.username });
+    expect(soon.status).toBe(429);
+    expect(await soon.json()).toEqual({ error: "방금 요청했어요. 1시간 뒤에 다시 요청해 주세요" });
+    setNow(() => t0 + 61 * 60 * 1000);
+    expect((await post("/api/recover/request", { username: member.username })).status).toBe(201);
     expect(await status(member.id)).toEqual(["pending", "cancelled"]);
     expect((await post("/api/recover/complete", { username: member.username, ticket: first.ticket, newPassword: "newpassword1" })).status).toBe(400);
+  });
+
+  it("request_blocked_while_approved", async () => {
+    const owner = await signup();
+    const member = await signup();
+    await villa(owner, [{ u: member, joinedAt: 5 }]);
+    const t0 = Date.now();
+    setNow(() => t0);
+    await post("/api/recover/request", { username: member.username });
+    const id = (await env.DB.prepare("SELECT id FROM recovery_requests WHERE user_id = ?").bind(member.id).first<{ id: string }>())!.id;
+    await post(`/api/recover/${id}/approve`, {}, owner.cookie);
+    setNow(() => t0 + 5 * DAY);
+    const res = await post("/api/recover/request", { username: member.username });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "이미 승인된 요청이 있어요. 요청 번호로 비밀번호를 바꿔 주세요" });
+    expect(await status(member.id)).toEqual(["approved"]);
   });
 });
 
@@ -232,5 +255,53 @@ describe("approve and complete", () => {
     expect(await status(member.id)).toEqual(["cancelled"]);
     setNow(() => Date.now() + 2 * DAY);
     expect((await post("/api/recover/complete", { username: member.username, ticket, newPassword: "newpassword1" })).status).toBe(400);
+  });
+
+  it("code_recovery_cancels_attackers_approved_request", async () => {
+    const { owner, member, ticket, id } = await setup();
+    const t0 = Date.now();
+    setNow(() => t0);
+    await post(`/api/recover/${id}/approve`, {}, owner.cookie);
+    await post("/api/recover/code", { username: member.username, code: member.recoveryCode, newPassword: "victimpass1" });
+    expect(await status(member.id)).toEqual(["cancelled"]);
+    setNow(() => t0 + 2 * DAY);
+    expect((await post("/api/recover/complete", { username: member.username, ticket, newPassword: "attacker123" })).status).toBe(400);
+    expect((await post("/api/login", { username: member.username, password: "victimpass1" })).status).toBe(200);
+  });
+
+  it("reissue_cancels_open_requests", async () => {
+    const { member } = await setup();
+    await post("/api/recovery-code/reissue", {}, member.cookie);
+    expect(await status(member.id)).toEqual(["cancelled"]);
+  });
+
+  async function leave(u: U) {
+    await env.DB.prepare("UPDATE memberships SET left_at = 100 WHERE user_id = ? AND left_at IS NULL").bind(u.id).run();
+  }
+
+  it("former_owner_cannot_approve_new_owner_can", async () => {
+    const { owner, member, other, id } = await setup();
+    // owner leaves; oldest remaining member (member, joined 5) becomes owner -> requester is the owner, approver is oldest other (other)
+    await leave(owner);
+    await env.DB.prepare("UPDATE villas SET owner_id = ? WHERE owner_id = ?").bind(other.id, owner.id).run();
+    expect((await post(`/api/recover/${id}/approve`, {}, owner.cookie)).status).toBe(403);
+    expect(await (await get("/api/recover/pending", owner.cookie)).json()).toEqual([]);
+    const list = (await (await get("/api/recover/pending", other.cookie)).json()) as Array<{ id: string }>;
+    expect(list.map((r) => r.id)).toEqual([id]);
+    expect((await post(`/api/recover/${id}/approve`, {}, other.cookie)).status).toBe(200);
+    void member;
+  });
+
+  it("requester_who_left_cannot_complete", async () => {
+    const { owner, member, ticket, id } = await setup();
+    const t0 = Date.now();
+    setNow(() => t0);
+    await post(`/api/recover/${id}/approve`, {}, owner.cookie);
+    await leave(member);
+    setNow(() => t0 + 2 * DAY);
+    const res = await post("/api/recover/complete", { username: member.username, ticket, newPassword: "newpassword1" });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "빌라를 옮겨서 요청이 취소됐어요. 다시 요청해 주세요" });
+    expect(await status(member.id)).toEqual(["cancelled"]);
   });
 });
