@@ -5,3 +5,7 @@
 - base-character / hair-and-shirts / poses : 캐릭터 · 꾸미기 · 운동 동작 (1차 반영)
 - rooms-lit-unlit / penthouse : 방 · 펜트하우스 (1차 반영)
 - expressions / celebrations : 표정 12종 · 축하 장면 6종 (축하·알림 화면 보완 작업용)
+- empty-states : 빈 화면 일러스트 6종
+- icons : UI 아이콘 24종
+- hair-outfits-accessories : 머리 6종 · 옷 6종 · 소품 6종 (꾸미기 확장)
+- furniture-extra : 추가 가구 24종
