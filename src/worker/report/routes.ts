@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { jsonError, requireUser } from "../http";
-import { canView } from "../cert/routes";
+import { canView, isVillaOwnerOf } from "../cert/routes";
 import { recomputeUserPenthouse } from "../villa/service";
 import { deletePhotoBlob } from "../storage";
+import { cheerCleanupForCert } from "../cheer/routes";
 
 export const report = new Hono<AppEnv>();
 
@@ -41,22 +42,15 @@ report.delete("/api/certs/:id", requireUser, async (c) => {
   const viewerId = c.get("userId");
   const cert = await findCert(c.env, c.req.param("id"));
   if (!cert || cert.deleted) return jsonError(c, 404, notFound(cert));
-  if (cert.user_id !== viewerId) {
-    // 작성자가 지금 사는 빌라의 방장이어야 한다 (방장 본인도 그 빌라 입주민)
-    const row = await c.env.DB.prepare(
-      `SELECT 1 AS ok FROM memberships m
-       JOIN villas v ON v.id = m.villa_id AND v.dissolved_at IS NULL AND v.owner_id = ?1
-       WHERE m.user_id = ?2 AND m.left_at IS NULL
-         AND EXISTS (SELECT 1 FROM memberships o WHERE o.villa_id = m.villa_id AND o.user_id = ?1 AND o.left_at IS NULL)`,
-    )
-      .bind(viewerId, cert.user_id)
-      .first();
-    if (!row) return jsonError(c, 403, "지울 수 있는 권한이 없어요");
+  // 작성자 본인이거나, 작성자가 지금 사는 빌라의 방장이어야 한다 (방장 본인도 그 빌라 입주민)
+  if (cert.user_id !== viewerId && !(await isVillaOwnerOf(c.env, viewerId, cert.user_id))) {
+    return jsonError(c, 403, "지울 수 있는 권한이 없어요");
   }
   await deletePhotoBlob(c.env, cert);
-  // 소프트 삭제: 사진 파일 · 글 내용 · 신고는 지우고 행은 남긴다 (같은 날 순번 · 루틴 1회 · 중복 판정에 계속 쓰인다)
+  // 소프트 삭제: 사진 파일 · 글 내용 · 신고 · 응원 · 댓글은 지우고 행은 남긴다 (같은 날 순번 · 루틴 1회 · 중복 판정에 계속 쓰인다)
   await c.env.DB.batch([
     c.env.DB.prepare("DELETE FROM reports WHERE cert_id = ?").bind(cert.id),
+    ...cheerCleanupForCert(c.env, cert.id),
     c.env.DB.prepare("UPDATE certs SET deleted = 1, body = NULL WHERE id = ?").bind(cert.id),
   ]);
   if (cert.kind === "photo") await recomputeUserPenthouse(c.env, cert.user_id);

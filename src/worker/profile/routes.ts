@@ -11,6 +11,7 @@ import { hashToken } from "../recovery/codes";
 import { LOCKED_MSG, isLocked, recordFailure, resetFailures } from "../auth/lockout";
 import { deletePhotoBlobs } from "../storage";
 import { NotInVillaError, leaveVilla } from "../villa/service";
+import { cheerCleanupForUser } from "../cheer/routes";
 
 export const profile = new Hono<AppEnv>();
 
@@ -90,6 +91,7 @@ profile.delete("/api/me", requireUser, async (c) => {
   const q = (sql: string) => c.env.DB.prepare(sql).bind(userId);
   await c.env.DB.batch([
     c.env.DB.prepare("DELETE FROM reports WHERE reporter_id = ? OR cert_id IN (SELECT id FROM certs WHERE user_id = ?)").bind(userId, userId),
+    ...cheerCleanupForUser(c.env, userId),
     q("DELETE FROM certs WHERE user_id = ?"),
     q("DELETE FROM inventory WHERE user_id = ?"),
     q("DELETE FROM placements WHERE user_id = ?"),

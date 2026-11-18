@@ -15,7 +15,7 @@ import { logEvents } from "../events/log";
 
 export const villa = new Hono<AppEnv>();
 
-function safeAvatar(raw: string) {
+export function safeAvatar(raw: string) {
   try {
     return parseAvatar(JSON.parse(raw)) ?? DEFAULT_AVATAR;
   } catch {

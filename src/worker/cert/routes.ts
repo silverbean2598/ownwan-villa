@@ -30,6 +30,19 @@ export async function canView(env: Env, viewerId: string, ownerId: string): Prom
   return !!row;
 }
 
+/** viewer 가 owner 가 지금 사는 (해산되지 않은) 빌라의 방장이고, 그 빌라에 함께 사는지 */
+export async function isVillaOwnerOf(env: Env, viewerId: string, ownerId: string): Promise<boolean> {
+  const row = await env.DB.prepare(
+    `SELECT 1 AS ok FROM memberships m
+     JOIN villas v ON v.id = m.villa_id AND v.dissolved_at IS NULL AND v.owner_id = ?1
+     WHERE m.user_id = ?2 AND m.left_at IS NULL
+       AND EXISTS (SELECT 1 FROM memberships o WHERE o.villa_id = m.villa_id AND o.user_id = ?1 AND o.left_at IS NULL)`,
+  )
+    .bind(viewerId, ownerId)
+    .first();
+  return !!row;
+}
+
 // 사진 포인트: 그날 중복 아닌 사진 순번을 INSERT 안에서 세어 한 문장으로 결정한다 (경쟁 상태 방지)
 // 지운 사진(deleted = 1)도 순번에 센다: 지우고 다시 올려 포인트를 또 받지 못하게
 // (루틴 하루 1회 판정과 중복 사진 판정도 같은 이유로 지운 기록을 포함한다)
@@ -153,13 +166,21 @@ cert.get("/api/users/:id/board", requireUser, async (c) => {
   const before = Number(c.req.query("before"));
   const lim = Number(c.req.query("limit"));
   const limit = Number.isInteger(lim) && lim >= 1 ? Math.min(lim, 50) : 20;
+  // 응원 · 댓글 수도 같은 쿼리에서 센다. 가려진 기록은 0
   const { results } = await c.env.DB.prepare(
-    `SELECT id, kind, day, body, hidden, created_at AS createdAt FROM certs
-     WHERE user_id = ? AND duplicate = 0 AND deleted = 0 AND created_at < ?
-     ORDER BY created_at DESC, rowid DESC LIMIT ?`,
+    `SELECT id, kind, day, body, hidden, created_at AS createdAt,
+       CASE WHEN hidden THEN 0 ELSE (SELECT COUNT(*) FROM cheers WHERE cert_id = certs.id) END AS cheerCount,
+       CASE WHEN hidden THEN 0 ELSE EXISTS (SELECT 1 FROM cheers WHERE cert_id = certs.id AND user_id = ?4) END AS cheeredByMe,
+       CASE WHEN hidden THEN 0 ELSE (SELECT COUNT(*) FROM comments WHERE cert_id = certs.id) END AS commentCount
+     FROM certs
+     WHERE user_id = ?1 AND duplicate = 0 AND deleted = 0 AND created_at < ?2
+     ORDER BY created_at DESC, rowid DESC LIMIT ?3`,
   )
-    .bind(ownerId, Number.isFinite(before) && c.req.query("before") ? before : Number.MAX_SAFE_INTEGER, limit)
-    .all<{ id: string; kind: string; day: string; body: string | null; hidden: number; createdAt: number }>();
+    .bind(ownerId, Number.isFinite(before) && c.req.query("before") ? before : Number.MAX_SAFE_INTEGER, limit, c.get("userId"))
+    .all<{
+      id: string; kind: string; day: string; body: string | null; hidden: number; createdAt: number;
+      cheerCount: number; cheeredByMe: number; commentCount: number;
+    }>();
   return c.json(
     results.map((r) => ({
       id: r.id,
@@ -167,6 +188,9 @@ cert.get("/api/users/:id/board", requireUser, async (c) => {
       day: r.day,
       hidden: !!r.hidden,
       createdAt: r.createdAt,
+      cheerCount: r.cheerCount,
+      cheeredByMe: !!r.cheeredByMe,
+      commentCount: r.commentCount,
       // 가려진 글은 내용을 내보내지 않는다
       ...(r.hidden ? {} : r.kind === "routine" ? { body: r.body } : { photoUrl: `/api/photos/${r.id}` }),
     })),

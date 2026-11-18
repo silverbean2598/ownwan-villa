@@ -237,7 +237,9 @@ describe("board and photos", () => {
     expect(text).not.toContain("photoUrl");
     const items = JSON.parse(text);
     expect(items).toHaveLength(2);
-    expect(Object.keys(items[0]).sort()).toEqual(["createdAt", "day", "hidden", "id", "kind"]);
+    // 가려진 기록은 내용 없이, 응원 · 댓글 수는 0으로
+    expect(Object.keys(items[0]).sort()).toEqual(["cheerCount", "cheeredByMe", "commentCount", "createdAt", "day", "hidden", "id", "kind"]);
+    expect(items[0]).toMatchObject({ cheerCount: 0, cheeredByMe: false, commentCount: 0 });
   });
 
   it("hidden_photo_is_404", async () => {
