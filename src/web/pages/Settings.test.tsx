@@ -26,6 +26,7 @@ let calls: { path: string; method: string; body?: unknown }[];
 
 function mockApi(ownerId: string, bans: unknown[] = []) {
   calls = [];
+  let owner = ownerId;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
@@ -33,7 +34,8 @@ function mockApi(ownerId: string, bans: unknown[] = []) {
       calls.push({ path, method, body: init?.body ? JSON.parse(String(init.body)) : undefined });
       const body = (data: unknown) => new Response(JSON.stringify(data), { status: 200 });
       if (path === "/api/me") return body(ME);
-      if (path === "/api/villas/mine") return body(villa(ownerId));
+      if (path === "/api/villas/mine") return body(villa(owner));
+      if (path === "/api/villas/v1/transfer") owner = "b";
       if (path === "/api/recover/pending") return body([]);
       if (path === "/api/shop") return body({ owned: [] });
       if (path === "/api/villas/v1/bans" && method === "GET") return body(bans);
@@ -118,6 +120,9 @@ describe("Settings 입주민 관리", () => {
     await click(button("넘기기", dialog()!));
     expect(calls).toContainEqual({ path: "/api/villas/v1/transfer", method: "POST", body: { userId: "b" } });
     expect(calls.filter((c) => c.path === "/api/villas/mine").length).toBeGreaterThan(before);
+    // 이제 방장이 아니라 입주민 관리는 사라지고, 넘겼다는 안내는 남는다
+    expect(headings()).not.toContain("입주민 관리");
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("비비 님에게 방장을 넘겼어요");
   });
 
   it("dissolve_needs_exact_name", async () => {

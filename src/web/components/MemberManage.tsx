@@ -40,14 +40,15 @@ function Confirm({ label, children, onCancel }: { label: string; children: React
 
 /**
  * 설정 → 방장 → 입주민 관리: 내보내기 · 방장 넘기기 · 내보낸 사람 다시 받기 · 빌라 해체.
- * onChanged: 입주민 · 방장이 바뀌었으니 빌라 정보를 다시 불러온다. onDissolved: 해체된 뒤.
+ * onChanged: 입주민이 바뀌었으니 빌라 정보를 다시 불러온다. onTransferred: 방장을 넘긴 뒤. onDissolved: 해체된 뒤.
  */
 export function MemberManage({
-  villa, meId, onChanged, onDissolved, onAuthLost,
+  villa, meId, onChanged, onTransferred, onDissolved, onAuthLost,
 }: {
   villa: { id: string; name: string; ownerId: string; members: Member[] };
   meId: string;
   onChanged: () => Promise<void>;
+  onTransferred: (nickname: string) => Promise<void>;
   onDissolved: () => void;
   onAuthLost: () => void;
 }) {
@@ -90,10 +91,11 @@ export function MemberManage({
       await onChanged();
       await loadBans();
     });
+  // 넘기면 나는 방장이 아니라 이 화면이 사라지므로 안내는 설정 화면(onTransferred)이 띄운다
   const transfer = (m: Member) =>
-    act(`${m.nickname} 님에게 방장을 넘겼어요`, async () => {
+    act("", async () => {
       await api(`/api/villas/${villa.id}/transfer`, { method: "POST", body: JSON.stringify({ userId: m.userId }) });
-      await onChanged();
+      await onTransferred(m.nickname);
     });
   const unban = (b: Ban) =>
     act(`${b.nickname} 님이 다시 입주할 수 있어요`, async () => {

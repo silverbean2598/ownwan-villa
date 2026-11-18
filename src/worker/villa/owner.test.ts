@@ -129,6 +129,81 @@ describe("내보내기 (kick)", () => {
   });
 });
 
+describe("동시에 일어날 때", () => {
+  const ownerOk = async (vid: string) => {
+    const o = (await villaRow(vid))!.owner_id;
+    expect(await activeIds(vid)).toContain(o);
+    return o;
+  };
+
+  it("kick_B_while_transferring_to_B", async () => {
+    // 순서를 정해 두고(넘기기 먼저) 내보내기가 실패해도 방장이 몰래 바뀌지 않는다
+    const { owner, b, c, id } = await villaOf3();
+    expect((await transfer(owner, id, b)).status).toBe(200);
+    expect((await kick(owner, id, b)).status).toBe(403);
+    expect(await ownerOk(id)).toBe(b.id);
+    expect(await activeIds(id)).toEqual([owner.id, b.id, c.id].sort());
+    expect(await banned(id, b.id)).toBe(false);
+    expect(await ofType(b, "kicked")).toHaveLength(0);
+    // 화면 검사를 지난 뒤 넘기기가 끝난 경우 (service 를 바로 부른다)
+    const { kickMember, NotOwnerError } = await import("./service");
+    await expect(kickMember(env, id, owner.id, b.id)).rejects.toBeInstanceOf(NotOwnerError);
+    expect(await ownerOk(id)).toBe(b.id);
+    expect(await activeIds(id)).toEqual([owner.id, b.id, c.id].sort());
+    expect(await banned(id, b.id)).toBe(false);
+  });
+
+  it("kick_B_and_transfer_to_B_in_parallel", async () => {
+    for (let i = 0; i < 5; i++) {
+      const { owner, b, id } = await villaOf3();
+      const [k, t] = await Promise.all([kick(owner, id, b), transfer(owner, id, b)]);
+      const o = await ownerOk(id);
+      const bActive = (await activeIds(id)).includes(b.id);
+      const kicked = await ofType(b, "kicked");
+      const ownerIn = await ofType(b, "owner_in");
+      if (k.status === 200) {
+        // 내보내기가 이겼다: B는 나갔고 금지, 넘기기는 실패, 방장은 그대로
+        expect(t.status).toBe(404);
+        expect(o).toBe(owner.id);
+        expect(bActive).toBe(false);
+        expect(await banned(id, b.id)).toBe(true);
+        expect(kicked).toHaveLength(1);
+        expect(ownerIn).toHaveLength(0);
+      } else {
+        // 넘기기가 이겼다: B가 방장, 내보내기는 실패, 금지 없음
+        expect(t.status).toBe(200);
+        expect(k.status).toBe(403);
+        expect(o).toBe(b.id);
+        expect(bActive).toBe(true);
+        expect(await banned(id, b.id)).toBe(false);
+        expect(kicked).toHaveLength(0);
+        expect(ownerIn).toHaveLength(1);
+      }
+    }
+  });
+
+  it("kick_B_while_B_leaves", async () => {
+    for (let i = 0; i < 5; i++) {
+      const { owner, b, id } = await villaOf3();
+      const [k, l] = await Promise.all([kick(owner, id, b), send("POST", "/api/villas/leave", undefined, b.cookie)]);
+      expect(await ownerOk(id)).toBe(owner.id);
+      expect(await activeIds(id)).not.toContain(b.id);
+      const kicked = await ofType(b, "kicked");
+      if (k.status === 200) {
+        expect(l.status).toBe(409);
+        expect(await banned(id, b.id)).toBe(true);
+        expect(kicked).toHaveLength(1);
+      } else {
+        // 먼저 나갔으면 금지도 알림도 남지 않는다
+        expect(k.status).toBe(404);
+        expect(l.status).toBe(200);
+        expect(await banned(id, b.id)).toBe(false);
+        expect(kicked).toHaveLength(0);
+      }
+    }
+  });
+});
+
 describe("내보낸 사람 입주 막기", () => {
   it("banned_user_cannot_join_or_preview", async () => {
     const { owner, b, id, inviteToken } = await villaOf3();

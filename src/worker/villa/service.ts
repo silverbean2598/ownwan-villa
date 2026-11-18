@@ -66,6 +66,8 @@ export async function recomputeUserPenthouse(env: Env, userId: string): Promise<
 
 /** 지금 사는 입주민 (나가기 · 승계 · 해체 판단에 쓴다) */
 const ACTIVE = "SELECT user_id FROM memberships WHERE villa_id = ? AND left_at IS NULL";
+/** 이 사람이 아직 이 빌라에 산다 (?, ? = villaId, userId) */
+const STILL_IN = "SELECT 1 FROM memberships WHERE villa_id = ? AND user_id = ? AND left_at IS NULL";
 
 /**
  * 한 사람이 빌라를 떠나는 문장들 (한 batch 안에서 쓴다): 나가기 → 방장 승계(남은 입주민 중 가장 먼저 입주한 사람)
@@ -76,14 +78,15 @@ function leaveStatements(env: Env, villaId: string, userId: string, t: number, g
     env.DB.prepare(`UPDATE memberships SET left_at = ? WHERE user_id = ? AND villa_id = ? AND left_at IS NULL${guard}`).bind(
       t, userId, villaId, ...guardArgs,
     ),
+    // 승계 · 해체는 이 사람이 실제로 나갔을 때만 (guard 때문에 나가기가 안 일어났는데 방장이 바뀌면 안 된다)
     env.DB.prepare(
       `UPDATE villas SET owner_id = COALESCE((${ACTIVE} ORDER BY joined_at ASC, rowid ASC LIMIT 1), owner_id)
-       WHERE id = ? AND owner_id = ?`,
-    ).bind(villaId, villaId, userId),
+       WHERE id = ? AND owner_id = ? AND NOT EXISTS (${STILL_IN})`,
+    ).bind(villaId, villaId, userId, villaId, userId),
     env.DB.prepare(
       `UPDATE villas SET dissolved_at = ?, penthouse_user_id = NULL
-       WHERE id = ? AND dissolved_at IS NULL AND NOT EXISTS (${ACTIVE})`,
-    ).bind(t, villaId, villaId),
+       WHERE id = ? AND dissolved_at IS NULL AND NOT EXISTS (${ACTIVE}) AND NOT EXISTS (${STILL_IN})`,
+    ).bind(t, villaId, villaId, villaId, userId),
   ];
 }
 

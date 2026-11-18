@@ -238,6 +238,10 @@ export function Settings() {
           villa={villa}
           meId={me.id}
           onChanged={reloadVilla}
+          onTransferred={async (nickname) => {
+            await reloadVilla();
+            note("transfer", { ok: `${nickname} 님에게 방장을 넘겼어요` });
+          }}
           onDissolved={() => {
             pokeEvents();
             nav("/villa", { replace: true });
@@ -245,6 +249,8 @@ export function Settings() {
           onAuthLost={() => nav("/login?next=/settings", { replace: true })}
         />
       )}
+
+      {notes.transfer?.ok && <p className="ok" role="status">{notes.transfer.ok}</p>}
 
       {villa && (
         <Section title="빌라 나가기" note={notes.leave}>
