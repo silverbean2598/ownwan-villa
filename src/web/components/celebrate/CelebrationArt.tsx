@@ -212,6 +212,22 @@ export function ToastArt({ type, spec, friend }: { type: ToastType; spec: Avatar
       );
     case "streak6":
       return <Head spec={spec} face="determined" />;
+    case "cheered":
+      return (
+        <Head spec={spec} face="love">
+          <Heart x={25} y={46} s={1.1} />
+          <Heart x={95} y={30} s={0.95} />
+          <Heart x={97} y={58} s={0.8} />
+        </Head>
+      );
+    case "commented":
+      // 웃으며 말풍선을 받는다
+      return (
+        <Head spec={spec} face="laugh">
+          <path d="M81 22 h18 a5 5 0 0 1 5 5 v8 a5 5 0 0 1 -5 5 h-10 l-5 5 v-5 h-3 a5 5 0 0 1 -5 -5 v-8 a5 5 0 0 1 5 -5 Z" fill="#fff" stroke={INK} strokeWidth="1.2" strokeLinejoin="round" />
+          <path d="M85 29 h10 M85 34 h6" stroke="#9AA4B5" strokeWidth="1.4" strokeLinecap="round" />
+        </Head>
+      );
     case "bought":
       return (
         <Head spec={spec} face="laugh">

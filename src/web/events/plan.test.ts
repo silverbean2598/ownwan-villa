@@ -126,3 +126,23 @@ describe("shouldNightRemind", () => {
     expect(shouldNightRemind(Date.UTC(2026, 10, 18, 15, 30), false, null)).toBe(false);
   });
 });
+
+describe("응원 · 댓글 알림", () => {
+  it("cheered_copy", () => {
+    expect(eventCopy(ev("1", "cheered", { nickname: "비비" }))).toBe("비비 님이 응원했어요");
+    expect(eventCopy(ev("1", "cheered"))).toBe("이웃 님이 응원했어요");
+  });
+  it("commented_copy_truncates_after_20_chars", () => {
+    expect(eventCopy(ev("1", "commented", { nickname: "비비", body: "멋져요!" }))).toBe("비비 님: 멋져요!");
+    expect(eventCopy(ev("1", "commented", { nickname: "비비", body: "가".repeat(20) }))).toBe(`비비 님: ${"가".repeat(20)}`);
+    expect(eventCopy(ev("1", "commented", { nickname: "비비", body: "오늘도 멋진 오운완이에요 최고 최고 최고" }))).toBe(
+      "비비 님: 오늘도 멋진 오운완이에요 최고 최고…",
+    );
+    // 이모지를 반으로 자르지 않는다
+    expect(eventCopy(ev("1", "commented", { nickname: "비비", body: "💪".repeat(25) }))).toBe(`비비 님: ${"💪".repeat(20)}…`);
+  });
+  it("are_toasts", () => {
+    const p = planEvents([ev("a", "cheered"), ev("b", "commented")], NOW);
+    expect(p.toasts.map((e) => e.id)).toEqual(["a", "b"]);
+  });
+});

@@ -127,7 +127,7 @@ export function usePhotoActions({ ownerId, meId, iAmVillaOwner, onDone }: Opts) 
           </div>
         </section>
       )}
-      {toast && <div className="toast" role="status">{toast}</div>}
+      {toast && <div className="action-toast" role="status">{toast}</div>}
     </>
   );
 

@@ -12,7 +12,7 @@ type Ask = { kind: "kick" | "transfer"; m: Member } | { kind: "dissolve" } | nul
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
 
 /** 얼굴만 잘라 보이는 작은 캐릭터 */
-function MemberHead({ spec }: { spec: AvatarSpec }) {
+export function MemberHead({ spec }: { spec: AvatarSpec }) {
   return (
     <svg className="member-head" viewBox="14 4 92 92" aria-hidden="true">
       <Avatar size={120} spec={spec} />

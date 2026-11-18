@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { CheerBadges } from "./Cheer";
 
 export type BoardItemData = {
   id: string;
@@ -8,6 +9,10 @@ export type BoardItemData = {
   createdAt: number;
   body?: string;
   photoUrl?: string;
+  /** 응원 · 댓글 수 (가려진 기록은 0) */
+  cheerCount?: number;
+  cheeredByMe?: boolean;
+  commentCount?: number;
 };
 
 export const ROOM_BOARD_LIMIT = 6;
@@ -37,12 +42,18 @@ export function groupByDay(items: BoardItemData[]): { day: string; heading: stri
   return out;
 }
 
-type ItemProps = { item: BoardItemData; renderPhotoActions?: (item: BoardItemData) => ReactNode };
+type ItemProps = {
+  item: BoardItemData;
+  renderPhotoActions?: (item: BoardItemData) => ReactNode;
+  /** 귀퉁이에 응원 · 댓글 수를 작게 (방 게시판) */
+  badges?: boolean;
+};
 
-export function BoardItem({ item, renderPhotoActions }: ItemProps) {
+export function BoardItem({ item, renderPhotoActions, badges }: ItemProps) {
   const { m, d } = md(item.day);
   const style = { transform: `rotate(${tiltFor(item.id)}deg)` };
   const date = <span className="cap">{`${m}/${d}`}</span>;
+  const cheers = badges && !item.hidden ? <CheerBadges item={item} /> : null;
   if (item.kind === "photo") {
     return (
       <figure className={`polaroid${item.hidden ? " hidden" : ""}`} style={style}>
@@ -51,6 +62,7 @@ export function BoardItem({ item, renderPhotoActions }: ItemProps) {
         ) : (
           <img src={item.photoUrl} alt={`${m}월 ${d}일 오운완 인증 사진`} loading="lazy" />
         )}
+        {cheers}
         <figcaption>{date}</figcaption>
         {renderPhotoActions?.(item)}
       </figure>
@@ -60,7 +72,7 @@ export function BoardItem({ item, renderPhotoActions }: ItemProps) {
   return (
     <div className={`sticky${item.hidden ? " hidden" : ""}`} style={style}>
       {item.hidden ? <p>가려진 기록</p> : <p>{text.length > 60 ? text.slice(0, 60) + "…" : text}</p>}
-      {date}
+      {cheers ? <span className="cap-row">{cheers}{date}</span> : date}
     </div>
   );
 }
@@ -79,7 +91,7 @@ export function Board({ items, limit = ROOM_BOARD_LIMIT, renderPhotoActions }: P
       {shown.length === 0 ? (
         <p className="board-empty">아직 붙인 기록이 없어요</p>
       ) : (
-        shown.map((it) => <BoardItem key={it.id} item={it} renderPhotoActions={renderPhotoActions} />)
+        shown.map((it) => <BoardItem key={it.id} item={it} renderPhotoActions={renderPhotoActions} badges />)
       )}
     </div>
   );

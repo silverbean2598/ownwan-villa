@@ -16,10 +16,12 @@ export type Face =
   | "smug"
   | "cool"
   | "sad"
-  | "angry";
+  | "angry"
+  // 하트 눈 (응원받았을 때)
+  | "love";
 
 export const FACES: Face[] = [
-  "smile", "happy", "effort", "sleep", "proud", "tears", "laugh", "shocked", "sulk", "yawn", "determined", "shy", "smug", "cool", "sad", "angry",
+  "smile", "happy", "effort", "sleep", "proud", "tears", "laugh", "shocked", "sulk", "yawn", "determined", "shy", "smug", "cool", "sad", "angry", "love",
 ];
 
 /**

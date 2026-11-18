@@ -49,6 +49,30 @@ describe("Board", () => {
   });
 });
 
+describe("Board cheer badges", () => {
+  it("shows_counts_only_when_positive", () => {
+    const html = renderToStaticMarkup(
+      <Board
+        items={[
+          photo("a", 0, { cheerCount: 3, cheeredByMe: true, commentCount: 0 }),
+          routine("r", 1, { cheerCount: 0, cheeredByMe: false, commentCount: 2 }),
+          photo("z", 2, { cheerCount: 0, cheeredByMe: false, commentCount: 0 }),
+        ]}
+      />,
+    );
+    expect(count(html, "cheer-badges")).toBe(2);
+    expect(html).toContain('aria-label="응원 3개"');
+    expect(html).toContain('aria-label="댓글 2개"');
+    expect(html).not.toContain('aria-label="댓글 0개"');
+    expect(html).not.toContain('aria-label="응원 0개"');
+    // 아이콘은 SVG (이모지 글자 아님)
+    expect(html).not.toMatch(/♥|💬|❤/);
+  });
+  it("older_payload_without_counts_shows_nothing", () => {
+    expect(renderToStaticMarkup(<Board items={[photo("a", 0)]} />)).not.toContain("cheer-badges");
+  });
+});
+
 describe("groupByDay", () => {
   it("groups_keeping_order_with_korean_heading", () => {
     const g = groupByDay([photo("a", 0), routine("r", 1), routine("s", 2)]);

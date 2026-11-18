@@ -198,6 +198,7 @@ function Mouth({ face }: { face: Face }) {
       );
     case "tears":
     case "laugh":
+    case "love":
       return (
         <>
           <path d="M53.5 74 Q60 75.2 66.5 74 Q65.5 83.5 60 83.5 Q54.5 83.5 53.5 74 Z" fill={MOUTH_RED} stroke={INK} strokeWidth="1.1" strokeLinejoin="round" />
@@ -246,6 +247,23 @@ function Eyes({ face, skin }: { face: Face; skin: string }) {
           <path d="M42.5 68.5 C41 72 41.5 78 42.5 83 C44.5 83.5 46 83 46.5 82 C45.5 77 45.5 72 45.5 69 Z" fill={TEAR} stroke={TEAR_INK} strokeWidth="0.9" strokeLinejoin="round" />
           <path d="M77.5 68.5 C79 72 78.5 78 77.5 83 C75.5 83.5 74 83 73.5 82 C74.5 77 74.5 72 74.5 69 Z" fill={TEAR} stroke={TEAR_INK} strokeWidth="0.9" strokeLinejoin="round" />
           <path d={HAPPY_EYES} fill="none" stroke={INK} strokeWidth="1.7" strokeLinecap="round" />
+        </>
+      );
+    case "love":
+      // 하트 눈 (docs/art-reference/expressions.webp 아래 줄 둘째)
+      return (
+        <>
+          {[48, 72].map((x) => (
+            <path
+              key={x}
+              data-part="heart-eye"
+              d={`M${x} 72 C${x - 7.5} 67 ${x - 5.5} 60.5 ${x} 64 C${x + 5.5} 60.5 ${x + 7.5} 67 ${x} 72 Z`}
+              fill="#F2667E"
+              stroke={INK}
+              strokeWidth="1.1"
+              strokeLinejoin="round"
+            />
+          ))}
         </>
       );
     case "laugh":

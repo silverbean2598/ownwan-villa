@@ -6,7 +6,7 @@ export type AppEvent = { id: string; type: string; payload: Record<string, unkno
 /** 전체 화면 카드 (그림 + 한 줄 + [좋아요]) */
 export const CARD_TYPES = ["streak7", "floor_up", "penthouse_in", "penthouse_out", "floor_down", "welcome", "kicked", "owner_in", "dissolved"] as const;
 /** 위쪽 토스트 (3초 뒤 사라짐) */
-export const TOAST_TYPES = ["certified", "streak6", "bought", "friend_joined", "owner_changed", "night_reminder"] as const;
+export const TOAST_TYPES = ["certified", "streak6", "bought", "friend_joined", "owner_changed", "night_reminder", "cheered", "commented"] as const;
 export type CardType = (typeof CARD_TYPES)[number];
 export type ToastType = (typeof TOAST_TYPES)[number];
 
@@ -41,6 +41,14 @@ export function subjParticle(word: string): "이" | "가" | "이(가)" {
 }
 
 const str = (v: unknown, fallback = "") => (typeof v === "string" ? v : typeof v === "number" ? String(v) : fallback);
+
+export const COMMENT_PREVIEW = 20;
+
+/** 앞 n글자(이모지도 한 글자로), 더 있으면 "…" */
+export function preview(text: string, n = COMMENT_PREVIEW): string {
+  const chars = Array.from(text);
+  return chars.length > n ? chars.slice(0, n).join("").trimEnd() + "…" : text;
+}
 
 /** 카드 · 토스트 한 줄 문구 */
 export function eventCopy(e: AppEvent): string {
@@ -81,6 +89,10 @@ export function eventCopy(e: AppEvent): string {
       const name = str(p.villaName, "빌라");
       return `${name}${subjParticle(name)} 해체됐어요`;
     }
+    case "cheered":
+      return `${str(p.nickname, "이웃")} 님이 응원했어요`;
+    case "commented":
+      return `${str(p.nickname, "이웃")} 님: ${preview(str(p.body))}`;
     default:
       return "";
   }
