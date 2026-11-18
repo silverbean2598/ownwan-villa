@@ -15,6 +15,7 @@ import { Shop } from "./pages/Shop";
 import { Settings } from "./pages/Settings";
 import { Terms } from "./pages/Terms";
 import { Privacy } from "./pages/Privacy";
+import { EventCenter } from "./components/EventCenter";
 
 export function App() {
   return (
@@ -37,6 +38,7 @@ export function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
       </Routes>
+      <EventCenter />
     </BrowserRouter>
   );
 }

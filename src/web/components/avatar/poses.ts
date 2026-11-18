@@ -1,5 +1,26 @@
 export type Pose = "idle" | "sleep" | "gym" | "running" | "pilates" | "climbing" | "jiujitsu" | "taekwondo";
-export type Face = "smile" | "happy" | "effort" | "sleep";
+export type Face =
+  | "smile"
+  | "happy"
+  | "effort"
+  | "sleep"
+  // 축하 · 알림 화면 표정 (docs/art-reference/expressions.webp)
+  | "proud"
+  | "tears"
+  | "laugh"
+  | "shocked"
+  | "sulk"
+  | "yawn"
+  | "determined"
+  | "shy"
+  | "smug"
+  | "cool"
+  | "sad"
+  | "angry";
+
+export const FACES: Face[] = [
+  "smile", "happy", "effort", "sleep", "proud", "tears", "laugh", "shocked", "sulk", "yawn", "determined", "shy", "smug", "cool", "sad", "angry",
+];
 
 /**
  * 컷아웃 리그의 관절 각도(도, 시계 방향 +).

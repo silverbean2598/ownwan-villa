@@ -1,0 +1,42 @@
+/* 축하 카드 · 알림 토스트 (흰 톤) */
+.cel-overlay {
+  position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: rgba(40, 32, 30, 0.32);
+}
+.cel-card {
+  width: min(340px, 100%); padding: 18px 20px 20px; border-radius: 24px; background: #fff; text-align: center;
+  box-shadow: 0 18px 50px rgba(40, 32, 30, 0.18);
+}
+.cel-art { display: block; max-width: 280px; margin: 0 auto 6px; overflow: hidden; }
+.cel-card p { margin: 2px 0 18px; font-size: 19px; font-weight: 800; line-height: 1.4; word-break: keep-all; }
+
+.toasts {
+  position: fixed; top: 12px; left: 0; right: 0; z-index: 1001; display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 0 16px; pointer-events: none;
+}
+.toast {
+  display: flex; align-items: center; gap: 10px; width: 100%; max-width: 380px; padding: 7px 16px 7px 7px;
+  border: 1px solid var(--line); border-radius: 18px; background: #fff; box-shadow: 0 8px 24px rgba(40, 32, 30, 0.1);
+  font-size: 15px; font-weight: 700; line-height: 1.35; word-break: keep-all; cursor: pointer; pointer-events: auto;
+}
+.toast-art { flex: none; width: 46px; height: 46px; border-radius: 14px; background: #f5f7fb; }
+.toast-art.wide { width: 66px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .cel-card { animation: cel-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .toast { animation: cel-drop 0.3s ease-out; }
+  .cel-twinkle { animation: cel-twinkle 1.6s ease-in-out infinite; }
+  .cel-confetti { animation: cel-confetti 2.4s ease-in-out infinite; }
+  .cel-jump { animation: cel-jump 0.9s ease-in-out infinite alternate; }
+  .cel-shadow { animation: cel-shadow 0.9s ease-in-out infinite alternate; }
+  .cel-fly { animation: cel-fly 1.8s ease-in-out infinite alternate; }
+  .cel-wave [data-part="armR"] { --d: -22deg; animation: av-swing 0.5s ease-in-out infinite alternate; }
+}
+
+@keyframes cel-pop { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: scale(1); } }
+@keyframes cel-drop { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes cel-twinkle { 50% { transform: scale(0.6); opacity: 0.6; } }
+@keyframes cel-confetti { 50% { transform: translateY(6px) rotate(25deg); } }
+@keyframes cel-jump { from { transform: translateY(6px); } to { transform: translateY(-6px); } }
+@keyframes cel-shadow { from { transform: scale(1.1); } to { transform: scale(0.75); opacity: 0.05; } }
+@keyframes cel-fly { to { transform: translate(6px, -6px) rotate(6deg); } }

@@ -5,6 +5,7 @@ import { CATALOG, type Item } from "../../shared/catalog";
 import { SPORTS, SPORT_LABEL, type Sport } from "../../shared/sports";
 import { FurnitureIcon } from "../components/furniture";
 import "../components/villa.css";
+import { pokeEvents } from "../events/poke";
 
 type ShopData = { points: number; sport: Sport | null; owned: string[] };
 type Me = { id: string };
@@ -50,6 +51,7 @@ export function Shop() {
     try {
       const r = await api<{ points: number }>("/api/shop/buy", { method: "POST", body: JSON.stringify({ itemId: item.id }) });
       setData((d) => d && { ...d, points: r.points, owned: [...d.owned, item.id] });
+      pokeEvents();
     } catch (e) {
       setBuyError(e instanceof ApiError ? e.message : "사지 못했어요. 다시 해 주세요");
     } finally {

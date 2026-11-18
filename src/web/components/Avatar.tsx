@@ -1,11 +1,22 @@
 import { AVATAR_OPTIONS, DEFAULT_AVATAR, parseAvatar, type AvatarSpec } from "../../shared/avatar";
-import { Arm, Barbell, Dummy, FaceFeatures, HairBack, HairFront, Head, Joint, Leg, PIVOT, Torso, INK } from "./avatar/parts";
-import { POSES, type Pose } from "./avatar/poses";
+import { Arm, Barbell, Dummy, FaceFeatures, FaceOverHair, HairBack, HairFront, Head, Joint, Leg, PIVOT, Torso, INK } from "./avatar/parts";
+import { POSES, type Face, type Pose, type PoseDef } from "./avatar/poses";
 import "./avatar/avatar.css";
 
-export { POSES, type Pose };
+export { POSES, type Face, type Pose, type PoseDef };
 
-type Props = { spec: AvatarSpec; size: number; pose?: Pose; className?: string };
+type Props = {
+  spec: AvatarSpec;
+  size: number;
+  pose?: Pose;
+  className?: string;
+  /** 자세의 표정 대신 쓸 표정 (축하 · 알림 화면) */
+  face?: Face;
+  /** 자세의 관절 각도 일부를 바꾼다 (축하 장면: 트로피 들기, 점프 등). 서 있는 자세에만 쓴다 */
+  joints?: Partial<Pick<PoseDef, "armL" | "armR" | "elbL" | "elbR" | "legL" | "legR" | "headTilt" | "offsetY" | "fore" | "armsFront">>;
+  /** 접근성 이름 (기본 "캐릭터") */
+  label?: string;
+};
 
 // 서 있는 자세 viewBox (가로:세로 = 1:1.4). 누운 자세는 가로로 돌려 같은 비율의 가로형.
 // viewBox 원점은 항상 0 0: transform-box view-box의 기준점이 엔진(WebKit · Gecko)마다 viewBox x,y를
@@ -21,11 +32,11 @@ const DUMMY_AT = "translate(127 74) rotate(-30) scale(1.35)";
  * 컷아웃 리그 캐릭터. 머리 · 몸통 · 팔(위팔+아래팔) · 다리가 각자 관절 축을 가진 그룹이고,
  * 자세는 POSES의 관절 각도로만 정한다. 움직임은 avatar.css가 관절 그룹에 건다.
  */
-export function Avatar({ spec, size, pose = "idle", className }: Props) {
+export function Avatar({ spec, size, pose = "idle", className, face, joints, label = "캐릭터" }: Props) {
   const s = parseAvatar(spec) ?? DEFAULT_AVATAR;
   const skin = AVATAR_OPTIONS.skin[s.skin];
   const shirt = AVATAR_OPTIONS.shirt[s.shirt];
-  const p = POSES[pose];
+  const p: PoseDef = { ...POSES[pose], ...joints, ...(face ? { face } : {}) };
   const uniform = p.uniform ?? "tee";
   const lying = !!p.lying;
 
@@ -41,7 +52,7 @@ export function Avatar({ spec, size, pose = "idle", className }: Props) {
       className={`av pose-${pose}${className ? ` ${className}` : ""}`}
       data-hair={s.hair}
       role="img"
-      aria-label="캐릭터"
+      aria-label={label}
       width={lying ? size * 1.4 : size}
       height={lying ? size : size * 1.4}
       viewBox={lying ? LYING_BOX : STAND_BOX}
@@ -60,8 +71,9 @@ export function Avatar({ spec, size, pose = "idle", className }: Props) {
             {!p.armsFront && arms}
             <Joint part="head" at={PIVOT.neck} a={p.headTilt}>
               <Head skin={skin} />
-              <FaceFeatures face={p.face} />
+              <FaceFeatures face={p.face} skin={skin} />
               <HairFront hair={s.hair} />
+              <FaceOverHair face={p.face} />
             </Joint>
             {pose === "gym" && <Barbell y={BAR_Y} />}
             {p.armsFront && arms}

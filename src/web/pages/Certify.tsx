@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { compressImage, ImageDecodeError } from "../image/compress";
 import { dhashFromBlob } from "../image/dhash";
+import { pokeEvents } from "../events/poke";
 
 type Item = { name: string; status: "working" | "done" | "error"; message: string };
 type PhotoResult = { certId: string; points: number; duplicate: boolean; certifiedToday: boolean };
@@ -12,7 +13,8 @@ const GENERIC = "문제가 생겼어요. 잠시 후 다시 해 주세요";
 function photoMessage(r: PhotoResult) {
   if (r.duplicate) return "전에 올린 사진과 같아요. 새 사진을 올려 주세요";
   if (r.points === 0) return "올렸어요. 오늘 받을 수 있는 사진 포인트는 다 받았어요";
-  return `불이 켜졌어요. +${r.points}P`;
+  // "불이 켜졌어요" 는 첫 인증 토스트(EventCenter)가 보여 준다. 여기서는 사진마다 결과만
+  return `올렸어요 +${r.points}P`;
 }
 
 async function uploadOne(file: File): Promise<Pick<Item, "status" | "message">> {
@@ -61,6 +63,7 @@ export function Certify() {
       for (let i = 0; i < list.length; i++) {
         const r = await uploadOne(list[i]);
         setItems((prev) => prev.map((it, j) => (j === base + i ? { ...it, ...r } : it)));
+        if (r.status === "done") pokeEvents();
       }
     } catch {
       toLogin();

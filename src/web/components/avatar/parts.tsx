@@ -178,13 +178,130 @@ function Eye({ x }: { x: number }) {
   );
 }
 
-export function FaceFeatures({ face }: { face: Face }) {
+const MOUTH_RED = "#E06B73";
+const TONGUE = "#F59CA3";
+const TEAR = "#A9DBF7";
+const TEAR_INK = "#6FA8DC";
+
+/** 눈을 감고 웃는 눈(^ ^) */
+const HAPPY_EYES = "M43.5 68.5 Q48 62.5 52.5 68.5 M67.5 68.5 Q72 62.5 76.5 68.5";
+
+/** 반쯤 감은 눈: 눈동자 위를 피부색 눈꺼풀로 덮고 눈꺼풀 선을 긋는다 */
+function LidEye({ x, skin, lid = 66 }: { x: number; skin: string; lid?: number }) {
+  return (
+    <g>
+      <ellipse cx={x} cy="68" rx="4.2" ry="3.6" fill="#3B2A26" />
+      <circle cx={x + 1.3} cy="67.6" r="1.1" fill="#fff" />
+      <rect x={x - 5.5} y={lid - 6} width="11" height="6" fill={skin} />
+      <path d={`M${x - 5.2} ${lid} L${x + 5.2} ${lid}`} stroke={INK} strokeWidth="1.5" strokeLinecap="round" />
+    </g>
+  );
+}
+
+function Mouth({ face }: { face: Face }) {
+  const ink = { stroke: "#8E4B44", strokeWidth: 1.2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none" };
+  switch (face) {
+    case "happy":
+      return (
+        <>
+          <path d="M55.5 75 Q60 75.8 64.5 75 Q63.8 81 60 81 Q56.2 81 55.5 75 Z" fill={MOUTH_RED} stroke={INK} strokeWidth="1.1" strokeLinejoin="round" />
+          <path d="M57.5 79.6 Q60 78 62.5 79.6" fill={TONGUE} />
+        </>
+      );
+    case "tears":
+    case "laugh":
+      return (
+        <>
+          <path d="M53.5 74 Q60 75.2 66.5 74 Q65.5 83.5 60 83.5 Q54.5 83.5 53.5 74 Z" fill={MOUTH_RED} stroke={INK} strokeWidth="1.1" strokeLinejoin="round" />
+          <path d="M56.5 81.6 Q60 79 63.5 81.6 Q62 83 60 83 Q58 83 56.5 81.6 Z" fill={TONGUE} />
+        </>
+      );
+    case "shocked":
+      return <ellipse cx="60" cy="78.5" rx="3.6" ry="4.6" fill={MOUTH_RED} stroke={INK} strokeWidth="1.1" />;
+    case "yawn":
+      return (
+        <>
+          <ellipse cx="60" cy="78.5" rx="4" ry="5" fill={MOUTH_RED} stroke={INK} strokeWidth="1.1" />
+          <ellipse cx="60" cy="81.3" rx="2.4" ry="1.6" fill={TONGUE} />
+        </>
+      );
+    case "sulk":
+    case "angry":
+      // 볼을 부풀린 입 (3 모양을 눕힌 꼴)
+      return <path d="M56.5 77.5 Q58.2 75.6 60 77.5 Q61.8 75.6 63.5 77.5" {...ink} />;
+    case "shy":
+      return <path d="M55.5 77.5 Q56.9 75.9 58.3 77.5 Q59.7 79.1 61.1 77.5 Q62.5 75.9 63.9 77.5" {...ink} />;
+    case "sad":
+      return <path d="M56.5 78.5 Q60 75.3 63.5 78.5" {...ink} />;
+    case "smug":
+      return (
+        <>
+          <path d="M53.5 75 Q60 78 66.5 74.5 Q65.5 80.5 60 81 Q55 80.5 53.5 75 Z" fill="#fff" stroke={INK} strokeWidth="1.1" strokeLinejoin="round" />
+          <path d="M54.8 77.2 Q60 79.4 65.6 76.6 M58 76.7 V80.6 M62 76.4 V80.5" fill="none" stroke={INK} strokeWidth="0.6" />
+        </>
+      );
+    case "cool":
+      return <path d="M55 76.5 Q61 79.5 66 74.8" {...ink} />;
+    case "proud":
+      return <path d="M55.5 75.5 Q60 79.5 64.5 75.5" {...ink} />;
+    default:
+      return <path d="M56.5 75.5 Q60 78.8 63.5 75.5" {...ink} />;
+  }
+}
+
+function Eyes({ face, skin }: { face: Face; skin: string }) {
+  switch (face) {
+    case "tears":
+      return (
+        <>
+          {/* 눈물 줄기: 감은 눈 바깥에서 볼을 타고 흐른다 */}
+          <path d="M42.5 68.5 C41 72 41.5 78 42.5 83 C44.5 83.5 46 83 46.5 82 C45.5 77 45.5 72 45.5 69 Z" fill={TEAR} stroke={TEAR_INK} strokeWidth="0.9" strokeLinejoin="round" />
+          <path d="M77.5 68.5 C79 72 78.5 78 77.5 83 C75.5 83.5 74 83 73.5 82 C74.5 77 74.5 72 74.5 69 Z" fill={TEAR} stroke={TEAR_INK} strokeWidth="0.9" strokeLinejoin="round" />
+          <path d={HAPPY_EYES} fill="none" stroke={INK} strokeWidth="1.7" strokeLinecap="round" />
+        </>
+      );
+    case "laugh":
+      return <path d={HAPPY_EYES} fill="none" stroke={INK} strokeWidth="1.7" strokeLinecap="round" />;
+    case "yawn":
+      return <path d="M43.5 67 Q48 70.5 52.5 67 M67.5 67 Q72 70.5 76.5 67" fill="none" stroke={INK} strokeWidth="1.5" strokeLinecap="round" />;
+    case "shocked":
+      return (
+        <>
+          {[48, 72].map((x) => (
+            <g key={x}>
+              <circle cx={x} cy="66.5" r="5" fill="#fff" stroke={INK} strokeWidth="1.4" />
+              <circle cx={x} cy="66.5" r="2.3" fill="#3B2A26" />
+            </g>
+          ))}
+        </>
+      );
+    case "sulk":
+    case "smug":
+      return (
+        <>
+          <LidEye x={48} skin={skin} />
+          <LidEye x={72} skin={skin} />
+        </>
+      );
+    case "cool":
+      return null;
+    default:
+      return (
+        <>
+          <Eye x={48} />
+          <Eye x={72} />
+        </>
+      );
+  }
+}
+
+export function FaceFeatures({ face, skin = "#FDE7DA" }: { face: Face; skin?: string }) {
   const mouthInk = { stroke: "#8E4B44", strokeWidth: 1.2, strokeLinecap: "round" as const, fill: "none" };
   return (
-    <g data-part="face">
+    <g data-part="face" data-face={face}>
       {[42, 78].map((x) => (
         <g key={x}>
-          <ellipse cx={x} cy="75" rx="4.6" ry="2.9" fill="#F7A6A2" opacity="0.8" />
+          <ellipse cx={x} cy="75" rx="4.6" ry="2.9" fill="#F7A6A2" opacity={face === "shy" ? 1 : 0.8} />
           <path d={`M${x - 2.6} 76.2 l1.2 -2.2 M${x - 0.4} 76.2 l1.2 -2.2 M${x + 1.8} 76.2 l1.2 -2.2`} stroke="#E68784" strokeWidth="0.6" strokeLinecap="round" />
         </g>
       ))}
@@ -202,20 +319,42 @@ export function FaceFeatures({ face }: { face: Face }) {
         </>
       ) : (
         <>
-          <Eye x={48} />
-          <Eye x={72} />
-          {face === "happy" ? (
-            <>
-              <path d="M55.5 75 Q60 75.8 64.5 75 Q63.8 81 60 81 Q56.2 81 55.5 75 Z" fill="#E06B73" stroke={INK} strokeWidth="1.1" strokeLinejoin="round" />
-              <path d="M57.5 79.6 Q60 78 62.5 79.6" fill="#F59CA3" />
-            </>
-          ) : (
-            <path d="M56.5 75.5 Q60 78.8 63.5 75.5" {...mouthInk} />
-          )}
+          <Eyes face={face} skin={skin} />
+          <Mouth face={face} />
         </>
       )}
     </g>
   );
+}
+
+/** 앞머리 위에 그리는 표정 요소: 눈썹 · 땀방울 · 선글라스 (앞머리에 가려지지 않게) */
+export function FaceOverHair({ face }: { face: Face }) {
+  const brow = { fill: "none", stroke: INK, strokeWidth: 1.6, strokeLinecap: "round" as const };
+  switch (face) {
+    case "angry":
+      return <path data-part="brows" d="M42.5 58.5 L52 62 M77.5 58.5 L68 62" {...brow} />;
+    case "determined":
+      return (
+        <g>
+          <path data-part="brows" d="M43 59.5 L52 61.5 M77 59.5 L68 61.5" {...brow} />
+          <path data-part="sweat" d="M88 47 C85.5 51.5 84.5 54 84.5 55.5 A3.5 3.5 0 0 0 91.5 55.5 C91.5 54 90.5 51.5 88 47 Z" fill={TEAR} stroke={TEAR_INK} strokeWidth="0.9" />
+        </g>
+      );
+    case "sad":
+    case "sulk":
+      return <path data-part="brows" d="M43 61.5 L51.5 59.5 M77 61.5 L68.5 59.5" {...brow} strokeWidth={1.3} />;
+    case "cool":
+      return (
+        <g data-part="sunglasses">
+          <path d="M33 63 L87 63" stroke="#1F1D22" strokeWidth="2.2" strokeLinecap="round" />
+          <path d="M38.5 62 H56 Q57 62 56.6 63.5 L55.2 70 Q54.4 73.5 50.5 73.5 H44.5 Q40.4 73.5 39.4 70 L37.7 63.6 Q37.4 62 38.5 62 Z" fill="#26232A" stroke={INK} strokeWidth="1" strokeLinejoin="round" />
+          <path d="M81.5 62 H64 Q63 62 63.4 63.5 L64.8 70 Q65.6 73.5 69.5 73.5 H75.5 Q79.6 73.5 80.6 70 L82.3 63.6 Q82.6 62 81.5 62 Z" fill="#26232A" stroke={INK} strokeWidth="1" strokeLinejoin="round" />
+          <path d="M41 64.5 L44.5 64.5 M66.5 64.5 L70 64.5" stroke="#fff" strokeWidth="1.1" strokeLinecap="round" opacity="0.55" />
+        </g>
+      );
+    default:
+      return null;
+  }
 }
 
 // ---------- 몸통 ----------
@@ -344,4 +483,20 @@ export function Dummy({ transform }: { transform?: string }) {
       <path d="M0 -24 V-4" stroke={DARK} strokeWidth="1" strokeLinecap="round" />
     </g>
   );
+}
+
+/**
+ * 팔 각도로 손(주먹 원) 중심의 리그 좌표를 구한다. 축하 장면에서 트로피 · 상자 같은 소품을 손에 맞춰 놓을 때 쓴다.
+ * 몸통 회전(torso)은 0이라고 보고, 리그 전체 offsetY만 더한다.
+ */
+export function handAt(side: "L" | "R", a: number, elb: number, fore = 13, offsetY = 0): [number, number] {
+  const [sx, sy] = side === "L" ? PIVOT.shoulderL : PIVOT.shoulderR;
+  const rad = (d: number) => (d * Math.PI) / 180;
+  // 팔꿈치 기준 아래팔 끝
+  const fx = -fore * Math.sin(rad(elb));
+  const fy = ELBOW_DY + fore * Math.cos(rad(elb));
+  // 어깨 기준으로 위팔 각도만큼
+  const x = sx + fx * Math.cos(rad(a)) - fy * Math.sin(rad(a));
+  const y = sy + fx * Math.sin(rad(a)) + fy * Math.cos(rad(a));
+  return [x, y + offsetY];
 }
