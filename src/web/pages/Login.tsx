@@ -45,6 +45,9 @@ export function Login() {
         <button className="btn" type="submit" disabled={busy} style={{ marginTop: 16 }}>로그인</button>
       </form>
       <p className="muted" style={{ marginTop: 20 }}>
+        <Link to="/recover">비밀번호를 잊었어요</Link>
+      </p>
+      <p className="muted">
         아직 계정이 없나요? <Link to="/signup">가입하기</Link>
       </p>
     </main>

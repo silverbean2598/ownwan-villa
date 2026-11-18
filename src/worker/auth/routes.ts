@@ -68,6 +68,12 @@ auth.post("/api/login", async (c) => {
     return jsonError(c, 401, BAD_LOGIN);
   }
   await c.env.DB.prepare("UPDATE users SET failed_logins = 0, locked_until = NULL WHERE id = ?").bind(user.id).run();
+  // 비밀번호를 기억해냈으니 진행 중인 방장 확인 요청은 취소한다
+  await c.env.DB.prepare(
+    "UPDATE recovery_requests SET status = 'cancelled' WHERE user_id = ? AND status IN ('pending','approved')",
+  )
+    .bind(user.id)
+    .run();
   setSessionCookie(c, await createSession(c.env, user.id));
   return c.json({ ok: true });
 });
