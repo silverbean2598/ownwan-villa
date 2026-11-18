@@ -27,6 +27,8 @@ export async function canView(env: Env, viewerId: string, ownerId: string): Prom
 }
 
 // 사진 포인트: 그날 중복 아닌 사진 순번을 INSERT 안에서 세어 한 문장으로 결정한다 (경쟁 상태 방지)
+// 지운 사진(deleted = 1)도 순번에 센다: 지우고 다시 올려 포인트를 또 받지 못하게
+// (루틴 하루 1회 판정과 중복 사진 판정도 같은 이유로 지운 기록을 포함한다)
 const PHOTO_INSERT = `
 INSERT INTO certs (id, user_id, day, kind, r2_key, dhash, points, duplicate, created_at)
 SELECT ?1, ?2, ?3, 'photo', ?4, ?5,
@@ -41,6 +43,11 @@ SELECT ?1, ?2, ?3, 'routine', ?4,
   CASE WHEN EXISTS (SELECT 1 FROM certs WHERE user_id = ?2 AND day = ?3 AND kind = 'routine')
     THEN ${routinePoints(true)} ELSE ${routinePoints(false)} END, 0, ?5`;
 
+/** 오늘 인증 = 그날 지우지 않은, 중복 아닌 사진이 있다 */
+const CERTIFIED_PHOTO = "kind = 'photo' AND duplicate = 0 AND deleted = 0";
+
+const JPEG_MAGIC = [0xff, 0xd8, 0xff];
+
 const ADD_POINTS = "UPDATE users SET points = points + (SELECT points FROM certs WHERE id = ?1) WHERE id = ?2";
 
 cert.post("/api/certs/photo", requireUser, async (c) => {
@@ -53,6 +60,10 @@ cert.post("/api/certs/photo", requireUser, async (c) => {
   if (file.type !== "image/jpeg") return jsonError(c, 415, "JPEG 사진만 올릴 수 있어요");
   if (file.size > MAX_BYTES) return jsonError(c, 413, "사진이 너무 커요");
 
+  const bytes = await file.arrayBuffer();
+  const head = new Uint8Array(bytes, 0, Math.min(3, bytes.byteLength));
+  if (!JPEG_MAGIC.every((b, i) => head[i] === b)) return jsonError(c, 415, "JPEG 사진만 올릴 수 있어요");
+
   const prev = await c.env.DB.prepare("SELECT dhash FROM certs WHERE user_id = ? AND kind = 'photo' AND dhash IS NOT NULL")
     .bind(userId)
     .all<{ dhash: string }>();
@@ -62,7 +73,7 @@ cert.post("/api/certs/photo", requireUser, async (c) => {
   const day = kstDay(t);
   const id = crypto.randomUUID();
   const key = `photos/${userId}/${id}.jpg`;
-  await putPhotoBlob(c.env, id, key, await file.arrayBuffer(), "image/jpeg");
+  await putPhotoBlob(c.env, id, key, bytes, "image/jpeg");
   try {
     await c.env.DB.batch([
       c.env.DB.prepare(PHOTO_INSERT).bind(id, userId, day, key, dhash, duplicate, t),
@@ -74,7 +85,7 @@ cert.post("/api/certs/photo", requireUser, async (c) => {
   }
   const row = await c.env.DB.prepare("SELECT points FROM certs WHERE id = ?").bind(id).first<{ points: number }>();
   const today = await c.env.DB.prepare(
-    "SELECT 1 AS ok FROM certs WHERE user_id = ? AND day = ? AND kind = 'photo' AND duplicate = 0 LIMIT 1",
+    `SELECT 1 AS ok FROM certs WHERE user_id = ? AND day = ? AND ${CERTIFIED_PHOTO} LIMIT 1`,
   )
     .bind(userId, day)
     .first();
@@ -104,7 +115,7 @@ cert.get("/api/users/:id/board", requireUser, async (c) => {
   const limit = Number.isInteger(lim) && lim >= 1 ? Math.min(lim, 50) : 20;
   const { results } = await c.env.DB.prepare(
     `SELECT id, kind, day, body, hidden, created_at AS createdAt FROM certs
-     WHERE user_id = ? AND duplicate = 0 AND created_at < ?
+     WHERE user_id = ? AND duplicate = 0 AND deleted = 0 AND created_at < ?
      ORDER BY created_at DESC, rowid DESC LIMIT ?`,
   )
     .bind(ownerId, Number.isFinite(before) && c.req.query("before") ? before : Number.MAX_SAFE_INTEGER, limit)
@@ -123,7 +134,7 @@ cert.get("/api/users/:id/board", requireUser, async (c) => {
 });
 
 cert.get("/api/photos/:certId", requireUser, async (c) => {
-  const row = await c.env.DB.prepare("SELECT user_id, r2_key, hidden FROM certs WHERE id = ? AND kind = 'photo'")
+  const row = await c.env.DB.prepare("SELECT user_id, r2_key, hidden FROM certs WHERE id = ? AND kind = 'photo' AND deleted = 0")
     .bind(c.req.param("certId"))
     .first<{ user_id: string; r2_key: string | null; hidden: number }>();
   if (!row || !row.r2_key) return jsonError(c, 404, "사진을 찾을 수 없어요");
@@ -135,6 +146,7 @@ cert.get("/api/photos/:certId", requireUser, async (c) => {
     headers: {
       "content-type": obj.contentType,
       "cache-control": "private, max-age=3600",
+      "x-content-type-options": "nosniff",
     },
   });
 });

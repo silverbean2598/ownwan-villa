@@ -292,6 +292,21 @@ describe("approve and complete", () => {
     void member;
   });
 
+  it("requester_who_moved_to_another_villa_cannot_complete", async () => {
+    const { owner, member, ticket, id } = await setup();
+    const t0 = Date.now();
+    setNow(() => t0);
+    await post(`/api/recover/${id}/approve`, {}, owner.cookie);
+    await leave(member);
+    const other2 = await signup();
+    await villa(other2, [{ u: member, joinedAt: 7 }]); // 다른 빌라에 입주
+    setNow(() => t0 + 2 * DAY);
+    const res = await post("/api/recover/complete", { username: member.username, ticket, newPassword: "newpassword1" });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "빌라를 옮겨서 요청이 취소됐어요. 다시 요청해 주세요" });
+    expect(await status(member.id)).toEqual(["cancelled"]);
+  });
+
   it("requester_who_left_cannot_complete", async () => {
     const { owner, member, ticket, id } = await setup();
     const t0 = Date.now();
@@ -303,5 +318,35 @@ describe("approve and complete", () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "빌라를 옮겨서 요청이 취소됐어요. 다시 요청해 주세요" });
     expect(await status(member.id)).toEqual(["cancelled"]);
+  });
+});
+
+describe("username normalization and password length", () => {
+  it("recover_endpoints_trim_and_lowercase_username", async () => {
+    const u = await signup();
+    const loud = `  ${u.username.toUpperCase()} `;
+    const res = await post("/api/recover/code", { username: loud, code: u.recoveryCode, newPassword: "newpassword1" });
+    expect(res.status).toBe(200);
+    const owner = await signup();
+    const m = await signup();
+    await villa(owner, [{ u: m, joinedAt: 5 }]);
+    const r = await post("/api/recover/request", { username: ` ${m.username.toUpperCase()}` });
+    expect(r.status).toBe(201);
+    const { ticket } = (await r.json()) as { ticket: string };
+    const id = (await env.DB.prepare("SELECT id FROM recovery_requests WHERE user_id = ?").bind(m.id).first<{ id: string }>())!.id;
+    const t0 = Date.now();
+    setNow(() => t0);
+    await post(`/api/recover/${id}/approve`, {}, owner.cookie);
+    setNow(() => t0 + 2 * DAY);
+    const done = await post("/api/recover/complete", { username: `${m.username.toUpperCase()} `, ticket, newPassword: "newpassword1" });
+    expect(done.status).toBe(200);
+  });
+
+  it("recover_rejects_password_over_128", async () => {
+    const u = await signup();
+    const res = await post("/api/recover/code", { username: u.username, code: u.recoveryCode, newPassword: "a".repeat(129) });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "비밀번호는 8~128자로 정해 주세요" });
+    expect((await post("/api/recover/code", { username: u.username, code: u.recoveryCode, newPassword: "a".repeat(128) })).status).toBe(200);
   });
 });

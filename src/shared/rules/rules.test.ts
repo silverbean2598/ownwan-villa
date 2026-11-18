@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { kstDay, prevDay } from "./day";
+import { kstDay, nextDay, prevDay } from "./day";
 import { photoPoints, routinePoints } from "./points";
 import { settleDay } from "./floor";
 import { pickPenthouse } from "./penthouse";
@@ -9,6 +9,8 @@ describe("day", () => {
     expect(kstDay(Date.UTC(2026, 10, 18, 14, 59, 50))).toBe("2026-11-18");
     expect(kstDay(Date.UTC(2026, 10, 18, 15, 0, 5))).toBe("2026-11-19");
     expect(prevDay("2026-03-01")).toBe("2026-02-28");
+    expect(nextDay("2026-02-28")).toBe("2026-03-01");
+    expect(nextDay("2026-12-31")).toBe("2027-01-01");
   });
 });
 

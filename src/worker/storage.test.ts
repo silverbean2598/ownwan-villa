@@ -9,6 +9,7 @@ const r2Env = (): Env => ({ DB: env.DB, ASSETS: env.ASSETS, PHOTOS: env.PHOTOS, 
 function bytes(n: number) {
   const b = new Uint8Array(n);
   for (let i = 0; i < n; i++) b[i] = i % 251;
+  b.set([0xff, 0xd8, 0xff].slice(0, n));
   return b;
 }
 async function read(r: { body: ReadableStream | ArrayBuffer | Uint8Array } | null) {
@@ -36,11 +37,22 @@ describe("storage backend choice", () => {
   it("defaults_to_d1_without_binding_and_r2_when_configured", async () => {
     const id = crypto.randomUUID();
     await putPhotoBlob({ DB: env.DB, ASSETS: env.ASSETS }, id, "k", bytes(10).buffer, "image/jpeg");
-    expect(await env.DB.prepare("SELECT 1 AS x FROM photo_blobs WHERE cert_id = ?").bind(id).first()).not.toBeNull();
+    const row = await env.DB.prepare("SELECT data, typeof(data) AS t FROM photo_blobs_b64 WHERE cert_id = ?").bind(id).first<{ data: string; t: string }>();
+    // D1에는 base64 TEXT 로 둔다 (BLOB 을 숫자 배열로 받는 CPU 비용을 피함)
+    expect(row).toEqual({ data: btoa(String.fromCharCode(...bytes(10))), t: "text" });
     const id2 = crypto.randomUUID();
     await putPhotoBlob(r2Env(), id2, `photos/x/${id2}.jpg`, bytes(10).buffer, "image/jpeg");
-    expect(await env.DB.prepare("SELECT 1 AS x FROM photo_blobs WHERE cert_id = ?").bind(id2).first()).toBeNull();
+    expect(await env.DB.prepare("SELECT 1 AS x FROM photo_blobs_b64 WHERE cert_id = ?").bind(id2).first()).toBeNull();
     expect(await env.PHOTOS.head(`photos/x/${id2}.jpg`)).not.toBeNull();
+  });
+});
+
+describe("storage misconfiguration", () => {
+  it("r2_mode_without_binding_throws", async () => {
+    const e = { DB: env.DB, ASSETS: env.ASSETS, PHOTO_STORAGE: "r2" } as Env;
+    await expect(putPhotoBlob(e, "x", "k", bytes(10).buffer, "image/jpeg")).rejects.toThrow(/PHOTOS/);
+    await expect(getPhotoBlob(e, { id: "x", r2_key: "k" })).rejects.toThrow(/PHOTOS/);
+    await expect(deletePhotoBlobs(e, [{ id: "x", r2_key: "k" }])).rejects.toThrow(/PHOTOS/);
   });
 });
 
@@ -69,6 +81,27 @@ describe("photo routes on the d1 backend", () => {
     expect(get.headers.get("content-type")).toBe("image/jpeg");
     expect(new Uint8Array(await get.arrayBuffer())).toEqual(bytes(300 * 1024));
     expect((await app.request("/api/me", { method: "DELETE", headers: { cookie } }, e)).status).toBe(200);
-    expect(await env.DB.prepare("SELECT 1 AS x FROM photo_blobs WHERE cert_id = ?").bind(certId).first()).toBeNull();
+    expect(await env.DB.prepare("SELECT 1 AS x FROM photo_blobs_b64 WHERE cert_id = ?").bind(certId).first()).toBeNull();
+  });
+});
+
+describe("base64 helpers", () => {
+  it("native_and_fallback_paths_round_trip", async () => {
+    const { toBase64, fromBase64 } = await import("./storage");
+    const data = bytes(300 * 1024);
+    const native = toBase64(data);
+    expect(fromBase64(native)).toEqual(data);
+    const U = Uint8Array as any;
+    const from = Object.getOwnPropertyDescriptor(U, "fromBase64");
+    const to = Object.getOwnPropertyDescriptor(U.prototype, "toBase64");
+    try {
+      delete U.fromBase64;
+      delete U.prototype.toBase64;
+      expect(toBase64(data)).toBe(native);
+      expect(fromBase64(native)).toEqual(data);
+    } finally {
+      if (from) Object.defineProperty(U, "fromBase64", from);
+      if (to) Object.defineProperty(U.prototype, "toBase64", to);
+    }
   });
 });

@@ -8,16 +8,20 @@ export const report = new Hono<AppEnv>();
 
 const HIDE_AT = 3;
 
-type CertRow = { id: string; user_id: string; kind: string; r2_key: string | null };
+type CertRow = { id: string; user_id: string; kind: string; r2_key: string | null; deleted: number };
 
 async function findCert(env: Env, id: string) {
-  return env.DB.prepare("SELECT id, user_id, kind, r2_key FROM certs WHERE id = ?").bind(id).first<CertRow>();
+  return env.DB.prepare("SELECT id, user_id, kind, r2_key, deleted FROM certs WHERE id = ?").bind(id).first<CertRow>();
 }
+
+// 찾을 수 없음 문구: 사진이면 "사진", 루틴이거나 종류를 알 수 없으면 "기록"
+const PHOTO_NOT_FOUND = "사진을 찾을 수 없어요";
+const notFound = (cert: CertRow | null) => (cert?.kind === "photo" ? PHOTO_NOT_FOUND : "기록을 찾을 수 없어요");
 
 report.post("/api/certs/:id/report", requireUser, async (c) => {
   const viewerId = c.get("userId");
   const cert = await findCert(c.env, c.req.param("id"));
-  if (!cert) return jsonError(c, 404, "사진을 찾을 수 없어요");
+  if (!cert || cert.deleted) return jsonError(c, 404, PHOTO_NOT_FOUND);
   if (!(await canView(c.env, viewerId, cert.user_id))) return jsonError(c, 403, "같은 빌라 입주민만 신고할 수 있어요");
   if (cert.user_id === viewerId) return jsonError(c, 400, "내 사진은 신고할 수 없어요");
   if (cert.kind !== "photo") return jsonError(c, 400, "사진만 신고할 수 있어요");
@@ -35,7 +39,7 @@ report.post("/api/certs/:id/report", requireUser, async (c) => {
 report.delete("/api/certs/:id", requireUser, async (c) => {
   const viewerId = c.get("userId");
   const cert = await findCert(c.env, c.req.param("id"));
-  if (!cert) return jsonError(c, 404, "기록을 찾을 수 없어요");
+  if (!cert || cert.deleted) return jsonError(c, 404, notFound(cert));
   if (cert.user_id !== viewerId) {
     // 작성자가 지금 사는 빌라의 방장이어야 한다 (방장 본인도 그 빌라 입주민)
     const row = await c.env.DB.prepare(
@@ -49,9 +53,10 @@ report.delete("/api/certs/:id", requireUser, async (c) => {
     if (!row) return jsonError(c, 403, "지울 수 있는 권한이 없어요");
   }
   await deletePhotoBlob(c.env, cert);
+  // 소프트 삭제: 사진 파일 · 글 내용 · 신고는 지우고 행은 남긴다 (같은 날 순번 · 루틴 1회 · 중복 판정에 계속 쓰인다)
   await c.env.DB.batch([
     c.env.DB.prepare("DELETE FROM reports WHERE cert_id = ?").bind(cert.id),
-    c.env.DB.prepare("DELETE FROM certs WHERE id = ?").bind(cert.id),
+    c.env.DB.prepare("UPDATE certs SET deleted = 1, body = NULL WHERE id = ?").bind(cert.id),
   ]);
   return c.json({ ok: true });
 });

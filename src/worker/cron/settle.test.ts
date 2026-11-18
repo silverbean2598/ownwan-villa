@@ -26,10 +26,10 @@ async function member(userId: string, villaId: string, floor = 1, reachedAt = 10
     "INSERT INTO memberships(id, user_id, villa_id, floor, floor_reached_at, joined_at) VALUES(?,?,?,?,?,0)",
   ).bind(`m${n++}`, userId, villaId, floor, reachedAt).run();
 }
-async function cert(userId: string, day = DAY, duplicate = 0) {
+async function cert(userId: string, day = DAY, duplicate = 0, deleted = 0) {
   await env.DB.prepare(
-    "INSERT INTO certs(id, user_id, day, kind, points, duplicate, created_at) VALUES(?,?,?,'photo',1,?,0)",
-  ).bind(`c${n++}`, userId, day, duplicate).run();
+    "INSERT INTO certs(id, user_id, day, kind, points, duplicate, deleted, created_at) VALUES(?,?,?,'photo',1,?,?,0)",
+  ).bind(`c${n++}`, userId, day, duplicate, deleted).run();
 }
 const getUser = (id: string) =>
   env.DB.prepare("SELECT streak, miss_run AS missRun FROM users WHERE id = ?").bind(id).first<{ streak: number; missRun: number }>();
@@ -148,6 +148,15 @@ describe("settle", () => {
     expect((await getM(a))!.floor).toBe(1);
   });
 
+  it("deleted_only_photo_counts_as_missed", async () => {
+    const v = await villa();
+    const a = await user(3);
+    await member(a, v, 2);
+    await cert(a, DAY, 0, 1);
+    await settle(env, DAY);
+    expect(await getUser(a)).toEqual({ streak: 0, missRun: 1 });
+  });
+
   it("deletes_expired_sessions", async () => {
     await env.DB.prepare("INSERT INTO sessions VALUES('old','x',4000),('new','x',9000)").run();
     await settle(env, DAY);
@@ -157,6 +166,15 @@ describe("settle", () => {
 });
 
 describe("scheduled", () => {
+  const lastDay = async () =>
+    (await env.DB.prepare("SELECT value FROM settings WHERE key='last_settled_day'").first<{ value: string }>())!.value.slice(0, 10);
+  async function runScheduled(e: typeof env = env) {
+    const ps: Promise<unknown>[] = [];
+    const ctx = { waitUntil: (p: Promise<unknown>) => ps.push(p), passThroughOnException() {} } as unknown as ExecutionContext;
+    await worker.scheduled({} as ScheduledController, e, ctx);
+    await Promise.all(ps);
+  }
+
   it("exposes fetch and scheduled", () => {
     expect(typeof worker.fetch).toBe("function");
     expect(typeof worker.scheduled).toBe("function");
@@ -166,12 +184,80 @@ describe("scheduled", () => {
     setNow(() => Date.parse("2026-11-18T15:00:00Z"));
     const a = await user(1);
     await cert(a);
-    const ps: Promise<unknown>[] = [];
-    const ctx = { waitUntil: (p: Promise<unknown>) => ps.push(p), passThroughOnException() {} } as unknown as ExecutionContext;
-    await worker.scheduled({} as ScheduledController, env, ctx);
-    await Promise.all(ps);
-    const s = await env.DB.prepare("SELECT value FROM settings WHERE key='last_settled_day'").first<{ value: string }>();
-    expect(s!.value.slice(0, 10)).toBe("2026-11-18");
+    await runScheduled();
+    expect(await lastDay()).toBe("2026-11-18");
     expect((await getUser(a))!.streak).toBe(2);
+  });
+
+  it("first_run_settles_only_target_day", async () => {
+    setNow(() => Date.parse("2026-11-18T15:00:00Z"));
+    const a = await user(0, 0);
+    await runScheduled();
+    expect(await lastDay()).toBe("2026-11-18");
+    expect((await getUser(a))!.missRun).toBe(1);
+  });
+
+  it("catches_up_missed_days_in_order", async () => {
+    await env.DB.prepare("INSERT INTO settings VALUES('last_settled_day', '2026-11-15:t')").run();
+    const a = await user(5);
+    await cert(a, "2026-11-16");
+    await cert(a, "2026-11-17");
+    await cert(a, "2026-11-18");
+    setNow(() => Date.parse("2026-11-18T15:00:00Z"));
+    await runScheduled();
+    expect(await lastDay()).toBe("2026-11-18");
+    expect(await getUser(a)).toEqual({ streak: 8, missRun: 0 });
+    // 순서대로: 16일 미인증 → 17·18일 인증이면 streak 2
+    const b = await user(5);
+    await cert(b, "2026-11-20");
+    await cert(b, "2026-11-21");
+    setNow(() => Date.parse("2026-11-21T15:00:00Z"));
+    await runScheduled();
+    expect(await lastDay()).toBe("2026-11-21");
+    expect(await getUser(b)).toEqual({ streak: 2, missRun: 0 });
+  });
+
+  it("catch_up_caps_at_7_days_per_run", async () => {
+    await env.DB.prepare("INSERT INTO settings VALUES('last_settled_day', '2026-11-01:t')").run();
+    const a = await user(0, 0);
+    setNow(() => Date.parse("2026-11-18T15:00:00Z"));
+    await runScheduled();
+    expect(await lastDay()).toBe("2026-11-08");
+    expect((await getUser(a))!.missRun).toBe(7);
+    await runScheduled();
+    expect(await lastDay()).toBe("2026-11-15");
+    await runScheduled();
+    expect(await lastDay()).toBe("2026-11-18");
+    expect((await getUser(a))!.missRun).toBe(17);
+  });
+
+  it("user_created_after_day_is_not_settled_for_it", async () => {
+    await env.DB.prepare("INSERT INTO settings VALUES('last_settled_day', '2026-11-16:t')").run();
+    const late = `late${n++}`;
+    // 11-18 09:00 KST 가입: 11-17 정산 대상이 아니다
+    await env.DB.prepare(
+      "INSERT INTO users(id, username, nickname, password_hash, recovery_hash, created_at) VALUES(?,?,?,?,?,?)",
+    ).bind(late, late, "닉", "x", "x", Date.parse("2026-11-18T00:00:00Z")).run();
+    setNow(() => Date.parse("2026-11-18T15:00:00Z"));
+    await runScheduled();
+    expect((await getUser(late))!.missRun).toBe(1);
+  });
+
+  it("failure_is_logged_and_rethrown", async () => {
+    setNow(() => Date.parse("2026-11-18T15:00:00Z"));
+    const errors: unknown[][] = [];
+    const orig = console.error;
+    console.error = (...a: unknown[]) => void errors.push(a);
+    try {
+      const broken = {
+        prepare: (q: string) => env.DB.prepare(q),
+        batch: () => Promise.reject(new Error("boom")),
+      } as unknown as D1Database;
+      await expect(runScheduled({ ...env, DB: broken })).rejects.toThrow("boom");
+    } finally {
+      console.error = orig;
+    }
+    expect(errors.length).toBe(1);
+    expect(String(errors[0][0])).toContain("2026-11-18");
   });
 });

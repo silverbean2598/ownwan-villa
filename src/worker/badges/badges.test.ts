@@ -34,9 +34,14 @@ async function makeVilla(cookie: string) {
   return (await r.json<any>()).inviteToken as string;
 }
 const join = (cookie: string, token: string) => req(`/api/invite/${token}/join`, "POST", cookie, {});
+function jpeg(n: number, fill: number) {
+  const b = new Uint8Array(n).fill(fill);
+  b.set([0xff, 0xd8, 0xff]);
+  return b;
+}
 async function photo(cookie: string, seed = 7) {
   const fd = new FormData();
-  fd.set("file", new File([new Uint8Array(500).fill(seed)], "a.jpg", { type: "image/jpeg" }));
+  fd.set("file", new File([jpeg(500, seed)], "a.jpg", { type: "image/jpeg" }));
   fd.set("dhash", "0000000000000000");
   const r = await app.request("/api/certs/photo", { method: "POST", headers: { cookie }, body: fd }, env);
   return (await r.json<any>()).certId as string;
@@ -78,6 +83,10 @@ describe("password change", () => {
     const u = await signup();
     const res = await req("/api/me/password", "POST", u.cookie, { current: "password1", next: "short" });
     expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "비밀번호는 8~128자로 정해 주세요" });
+    const long = await req("/api/me/password", "POST", u.cookie, { current: "password1", next: "a".repeat(129) });
+    expect(long.status).toBe(400);
+    expect(await long.json()).toEqual({ error: "비밀번호는 8~128자로 정해 주세요" });
   });
 
   it("success_changes_password_and_kills_other_sessions", async () => {

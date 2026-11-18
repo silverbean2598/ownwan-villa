@@ -13,3 +13,7 @@ export function kstDay(ms: number): string {
 export function prevDay(day: string): string {
   return fmt(Date.parse(`${day}T00:00:00Z`) - DAY_MS);
 }
+
+export function nextDay(day: string): string {
+  return fmt(Date.parse(`${day}T00:00:00Z`) + DAY_MS);
+}

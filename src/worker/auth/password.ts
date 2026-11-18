@@ -1,4 +1,17 @@
 const ITERATIONS = 100000;
+const MIN_LEN = 8;
+const MAX_LEN = 128;
+export const PASSWORD_LENGTH_MSG = "비밀번호는 8~128자로 정해 주세요";
+
+/** 비밀번호 길이 규칙 (8~128자). 너무 긴 입력으로 해시 CPU를 낭비하지 않도록 상한을 둔다. */
+export function isValidPasswordLength(pw: string): boolean {
+  return pw.length >= MIN_LEN && pw.length <= MAX_LEN;
+}
+
+/** 저장된 해시의 반복 횟수가 지금 설정과 다르면 true (로그인 성공 시 새로 해시해 저장한다) */
+export function needsRehash(stored: string): boolean {
+  return stored.split("$")[1] !== String(ITERATIONS);
+}
 const enc = new TextEncoder();
 
 const b64 = (b: ArrayBuffer | Uint8Array) => btoa(String.fromCharCode(...new Uint8Array(b)));

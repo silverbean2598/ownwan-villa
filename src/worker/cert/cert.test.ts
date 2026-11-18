@@ -38,10 +38,11 @@ function hash(i: number, flip = 0) {
   const last = (parseInt(base.slice(-1), 16) ^ ((1 << flip) - 1)) & 15;
   return base.slice(0, -1) + last.toString(16);
 }
-function upload(cookie: string, opts: { dhash?: string; type?: string; size?: number; noFile?: boolean } = {}) {
+function upload(cookie: string, opts: { dhash?: string; type?: string; size?: number; noFile?: boolean; notJpeg?: boolean } = {}) {
   const fd = new FormData();
   if (!opts.noFile) {
     const bytes = new Uint8Array(opts.size ?? 1000).fill(7);
+    if (!opts.notJpeg) bytes.set([0xff, 0xd8, 0xff]);
     fd.set("file", new File([bytes], "a.jpg", { type: opts.type ?? "image/jpeg" }));
   }
   if (opts.dhash !== undefined) fd.set("dhash", opts.dhash);
@@ -113,6 +114,10 @@ describe("photo cert", () => {
     expect(big.status).toBe(413);
     expect((await big.json<any>()).error).toBe("사진이 너무 커요");
     expect((await upload(u.cookie, { dhash: hash(0), size: 300 * 1024 })).status).toBe(200);
+    // image/jpeg 라고 해도 내용이 JPEG(FF D8 FF)가 아니면 받지 않는다
+    const fake = await upload(u.cookie, { dhash: hash(1), notJpeg: true });
+    expect(fake.status).toBe(415);
+    expect((await fake.json<any>()).error).toBe("JPEG 사진만 올릴 수 있어요");
     expect((await app.request("/api/certs/photo", { method: "POST", body: new FormData() }, env)).status).toBe(401);
   });
 
@@ -172,6 +177,7 @@ describe("board and photos", () => {
     expect(p.status).toBe(200);
     expect(p.headers.get("cache-control")).toBe("private, max-age=3600");
     expect(p.headers.get("content-type")).toBe("image/jpeg");
+    expect(p.headers.get("x-content-type-options")).toBe("nosniff");
     expect((await p.arrayBuffer()).byteLength).toBe(1000);
   });
 

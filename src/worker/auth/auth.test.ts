@@ -62,6 +62,30 @@ describe("signup", () => {
   });
 });
 
+describe("username normalization and password length", () => {
+  it("signup_and_login_trim_and_lowercase_username", async () => {
+    const name = uname();
+    const res = await post("/api/signup", valid(`  ${name.toUpperCase()} `));
+    expect(res.status).toBe(201);
+    expect(await env.DB.prepare("SELECT 1 AS x FROM users WHERE username = ?").bind(name).first()).not.toBeNull();
+    expect((await post("/api/login", { username: ` ${name.toUpperCase()} `, password: "password1" })).status).toBe(200);
+  });
+
+  it("login_finds_minji_with_spaces_and_caps", async () => {
+    expect((await post("/api/signup", valid("minji"))).status).toBe(201);
+    expect((await post("/api/login", { username: " MinJi ", password: "password1" })).status).toBe(200);
+  });
+
+  it("password_must_be_8_to_128", async () => {
+    for (const password of ["short", "a".repeat(129)]) {
+      const res = await post("/api/signup", { ...valid(), password });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "비밀번호는 8~128자로 정해 주세요" });
+    }
+    expect((await post("/api/signup", { ...valid(), password: "a".repeat(128) })).status).toBe(201);
+  });
+});
+
 describe("login / me", () => {
   it("login_locks_after_5_failures", async () => {
     let t = 1_700_000_000_000;
@@ -159,5 +183,26 @@ describe("lockout and session edges", () => {
     const stored = `pbkdf2$1000$${b64(salt)}$${b64(new Uint8Array(bits))}`;
     expect(await verifyPassword("password1", stored)).toBe(true);
     expect(await verifyPassword("password2", stored)).toBe(false);
+  });
+
+  it("login_rehashes_old_iteration_count", async () => {
+    const body = valid();
+    await post("/api/signup", body);
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode("password1"), "PBKDF2", false, ["deriveBits"]);
+    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 1000 }, key, 256);
+    const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
+    const old = `pbkdf2$1000$${b64(salt)}$${b64(new Uint8Array(bits))}`;
+    const setHash = (h: string) => env.DB.prepare("UPDATE users SET password_hash = ? WHERE username = ?").bind(h, body.username).run();
+    const getHash = async () =>
+      (await env.DB.prepare("SELECT password_hash AS h FROM users WHERE username = ?").bind(body.username).first<{ h: string }>())!.h;
+    await setHash(old);
+    expect((await post("/api/login", { username: body.username, password: "password1" })).status).toBe(200);
+    expect(await getHash()).toMatch(/^pbkdf2\$100000\$/);
+    expect((await post("/api/login", { username: body.username, password: "password1" })).status).toBe(200);
+    // 실패한 로그인은 다시 해시하지 않는다
+    await setHash(old);
+    expect((await post("/api/login", { username: body.username, password: "wrongpass" })).status).toBe(401);
+    expect(await getHash()).toBe(old);
   });
 });

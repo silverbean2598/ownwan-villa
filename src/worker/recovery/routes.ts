@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { now } from "../clock";
 import { jsonError, requireUser } from "../http";
-import { hashPassword } from "../auth/password";
+import { PASSWORD_LENGTH_MSG, hashPassword, isValidPasswordLength } from "../auth/password";
+import { normalizeUsername } from "../auth/username";
 import { createSession, setSessionCookie } from "../auth/session";
 import { hashToken, newRecoveryCode } from "./codes";
 
@@ -13,7 +14,6 @@ const BAD_CODE = "아이디 또는 복구 코드가 맞지 않아요";
 const BAD_TICKET = "요청 번호가 맞지 않거나 아직 승인되지 않았어요";
 const RETRY_MS = 60 * 60 * 1000;
 const CANCEL_OPEN = "UPDATE recovery_requests SET status = 'cancelled' WHERE user_id = ? AND status IN ('pending','approved')";
-const SHORT_PW = "비밀번호는 8자 이상이어야 해요";
 
 // 요청자가 방장이 아니면 방장, 방장이면 남은 입주민 중 joined_at이 가장 이른 사람. 없으면 null.
 export async function approverFor(env: Env, userId: string): Promise<string | null> {
@@ -49,14 +49,14 @@ async function resetAccess(c: Parameters<typeof setSessionCookie>[0], env: Env, 
 
 recovery.post("/api/recover/code", async (c) => {
   const b = await c.req.json().catch(() => null);
-  const username = typeof b?.username === "string" ? b.username : "";
+  const username = normalizeUsername(b?.username);
   const code = typeof b?.code === "string" ? b.code : "";
   const newPassword = typeof b?.newPassword === "string" ? b.newPassword : "";
   const user = await c.env.DB.prepare("SELECT id, recovery_hash FROM users WHERE username = ?")
     .bind(username)
     .first<{ id: string; recovery_hash: string }>();
   if (!user || !code || user.recovery_hash !== (await hashToken(code))) return jsonError(c, 400, BAD_CODE);
-  if (newPassword.length < 8) return jsonError(c, 400, SHORT_PW);
+  if (!isValidPasswordLength(newPassword)) return jsonError(c, 400, PASSWORD_LENGTH_MSG);
   return c.json({ recoveryCode: await resetAccess(c, c.env, user.id, newPassword) });
 });
 
@@ -72,7 +72,7 @@ recovery.post("/api/recovery-code/reissue", requireUser, async (c) => {
 
 recovery.post("/api/recover/request", async (c) => {
   const b = await c.req.json().catch(() => null);
-  const username = typeof b?.username === "string" ? b.username : "";
+  const username = normalizeUsername(b?.username);
   const user = await c.env.DB.prepare("SELECT id FROM users WHERE username = ?").bind(username).first<{ id: string }>();
   if (!user) return jsonError(c, 400, "아이디를 확인해 주세요");
   const inVilla = await c.env.DB.prepare("SELECT 1 AS x FROM memberships WHERE user_id = ? AND left_at IS NULL")
@@ -128,10 +128,13 @@ recovery.post("/api/recover/:id/approve", requireUser, async (c) => {
     .first<{ user_id: string; status: string }>();
   if (!req) return jsonError(c, 404, "요청을 찾을 수 없어요");
   if ((await approverFor(c.env, req.user_id)) !== me) return jsonError(c, 403, "내가 확인할 요청이 아니에요");
+  // 승인 시점에 요청자가 사는 빌라를 함께 적는다: 완료할 때 같은 빌라에 아직 살아야 한다
   const res = await c.env.DB.prepare(
-    "UPDATE recovery_requests SET status = 'approved', approved_at = ?, approver_id = ? WHERE id = ? AND status = 'pending'",
+    `UPDATE recovery_requests SET status = 'approved', approved_at = ?1, approver_id = ?2,
+       villa_id = (SELECT villa_id FROM memberships WHERE user_id = ?3 AND left_at IS NULL)
+     WHERE id = ?4 AND status = 'pending'`,
   )
-    .bind(now(), me, c.req.param("id"))
+    .bind(now(), me, req.user_id, c.req.param("id"))
     .run();
   if (!res.meta.changes) return jsonError(c, 409, "이미 처리됐거나 취소된 요청이에요");
   return c.json({ ok: true });
@@ -139,21 +142,25 @@ recovery.post("/api/recover/:id/approve", requireUser, async (c) => {
 
 recovery.post("/api/recover/complete", async (c) => {
   const b = await c.req.json().catch(() => null);
-  const username = typeof b?.username === "string" ? b.username : "";
+  const username = normalizeUsername(b?.username);
   const ticket = typeof b?.ticket === "string" ? b.ticket : "";
   const newPassword = typeof b?.newPassword === "string" ? b.newPassword : "";
   const req = ticket
     ? await c.env.DB.prepare(
-        `SELECT r.id, r.user_id, r.approved_at FROM recovery_requests r JOIN users u ON u.id = r.user_id
+        `SELECT r.id, r.user_id, r.approved_at, r.villa_id FROM recovery_requests r JOIN users u ON u.id = r.user_id
          WHERE u.username = ? AND r.ticket_hash = ? AND r.status = 'approved'`,
       )
         .bind(username, await hashToken(ticket))
-        .first<{ id: string; user_id: string; approved_at: number }>()
+        .first<{ id: string; user_id: string; approved_at: number; villa_id: string | null }>()
     : null;
   if (!req) return jsonError(c, 400, BAD_TICKET);
-  if (newPassword.length < 8) return jsonError(c, 400, SHORT_PW);
-  const stillIn = await c.env.DB.prepare("SELECT 1 AS x FROM memberships WHERE user_id = ? AND left_at IS NULL")
-    .bind(req.user_id)
+  if (!isValidPasswordLength(newPassword)) return jsonError(c, 400, PASSWORD_LENGTH_MSG);
+  // 승인받을 때와 같은 (해산되지 않은) 빌라에 지금도 살아야 한다
+  const stillIn = await c.env.DB.prepare(
+    `SELECT 1 AS x FROM memberships m JOIN villas v ON v.id = m.villa_id AND v.dissolved_at IS NULL
+     WHERE m.user_id = ? AND m.villa_id = ? AND m.left_at IS NULL`,
+  )
+    .bind(req.user_id, req.villa_id)
     .first();
   if (!stillIn) {
     await c.env.DB.prepare("UPDATE recovery_requests SET status = 'cancelled' WHERE id = ?").bind(req.id).run();

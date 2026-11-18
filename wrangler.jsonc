@@ -16,7 +16,9 @@
       "migrations_dir": "migrations"
     }
   ],
-  // 사진 저장: 지금은 D1(photo_blobs). R2를 켜면 아래 r2_buckets 주석을 풀고 PHOTO_STORAGE를 "r2"로 바꾼다 (docs/launch-checklist.md)
+  // 요청별 CPU 시간을 Workers Logs 에서 보기 위해 (docs/launch-checklist.md)
+  "observability": { "enabled": true },
+  // 사진 저장: 지금은 D1(photo_blobs_b64, base64 TEXT). R2를 켜면 아래 r2_buckets 주석을 풀고 PHOTO_STORAGE를 "r2"로 바꾼다 (docs/launch-checklist.md)
   "vars": { "PHOTO_STORAGE": "d1" },
   // "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "ownwan-villa-photos" }],
   "triggers": { "crons": ["0 15 * * *"] }

@@ -6,7 +6,7 @@ import { isValidNickname } from "../../shared/nickname";
 import { parseAvatar } from "../../shared/avatar";
 import { getCookie, deleteCookie } from "hono/cookie";
 import { COOKIE } from "../auth/session";
-import { hashPassword, verifyPassword } from "../auth/password";
+import { PASSWORD_LENGTH_MSG, hashPassword, isValidPasswordLength, verifyPassword } from "../auth/password";
 import { hashToken } from "../recovery/codes";
 import { LOCKED_MSG, isLocked, recordFailure, resetFailures } from "../auth/lockout";
 import { deletePhotoBlobs } from "../storage";
@@ -58,7 +58,7 @@ profile.post("/api/me/password", requireUser, async (c) => {
     return jsonError(c, 400, "지금 비밀번호가 맞지 않아요");
   }
   await resetFailures(c.env, userId);
-  if (next.length < 8) return jsonError(c, 400, "비밀번호는 8자 이상이어야 해요");
+  if (!isValidPasswordLength(next)) return jsonError(c, 400, PASSWORD_LENGTH_MSG);
   const keep = await hashToken(getCookie(c, COOKIE) ?? "");
   await c.env.DB.batch([
     c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(await hashPassword(next), userId),

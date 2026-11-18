@@ -28,9 +28,14 @@ async function makeVilla(cookie: string) {
   return (await r.json<any>()).inviteToken as string;
 }
 const join = (cookie: string, token: string) => app.request(`/api/invite/${token}/join`, json(cookie, {}), env);
+function jpeg(n: number, fill: number) {
+  const b = new Uint8Array(n).fill(fill);
+  b.set([0xff, 0xd8, 0xff]);
+  return b;
+}
 async function photo(cookie: string) {
   const fd = new FormData();
-  fd.set("file", new File([new Uint8Array(500).fill(7)], "a.jpg", { type: "image/jpeg" }));
+  fd.set("file", new File([jpeg(500, 7)], "a.jpg", { type: "image/jpeg" }));
   fd.set("dhash", "0000000000000000");
   const r = await app.request("/api/certs/photo", { method: "POST", headers: { cookie }, body: fd }, env);
   return (await r.json<any>()).certId as string;
@@ -115,10 +120,26 @@ describe("delete", () => {
     const before = await pts();
     expect((await del(owner.cookie, certId)).status).toBe(200);
     expect(await env.PHOTOS.get(key)).toBeNull();
-    expect(await env.DB.prepare("SELECT 1 FROM certs WHERE id = ?").bind(certId).first()).toBeNull();
+    // 행은 남기고(소프트 삭제) 표시만 한다: 같은 날 순번 · 중복 판정에 계속 쓰인다
+    expect(await env.DB.prepare("SELECT deleted, body FROM certs WHERE id = ?").bind(certId).first()).toEqual({ deleted: 1, body: null });
     expect(await env.DB.prepare("SELECT 1 FROM reports WHERE cert_id = ?").bind(certId).first()).toBeNull();
     expect(await pts()).toBe(before);
-    expect((await del(owner.cookie, certId)).status).toBe(404);
+    const again = await del(owner.cookie, certId);
+    expect(again.status).toBe(404);
+    expect((await again.json<any>()).error).toBe("사진을 찾을 수 없어요");
+  });
+
+  it("not_found_copy_photo_vs_routine", async () => {
+    const { author } = await setup();
+    const r = await app.request("/api/certs/routine", json(author.cookie, { body: "루틴" }), env);
+    const routineId = (await r.json<any>()).certId as string;
+    expect((await del(author.cookie, routineId)).status).toBe(200);
+    const again = await del(author.cookie, routineId);
+    expect(again.status).toBe(404);
+    expect((await again.json<any>()).error).toBe("기록을 찾을 수 없어요");
+    const none = await del(author.cookie, "nope");
+    expect((await none.json<any>()).error).toBe("기록을 찾을 수 없어요");
+    expect((await (await report(author.cookie, "nope")).json<any>()).error).toBe("사진을 찾을 수 없어요");
   });
 
   it("author_can_delete_own", async () => {
@@ -137,5 +158,59 @@ describe("delete", () => {
     const stranger = await signup();
     await makeVilla(stranger.cookie);
     expect((await del(stranger.cookie, certId)).status).toBe(403);
+  });
+});
+
+async function photoWith(cookie: string, dhash: string) {
+  const fd = new FormData();
+  fd.set("file", new File([jpeg(500, 9)], "a.jpg", { type: "image/jpeg" }));
+  fd.set("dhash", dhash);
+  const r = await app.request("/api/certs/photo", { method: "POST", headers: { cookie }, body: fd }, env);
+  return r.json<any>();
+}
+
+describe("soft delete", () => {
+  it("reupload_same_photo_after_delete_is_duplicate", async () => {
+    const { author } = await setup(); // setup 이 0000… 사진을 이미 올렸다
+    const first = await photoWith(author.cookie, "ffffffffffffffff");
+    expect(first.points).toBe(10);
+    expect((await del(author.cookie, first.certId)).status).toBe(200);
+    const again = await photoWith(author.cookie, "ffffffffffffffff");
+    expect(again).toMatchObject({ duplicate: true, points: 0 });
+  });
+
+  it("delete_then_different_photo_keeps_numbering", async () => {
+    const u = await signup();
+    const a = await photoWith(u.cookie, "0000000000000000");
+    expect(a.points).toBe(20);
+    expect((await del(u.cookie, a.certId)).status).toBe(200);
+    const b = await photoWith(u.cookie, "ffffffffffffffff");
+    expect(b).toMatchObject({ duplicate: false, points: 10 });
+    // 지운 뒤 아무 사진도 없으면 오늘 인증이 아니다
+    const c = await signup();
+    const only = await photoWith(c.cookie, "0000000000000000");
+    await del(c.cookie, only.certId);
+    const routine = await (await app.request("/api/certs/routine", json(c.cookie, { body: "루틴" }), env)).json<any>();
+    await del(c.cookie, routine.certId);
+    const r2 = await (await app.request("/api/certs/routine", json(c.cookie, { body: "다시" }), env)).json<any>();
+    expect(r2.points).toBe(0); // 루틴 하루 1회 판정에도 지운 글이 남는다
+  });
+
+  it("deleted_photo_hidden_everywhere", async () => {
+    const owner = await signup();
+    const token = await makeVilla(owner.cookie);
+    const u = await signup();
+    await join(u.cookie, token);
+    const p = await photoWith(u.cookie, "0000000000000000");
+    expect((await del(u.cookie, p.certId)).status).toBe(200);
+    const items = await (await app.request(`/api/users/${u.id}/board`, { headers: { cookie: owner.cookie } }, env)).json<any[]>();
+    expect(items).toEqual([]);
+    expect((await app.request(`/api/photos/${p.certId}`, { headers: { cookie: u.cookie } }, env)).status).toBe(404);
+    const mine = await (await app.request("/api/villas/mine", { headers: { cookie: owner.cookie } }, env)).json<any>();
+    expect(mine.members.find((m: any) => m.userId === u.id).certifiedToday).toBe(false);
+    expect((await report(owner.cookie, p.certId)).status).toBe(404);
+    // 사진 응답의 certifiedToday 도 지운 사진을 세지 않는다: 같은 사진 다시 올리면 중복이고 오늘 인증 아님
+    const dup = await photoWith(u.cookie, "0000000000000000");
+    expect(dup).toMatchObject({ duplicate: true, certifiedToday: false });
   });
 });
