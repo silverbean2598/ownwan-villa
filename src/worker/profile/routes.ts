@@ -70,7 +70,7 @@ profile.post("/api/me/password", requireUser, async (c) => {
 // 탈퇴: 사진 파일부터 지우고, 빌라에서 나간 뒤(방장 승계), 내 기록을 모두 지운다
 profile.delete("/api/me", requireUser, async (c) => {
   const userId = c.get("userId");
-  const { results } = await c.env.DB.prepare("SELECT r2_key FROM certs WHERE user_id = ?").bind(userId).all<{ r2_key: string | null }>();
+  const { results } = await c.env.DB.prepare("SELECT id, r2_key FROM certs WHERE user_id = ?").bind(userId).all<{ id: string; r2_key: string | null }>();
   await deletePhotoBlobs(c.env, results);
   try {
     await leaveVilla(c.env, userId);

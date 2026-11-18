@@ -11,7 +11,8 @@ export default defineConfig({
         plugins: [
           cloudflareTest({
             wrangler: { configPath: "./wrangler.jsonc" },
-            miniflare: { bindings: { TEST_MIGRATIONS: migrations } },
+            // 운영 설정은 R2 없이 D1 저장. 테스트는 R2 백엔드를 기본으로 쓰고 storage.test.ts 가 둘 다 확인한다
+            miniflare: { r2Buckets: ["PHOTOS"], bindings: { TEST_MIGRATIONS: migrations, PHOTO_STORAGE: "r2" } },
           }),
         ],
         test: {

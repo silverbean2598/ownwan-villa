@@ -17,6 +17,8 @@
       "migrations_dir": "migrations"
     }
   ],
-  "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "ownwan-villa-photos" }],
+  // 사진 저장: 지금은 D1(photo_blobs). R2를 켜면 아래 r2_buckets 주석을 풀고 PHOTO_STORAGE를 "r2"로 바꾼다 (docs/launch-checklist.md)
+  "vars": { "PHOTO_STORAGE": "d1" },
+  // "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "ownwan-villa-photos" }],
   "triggers": { "crons": ["0 15 * * *"] }
 }

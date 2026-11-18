@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { now } from "../clock";
 import { jsonError, requireUser } from "../http";
+import { deletePhotoBlob, getPhotoBlob, putPhotoBlob } from "../storage";
 import { kstDay } from "../../shared/rules/day";
 import { DUPLICATE_HAMMING, hamming } from "../../shared/rules/dhash";
 import { photoPoints, routinePoints } from "../../shared/rules/points";
@@ -61,14 +62,14 @@ cert.post("/api/certs/photo", requireUser, async (c) => {
   const day = kstDay(t);
   const id = crypto.randomUUID();
   const key = `photos/${userId}/${id}.jpg`;
-  await c.env.PHOTOS.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: "image/jpeg" } });
+  await putPhotoBlob(c.env, id, key, await file.arrayBuffer(), "image/jpeg");
   try {
     await c.env.DB.batch([
       c.env.DB.prepare(PHOTO_INSERT).bind(id, userId, day, key, dhash, duplicate, t),
       c.env.DB.prepare(ADD_POINTS).bind(id, userId),
     ]);
   } catch (e) {
-    await c.env.PHOTOS.delete(key);
+    await deletePhotoBlob(c.env, { id, r2_key: key });
     throw e;
   }
   const row = await c.env.DB.prepare("SELECT points FROM certs WHERE id = ?").bind(id).first<{ points: number }>();
@@ -128,11 +129,11 @@ cert.get("/api/photos/:certId", requireUser, async (c) => {
   if (!row || !row.r2_key) return jsonError(c, 404, "사진을 찾을 수 없어요");
   if (!(await canView(c.env, c.get("userId"), row.user_id))) return jsonError(c, 403, FORBIDDEN);
   if (row.hidden) return jsonError(c, 404, "사진을 찾을 수 없어요");
-  const obj = await c.env.PHOTOS.get(row.r2_key);
+  const obj = await getPhotoBlob(c.env, { id: c.req.param("certId"), r2_key: row.r2_key });
   if (!obj) return jsonError(c, 404, "사진을 찾을 수 없어요");
   return new Response(obj.body, {
     headers: {
-      "content-type": obj.httpMetadata?.contentType ?? "image/jpeg",
+      "content-type": obj.contentType,
       "cache-control": "private, max-age=3600",
     },
   });
