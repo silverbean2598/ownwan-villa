@@ -11,7 +11,11 @@ export type EventType =
   | "floor_down"
   | "welcome"
   | "friend_joined"
-  | "bought";
+  | "bought"
+  | "kicked"
+  | "owner_in"
+  | "owner_changed"
+  | "dissolved";
 
 /**
  * key: 한 번만 생겨야 하는 일은 고정 키(예: "certified:{user}:{day}")를 준다. 같은 키는 INSERT OR IGNORE 로 무시돼

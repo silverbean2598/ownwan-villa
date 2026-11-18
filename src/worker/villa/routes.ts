@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { AppEnv } from "../env";
 import { now } from "../clock";
 import { jsonError, requireUser } from "../http";
@@ -6,7 +6,10 @@ import { sessionUserId } from "../auth/session";
 import { DEFAULT_AVATAR, parseAvatar } from "../../shared/avatar";
 import { kstDay } from "../../shared/rules/day";
 import { displayFloor } from "../../shared/rules/streak";
-import { MAX_MEMBERS, NotInVillaError, leaveVilla, newInviteToken, recomputePenthouse } from "./service";
+import {
+  MAX_MEMBERS, NameMismatchError, NotInVillaError, NotMemberError, NotOwnerError, VillaGoneError,
+  dissolveVilla, kickMember, leaveVilla, newInviteToken, recomputePenthouse, transferOwner,
+} from "./service";
 import { CERTIFIED_PHOTO } from "../cert/certified";
 import { logEvents } from "../events/log";
 
@@ -23,6 +26,10 @@ function safeAvatar(raw: string) {
 const BAD_NAME = "빌라 이름은 1~20자로 지어 주세요";
 const IN_VILLA = "지금 빌라를 먼저 나가야 해요";
 const EXPIRED = "초대 링크가 만료됐어요";
+const BANNED = "이 빌라에는 다시 입주할 수 없어요";
+const NO_VILLA = "빌라를 찾을 수 없어요";
+const OWNER_ONLY = "방장만 할 수 있어요";
+const NOT_MEMBER = "이 빌라에 사는 입주민이 아니에요";
 
 function cleanName(v: unknown): string | null {
   const s = typeof v === "string" ? v.trim() : "";
@@ -144,6 +151,9 @@ async function currentVillaId(env: AppEnv["Bindings"], userId: string): Promise<
   return row?.id ?? null;
 }
 
+const isBanned = async (env: AppEnv["Bindings"], villaId: string, userId: string) =>
+  !!(await env.DB.prepare("SELECT 1 AS x FROM villa_bans WHERE villa_id = ? AND user_id = ?").bind(villaId, userId).first());
+
 villa.get("/api/invite/:token", async (c) => {
   const row = await c.env.DB.prepare(
     `SELECT v.id, v.name AS villaName,
@@ -157,6 +167,7 @@ villa.get("/api/invite/:token", async (c) => {
   // 로그인한 사람에게는 이미 이 빌라 입주민인지 / 다른 빌라에 사는지도 알려 준다
   const userId = await sessionUserId(c);
   if (!userId) return c.json(preview);
+  if (await isBanned(c.env, id, userId)) return jsonError(c, 403, BANNED);
   const mine = await currentVillaId(c.env, userId);
   return c.json({ ...preview, alreadyMember: mine === id, inOtherVilla: mine !== null && mine !== id });
 });
@@ -178,9 +189,10 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
     const res = await c.env.DB.prepare(
       `INSERT INTO memberships (id, user_id, villa_id, floor, floor_reached_at, joined_at)
        SELECT ?, ?, ?, 1, ?, ? WHERE (SELECT COUNT(*) FROM memberships WHERE villa_id = ? AND left_at IS NULL) < ?
-         AND EXISTS (SELECT 1 FROM villas WHERE id = ? AND dissolved_at IS NULL)`,
+         AND EXISTS (SELECT 1 FROM villas WHERE id = ? AND dissolved_at IS NULL)
+         AND NOT EXISTS (SELECT 1 FROM villa_bans WHERE villa_id = ? AND user_id = ?)`,
     )
-      .bind(membershipId, userId, v.id, t, t, v.id, MAX_MEMBERS, v.id)
+      .bind(membershipId, userId, v.id, t, t, v.id, MAX_MEMBERS, v.id, v.id, userId)
       .run();
     changes = res.meta.changes;
   } catch (e) {
@@ -188,11 +200,99 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
     throw e;
   }
   if (changes === 0) {
+    if (await isBanned(c.env, v.id, userId)) return jsonError(c, 403, BANNED);
     const alive = await c.env.DB.prepare("SELECT 1 AS x FROM villas WHERE id = ? AND dissolved_at IS NULL").bind(v.id).first();
     return alive ? jsonError(c, 409, "빌라가 꽉 찼어요") : jsonError(c, 404, EXPIRED);
   }
   await logJoinEvents(c.env, userId, v.id, membershipId).catch((e) => console.error("join events failed", e));
   await recomputePenthouse(c.env, v.id);
+  return c.json({ ok: true });
+});
+
+/** 방장 일의 실패를 응답으로 */
+function ownerError(c: Context<AppEnv>, e: unknown) {
+  if (e instanceof VillaGoneError) return jsonError(c, 404, NO_VILLA);
+  if (e instanceof NotOwnerError) return jsonError(c, 403, OWNER_ONLY);
+  if (e instanceof NotMemberError) return jsonError(c, 404, NOT_MEMBER);
+  if (e instanceof NameMismatchError) return jsonError(c, 400, "빌라 이름이 맞지 않아요");
+  throw e;
+}
+
+/** 방장인지 먼저 본다 (실제 쓰기는 service 가 한 번 더 조건으로 확인한다). 문제가 있으면 응답, 없으면 null */
+async function ownerGate(c: Context<AppEnv>, id: string, userId: string) {
+  const v = await ownedVilla(c, id);
+  if (!v) return jsonError(c, 404, NO_VILLA);
+  if (v.owner_id !== userId) return jsonError(c, 403, OWNER_ONLY);
+  return null;
+}
+
+villa.post("/api/villas/:id/members/:userId/kick", requireUser, async (c) => {
+  const me = c.get("userId");
+  const id = c.req.param("id");
+  const target = c.req.param("userId");
+  const gate = await ownerGate(c, id, me);
+  if (gate) return gate;
+  if (target === me) return jsonError(c, 400, "나를 내보낼 수는 없어요");
+  try {
+    await kickMember(c.env, id, me, target);
+  } catch (e) {
+    return ownerError(c, e);
+  }
+  return c.json({ ok: true });
+});
+
+villa.get("/api/villas/:id/bans", requireUser, async (c) => {
+  const id = c.req.param("id");
+  const gate = await ownerGate(c, id, c.get("userId"));
+  if (gate) return gate;
+  const { results } = await c.env.DB.prepare(
+    `SELECT b.user_id AS userId, u.nickname, b.created_at AS createdAt FROM villa_bans b
+     JOIN users u ON u.id = b.user_id WHERE b.villa_id = ? ORDER BY b.created_at DESC`,
+  )
+    .bind(id)
+    .all<{ userId: string; nickname: string; createdAt: number }>();
+  return c.json(results);
+});
+
+villa.delete("/api/villas/:id/bans/:userId", requireUser, async (c) => {
+  const id = c.req.param("id");
+  const me = c.get("userId");
+  const gate = await ownerGate(c, id, me);
+  if (gate) return gate;
+  // 방장 확인과 지우기를 한 문장으로 (그 사이 방장이 바뀌어도 예전 방장이 풀어 주지 못하게)
+  await c.env.DB.prepare(
+    "DELETE FROM villa_bans WHERE villa_id = ?1 AND user_id = ?2 AND EXISTS (SELECT 1 FROM villas WHERE id = ?1 AND owner_id = ?3 AND dissolved_at IS NULL)",
+  )
+    .bind(id, c.req.param("userId"), me)
+    .run();
+  return c.json({ ok: true });
+});
+
+villa.post("/api/villas/:id/transfer", requireUser, async (c) => {
+  const me = c.get("userId");
+  const id = c.req.param("id");
+  const gate = await ownerGate(c, id, me);
+  if (gate) return gate;
+  const b = await c.req.json().catch(() => null);
+  const target = typeof b?.userId === "string" ? b.userId : "";
+  if (!target) return jsonError(c, 400, "방장을 넘길 입주민을 골라 주세요");
+  if (target === me) return jsonError(c, 400, "이미 방장이에요");
+  try {
+    await transferOwner(c.env, id, me, target);
+  } catch (e) {
+    return ownerError(c, e);
+  }
+  return c.json({ ok: true });
+});
+
+villa.post("/api/villas/:id/dissolve", requireUser, async (c) => {
+  const b = await c.req.json().catch(() => null);
+  const confirmName = typeof b?.confirmName === "string" ? b.confirmName : "";
+  try {
+    await dissolveVilla(c.env, c.req.param("id"), c.get("userId"), confirmName);
+  } catch (e) {
+    return ownerError(c, e);
+  }
   return c.json({ ok: true });
 });
 
