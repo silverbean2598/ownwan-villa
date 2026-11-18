@@ -8,8 +8,11 @@ export { POSES, type Pose };
 type Props = { spec: AvatarSpec; size: number; pose?: Pose; className?: string };
 
 // 서 있는 자세 viewBox (가로:세로 = 1:1.4). 누운 자세는 가로로 돌려 같은 비율의 가로형.
+// viewBox 원점은 항상 0 0: transform-box view-box의 기준점이 엔진(WebKit · Gecko)마다 viewBox x,y를
+// 따라가므로, 원점을 0으로 두고 리그 위치는 안쪽 그룹의 transform으로 옮긴다.
 const STAND_BOX = "0 0 120 168";
-const LYING_BOX = "-36 42 168 120";
+const LYING_BOX = "0 0 168 120";
+const LYING_RIG = "translate(36 -42) rotate(-90 60 100)";
 // 바벨 높이 = 자세표 gym의 손 위치 (어깨 y89, 팔꿈치 10, 아래팔 26, 위팔 100°)
 const BAR_Y = 61.3;
 
@@ -43,7 +46,7 @@ export function Avatar({ spec, size, pose = "idle", className }: Props) {
       viewBox={lying ? LYING_BOX : STAND_BOX}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <g transform={lying ? "rotate(-90 60 100)" : `translate(0 ${p.offsetY})`}>
+      <g transform={lying ? LYING_RIG : `translate(0 ${p.offsetY})`}>
         <g data-part="body">
           <Leg side="L" a={p.legL} skin={skin} gi={gi} />
           <Leg side="R" a={p.legR} skin={skin} gi={gi} />

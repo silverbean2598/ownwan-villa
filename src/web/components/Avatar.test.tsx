@@ -49,6 +49,13 @@ describe("Avatar", () => {
     });
   });
 
+  it("every_pose_uses_zero_origin_viewbox_so_joint_pivots_match_in_all_engines", () => {
+    for (const pose of Object.keys(POSES) as Pose[]) {
+      const h = renderToStaticMarkup(<Avatar spec={DEFAULT_AVATAR} size={40} pose={pose} />);
+      expect(h.match(/<svg[^>]*viewBox="([^"]*)"/)![1]).toMatch(/^0 0 /);
+    }
+  });
+
   it("gym_pose_holds_barbell", () => {
     expect(renderToStaticMarkup(<Avatar spec={DEFAULT_AVATAR} size={40} pose="gym" />)).toContain('data-part="barbell"');
   });
