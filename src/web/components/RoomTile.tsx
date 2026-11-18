@@ -21,6 +21,7 @@ export function RoomTile({ member, isMe, isOwner, penthouse = false }: Props) {
         <b>{member.nickname}</b>
         <span className="sport">{SPORT_LABEL[member.sport]}</span>
         <span className="badges">
+          {member.floorUpToday && <em className="up-badge">+1층</em>}
           {isMe && <em className="me-badge">나</em>}
           {isOwner && <em className="owner-badge">방장</em>}
         </span>

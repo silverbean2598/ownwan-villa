@@ -9,6 +9,7 @@ export type Member = {
   sport: Sport;
   avatar: AvatarSpec;
   floor: number;
+  floorUpToday?: boolean;
   streak: number;
   certifiedToday: boolean;
   placements: { slot: string; itemId: string }[];

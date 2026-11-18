@@ -5,6 +5,7 @@ import { jsonError, requireUser } from "../http";
 import { sessionUserId } from "../auth/session";
 import { DEFAULT_AVATAR, parseAvatar } from "../../shared/avatar";
 import { kstDay } from "../../shared/rules/day";
+import { displayFloor } from "../../shared/rules/streak";
 import { MAX_MEMBERS, NotInVillaError, leaveVilla, newInviteToken, recomputePenthouse } from "./service";
 import { CERTIFIED_PHOTO } from "../cert/certified";
 
@@ -77,12 +78,17 @@ villa.get("/api/villas/mine", requireUser, async (c) => {
   )
     .bind(v.id)
     .all<{ userId: string; slot: string; itemId: string }>();
-  const members = results.map((r) => ({
+  const members = results.map((r) => {
+    const floor = displayFloor(r.floor, r.streak, !!r.certifiedToday);
+    return {
     ...r,
+    floor,
+    floorUpToday: floor > r.floor,
     avatar: safeAvatar(r.avatar),
     certifiedToday: !!r.certifiedToday,
     placements: pl.results.filter((p) => p.userId === r.userId).map((p) => ({ slot: p.slot, itemId: p.itemId })),
-  }));
+    };
+  });
   // 초대 링크는 방장만 받는다
   const { inviteToken, ...rest } = v;
   return c.json({ ...rest, ...(v.ownerId === userId ? { inviteToken } : {}), members });

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { app } from "../index";
 import { setNow } from "../clock";
 import { kstDay } from "../../shared/rules/day";
+import { settle } from "../cron/settle";
 import { DEFAULT_AVATAR } from "../../shared/avatar";
 
 let n = 0;
@@ -94,6 +95,25 @@ describe("villa", () => {
     expect(await get()).toBe(false);
     await env.DB.prepare("INSERT INTO certs (id, user_id, day, kind, points, duplicate, created_at) VALUES (?, ?, ?, 'photo', 20, 0, 1)").bind(crypto.randomUUID(), u.id, day).run();
     expect(await get()).toBe(true);
+  });
+
+  it("7일째 인증하면 바로 +1층, 자정 정산 뒤 저장된 층과 같다", async () => {
+    const u = await signup();
+    await create(u);
+    const t0 = Date.parse("2026-11-18T03:00:00+09:00");
+    setNow(() => t0);
+    const day = kstDay(t0);
+    await env.DB.prepare("UPDATE users SET streak = 6, created_at = 0 WHERE id = ?").bind(u.id).run();
+    const me = async () => ((await (await send("GET", "/api/villas/mine", undefined, u.cookie)).json()) as any).members[0];
+    expect(await me()).toMatchObject({ floor: 1, floorUpToday: false });
+    await env.DB.prepare("INSERT INTO certs (id, user_id, day, kind, points, duplicate, created_at) VALUES (?, ?, ?, 'photo', 20, 0, ?)").bind(crypto.randomUUID(), u.id, day, t0).run();
+    expect(await me()).toMatchObject({ floor: 2, floorUpToday: true });
+    // 저장된 층은 아직 그대로
+    expect((await env.DB.prepare("SELECT floor FROM memberships WHERE user_id = ?").bind(u.id).first<{ floor: number }>())!.floor).toBe(1);
+    await settle(env, day);
+    expect((await env.DB.prepare("SELECT floor FROM memberships WHERE user_id = ?").bind(u.id).first<{ floor: number }>())!.floor).toBe(2);
+    setNow(() => t0 + 86_400_000);
+    expect(await me()).toMatchObject({ floor: 2, floorUpToday: false });
   });
 
   it("join_rejects_11th_member", async () => {

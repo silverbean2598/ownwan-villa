@@ -159,6 +159,7 @@ export function Room() {
         <div className="stats">
           <span className="chip" aria-label="종목">{SPORT_LABEL[member.sport]}</span>
           <span className="chip">{penthouse ? "펜트하우스" : `${member.floor}층`}</span>
+          {member.floorUpToday && <span className="chip up-chip">+1층</span>}
           <span className="chip">연속 <b>{displayStreak(member.streak, member.certifiedToday)}</b>일</span>
         </div>
         {isMe && <CertifyButton certifiedToday={member.certifiedToday} />}

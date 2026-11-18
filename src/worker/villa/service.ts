@@ -2,7 +2,7 @@ import type { Env } from "../env";
 import { now } from "../clock";
 import { CERTIFIED_PHOTO } from "../cert/certified";
 import { kstDay } from "../../shared/rules/day";
-import { displayStreak } from "../../shared/rules/streak";
+import { displayFloor, displayStreak } from "../../shared/rules/streak";
 import { pickPenthouse } from "../../shared/rules/penthouse";
 
 export const MAX_MEMBERS = 10;
@@ -15,14 +15,23 @@ export function newInviteToken(): string {
 export async function recomputePenthouse(env: Env, villaId: string): Promise<string | null> {
   const { results } = await env.DB.prepare(
     `SELECT m.user_id AS userId, m.floor, u.streak, m.floor_reached_at AS floorReachedAt,
-       EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ? AND ${CERTIFIED_PHOTO}) AS certifiedToday
+       EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ? AND ${CERTIFIED_PHOTO}) AS certifiedToday,
+       (SELECT MIN(c.created_at) FROM certs c WHERE c.user_id = u.id AND c.day = ? AND ${CERTIFIED_PHOTO}) AS firstCertAt
      FROM memberships m JOIN users u ON u.id = m.user_id
      WHERE m.villa_id = ? AND m.left_at IS NULL`,
   )
-    .bind(kstDay(now()), villaId)
-    .all<{ userId: string; floor: number; streak: number; floorReachedAt: number; certifiedToday: number }>();
-  // 오늘 인증까지 친 연속 기록으로 비교한다. 층은 자정 정산 때만 바뀐다
-  const id = pickPenthouse(results.map((r) => ({ ...r, streak: displayStreak(r.streak, !!r.certifiedToday) })));
+    .bind(kstDay(now()), kstDay(now()), villaId)
+    .all<{ userId: string; floor: number; streak: number; floorReachedAt: number; certifiedToday: number; firstCertAt: number | null }>();
+  // 오늘 인증까지 친 연속 기록과 층(7일째면 바로 +1)으로 비교한다. 저장된 층은 자정 정산 때만 바뀐다
+  const id = pickPenthouse(
+    results.map((r) => {
+      const cert = !!r.certifiedToday;
+      const floor = displayFloor(r.floor, r.streak, cert);
+      // 오늘 올라간 층은 첫 사진 인증 시각에 도달한 것으로 본다
+      const floorReachedAt = floor > r.floor && r.firstCertAt !== null ? r.firstCertAt : r.floorReachedAt;
+      return { userId: r.userId, floor, streak: displayStreak(r.streak, cert), floorReachedAt };
+    }),
+  );
   await env.DB.prepare("UPDATE villas SET penthouse_user_id = ? WHERE id = ?").bind(id, villaId).run();
   return id;
 }

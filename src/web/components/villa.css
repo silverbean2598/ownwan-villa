@@ -40,6 +40,8 @@
 .badges { position: absolute; top: 4px; right: 4px; display: flex; gap: 3px; }
 .badges em { font-style: normal; font-size: 10px; padding: 0 5px; border-radius: 999px; line-height: 16px; }
 .me-badge { background: var(--accent); color: #fff; }
+.up-badge { background: rgba(255, 255, 255, 0.85); color: #555; }
+.up-chip { background: rgba(255, 255, 255, 0.7); color: #555; font-size: 12px; }
 .owner-badge { background: var(--gold); color: #fff; }
 
 .scene { position: relative; width: 100%; aspect-ratio: 150 / 100; }
