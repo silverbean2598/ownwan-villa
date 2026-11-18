@@ -3,6 +3,8 @@ import type { AppEnv, Env } from "../env";
 import { now } from "../clock";
 import { jsonError, requireUser } from "../http";
 import { deletePhotoBlob, getPhotoBlob, putPhotoBlob } from "../storage";
+import { CERTIFIED_PHOTO } from "./certified";
+import { recomputeUserPenthouse } from "../villa/service";
 import { kstDay } from "../../shared/rules/day";
 import { DUPLICATE_HAMMING, hamming } from "../../shared/rules/dhash";
 import { photoPoints, routinePoints } from "../../shared/rules/points";
@@ -43,8 +45,6 @@ SELECT ?1, ?2, ?3, 'routine', ?4,
   CASE WHEN EXISTS (SELECT 1 FROM certs WHERE user_id = ?2 AND day = ?3 AND kind = 'routine')
     THEN ${routinePoints(true)} ELSE ${routinePoints(false)} END, 0, ?5`;
 
-/** 오늘 인증 = 그날 지우지 않은, 중복 아닌 사진이 있다 */
-const CERTIFIED_PHOTO = "kind = 'photo' AND duplicate = 0 AND deleted = 0";
 
 const JPEG_MAGIC = [0xff, 0xd8, 0xff];
 
@@ -89,6 +89,7 @@ cert.post("/api/certs/photo", requireUser, async (c) => {
   )
     .bind(userId, day)
     .first();
+  if (today) await recomputeUserPenthouse(c.env, userId);
   return c.json({ certId: id, points: row!.points, duplicate: !!duplicate, certifiedToday: !!today });
 });
 

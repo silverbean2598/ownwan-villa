@@ -1,5 +1,8 @@
 import type { Env } from "../env";
 import { now } from "../clock";
+import { CERTIFIED_PHOTO } from "../cert/certified";
+import { kstDay } from "../../shared/rules/day";
+import { displayStreak } from "../../shared/rules/streak";
 import { pickPenthouse } from "../../shared/rules/penthouse";
 
 export const MAX_MEMBERS = 10;
@@ -11,15 +14,28 @@ export function newInviteToken(): string {
 
 export async function recomputePenthouse(env: Env, villaId: string): Promise<string | null> {
   const { results } = await env.DB.prepare(
-    `SELECT m.user_id AS userId, m.floor, u.streak, m.floor_reached_at AS floorReachedAt
+    `SELECT m.user_id AS userId, m.floor, u.streak, m.floor_reached_at AS floorReachedAt,
+       EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ? AND ${CERTIFIED_PHOTO}) AS certifiedToday
      FROM memberships m JOIN users u ON u.id = m.user_id
      WHERE m.villa_id = ? AND m.left_at IS NULL`,
   )
-    .bind(villaId)
-    .all<{ userId: string; floor: number; streak: number; floorReachedAt: number }>();
-  const id = pickPenthouse(results);
+    .bind(kstDay(now()), villaId)
+    .all<{ userId: string; floor: number; streak: number; floorReachedAt: number; certifiedToday: number }>();
+  // 오늘 인증까지 친 연속 기록으로 비교한다. 층은 자정 정산 때만 바뀐다
+  const id = pickPenthouse(results.map((r) => ({ ...r, streak: displayStreak(r.streak, !!r.certifiedToday) })));
   await env.DB.prepare("UPDATE villas SET penthouse_user_id = ? WHERE id = ?").bind(id, villaId).run();
   return id;
+}
+
+/** 지금 사는(해체되지 않은) 빌라의 1등을 다시 계산한다. 빌라가 없으면 건너뛴다 */
+export async function recomputeUserPenthouse(env: Env, userId: string): Promise<void> {
+  const v = await env.DB.prepare(
+    `SELECT m.villa_id AS villaId FROM memberships m JOIN villas v ON v.id = m.villa_id
+     WHERE m.user_id = ? AND m.left_at IS NULL AND v.dissolved_at IS NULL`,
+  )
+    .bind(userId)
+    .first<{ villaId: string }>();
+  if (v) await recomputePenthouse(env, v.villaId);
 }
 
 export async function leaveVilla(env: Env, userId: string): Promise<void> {

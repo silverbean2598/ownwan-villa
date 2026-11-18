@@ -3,6 +3,7 @@ import { now } from "../clock";
 import { settleDay } from "../../shared/rules/floor";
 import { nextDay } from "../../shared/rules/day";
 import { recomputePenthouse } from "../villa/service";
+import { CERTIFIED_PHOTO } from "../cert/certified";
 
 type Row = {
   id: string;
@@ -61,7 +62,7 @@ function dayEndMs(day: string): number {
 export async function applySettlement(env: Env, day: string): Promise<boolean> {
   const { results } = await env.DB.prepare(
     `SELECT u.id, u.streak, u.miss_run AS missRun, m.id AS membershipId, m.floor,
-            EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ?1 AND c.kind = 'photo' AND c.duplicate = 0 AND c.deleted = 0) AS certified
+            EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ?1 AND ${CERTIFIED_PHOTO}) AS certified
      FROM users u
      LEFT JOIN (
        SELECT m.id, m.user_id, m.floor FROM memberships m

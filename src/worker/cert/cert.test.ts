@@ -250,3 +250,42 @@ describe("board and photos", () => {
     expect((await app.request(`/api/photos/nope`, { headers: { cookie: a.cookie } }, env)).status).toBe(404);
   });
 });
+
+describe("live penthouse", () => {
+  const pent = async (cookie: string) =>
+    (await (await app.request("/api/villas/mine", { headers: { cookie } }, env)).json<any>()).penthouseUserId as string;
+
+  async function setup() {
+    let t = Date.parse("2026-11-18T03:00:00Z");
+    setNow(() => (t += 1000));
+    const a = await signup();
+    const token = await makeVilla(a.cookie);
+    const b = await signup();
+    await join(b.cookie, token);
+    return { a, b };
+  }
+
+  it("switches_live_on_upload_and_delete", async () => {
+    const { a, b } = await setup();
+    expect(await pent(a.cookie)).toBe(a.id);
+    await upload(b.cookie, { dhash: hash(0) });
+    expect(await pent(a.cookie)).toBe(b.id);
+    await upload(a.cookie, { dhash: hash(1) });
+    expect(await pent(a.cookie)).toBe(a.id);
+    const [mine] = await (await board(a.cookie, a.id)).json<any[]>();
+    const del = await app.request(`/api/certs/${mine.id}`, { method: "DELETE", headers: { cookie: a.cookie } }, env);
+    expect(del.status).toBe(200);
+    expect(await pent(a.cookie)).toBe(b.id);
+  });
+
+  it("duplicate_photo_keeps_penthouse", async () => {
+    const { a, b } = await setup();
+    await upload(b.cookie, { dhash: hash(0) });
+    const [mine] = await (await board(b.cookie, b.id)).json<any[]>();
+    await app.request(`/api/certs/${mine.id}`, { method: "DELETE", headers: { cookie: b.cookie } }, env);
+    expect(await pent(a.cookie)).toBe(a.id);
+    const dup = await (await upload(b.cookie, { dhash: hash(0) })).json<any>();
+    expect(dup.duplicate).toBe(true);
+    expect(await pent(a.cookie)).toBe(a.id);
+  });
+});

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { jsonError, requireUser } from "../http";
 import { canView } from "../cert/routes";
+import { recomputeUserPenthouse } from "../villa/service";
 import { deletePhotoBlob } from "../storage";
 
 export const report = new Hono<AppEnv>();
@@ -58,5 +59,6 @@ report.delete("/api/certs/:id", requireUser, async (c) => {
     c.env.DB.prepare("DELETE FROM reports WHERE cert_id = ?").bind(cert.id),
     c.env.DB.prepare("UPDATE certs SET deleted = 1, body = NULL WHERE id = ?").bind(cert.id),
   ]);
+  if (cert.kind === "photo") await recomputeUserPenthouse(c.env, cert.user_id);
   return c.json({ ok: true });
 });

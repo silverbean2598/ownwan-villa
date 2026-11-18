@@ -6,6 +6,7 @@ import { sessionUserId } from "../auth/session";
 import { DEFAULT_AVATAR, parseAvatar } from "../../shared/avatar";
 import { kstDay } from "../../shared/rules/day";
 import { MAX_MEMBERS, NotInVillaError, leaveVilla, newInviteToken, recomputePenthouse } from "./service";
+import { CERTIFIED_PHOTO } from "../cert/certified";
 
 export const villa = new Hono<AppEnv>();
 
@@ -64,7 +65,7 @@ villa.get("/api/villas/mine", requireUser, async (c) => {
   if (!v) return c.json(null);
   const { results } = await c.env.DB.prepare(
     `SELECT u.id AS userId, u.nickname, u.sport, u.avatar, m.floor, u.streak,
-       EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.kind = 'photo' AND c.duplicate = 0 AND c.deleted = 0 AND c.day = ?) AS certifiedToday
+       EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ? AND ${CERTIFIED_PHOTO}) AS certifiedToday
      FROM memberships m JOIN users u ON u.id = m.user_id
      WHERE m.villa_id = ? AND m.left_at IS NULL ORDER BY m.joined_at ASC, m.rowid ASC`,
   )
