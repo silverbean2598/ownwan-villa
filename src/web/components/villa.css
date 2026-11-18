@@ -30,8 +30,10 @@
 .room.empty { background: #fff; border: 2px dashed var(--line); align-items: center; justify-content: center; color: var(--muted); font-size: 12px; min-height: 100px; cursor: default; }
 .room.empty:hover { transform: none; }
 .wall { min-height: 100px; border-radius: 8px; background: repeating-linear-gradient(0deg, #F3F4F7 0 12px, #ECEEF2 12px 13px); }
-.tag { display: flex; align-items: center; gap: 4px; padding: 3px 6px 5px; font-size: 12px; color: var(--darkInk); min-width: 0; }
+.tag { display: flex; justify-content: space-between; align-items: center; gap: 4px; padding: 3px 6px 5px; font-size: 12px; color: var(--darkInk); min-width: 0; }
 .on .tag { color: var(--ink); }
+.tag .sport { flex: none; font-size: 11px; }
+.tag { font-size: 11px; }
 .tag b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badges { position: absolute; top: 4px; right: 4px; display: flex; gap: 3px; }
 .badges em { font-style: normal; font-size: 10px; padding: 0 5px; border-radius: 999px; line-height: 16px; }
@@ -45,7 +47,7 @@
 .fig svg { display: block; width: 100%; height: auto; }
 .s-climbing .figpos { left: 22%; }
 .s-jiujitsu .figpos { left: 24%; }
-.s-pilates .figpos { left: 12%; bottom: 6%; width: 30%; }
+.s-pilates .figpos { left: 24%; bottom: 6%; width: 30%; }
 .s-pilates .fig { transform: rotate(-90deg); transform-origin: 50% 72%; }
 .s-running .figpos { left: 30%; bottom: 10%; }
 .room.off .figpos { left: 46%; bottom: 6%; width: 32%; }

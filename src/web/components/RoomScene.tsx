@@ -38,7 +38,7 @@ function Equipment({ sport, lit }: { sport: Sport; lit: boolean }) {
         <>
           <rect x="18" y="86" width="114" height="5" rx="2" fill="#C8B6E2" />
           <g className="a-pil">
-            <line className="leg" x1="84" y1="78" x2="116" y2="78" stroke={ink} strokeWidth="4" strokeLinecap="round" />
+            <line className="leg" x1="86" y1="78" x2="118" y2="78" stroke={ink} strokeWidth="4" strokeLinecap="round" />
           </g>
         </>
       );

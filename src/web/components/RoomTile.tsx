@@ -19,6 +19,7 @@ export function RoomTile({ member, isMe, isOwner }: Props) {
       <RoomScene sport={member.sport} lit={lit} avatar={member.avatar} />
       <span className="tag">
         <b>{member.nickname}</b>
+        <span className="sport">{SPORT_LABEL[member.sport]}</span>
         <span className="badges">
           {isMe && <em className="me-badge">나</em>}
           {isOwner && <em className="owner-badge">방장</em>}
