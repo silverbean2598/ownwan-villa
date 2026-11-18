@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ownwan-villa",
   "main": "src/worker/index.ts",
-  "compatibility_date": "2026-08-15",
+  "compatibility_date": "2026-10-26",
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
