@@ -19,4 +19,37 @@ describe("parseAvatar", () => {
     expect(AVATAR_OPTIONS.skin).toHaveLength(4);
     expect(AVATAR_OPTIONS.shirt).toHaveLength(8);
   });
+
+  // 꾸미기 확장
+  it("has_10_hairstyles_keeping_the_old_4", () => {
+    expect(AVATAR_OPTIONS.hair).toEqual(["short", "long", "bun", "buzz", "side-part", "afro", "pigtails", "ponytail", "wolf", "beanie"]);
+    for (const hair of AVATAR_OPTIONS.hair) expect(parseAvatar({ skin: 0, hair, shirt: 0 }), hair).toEqual({ skin: 0, hair, shirt: 0 });
+  });
+  it("old_stored_avatar_json_parses_unchanged", () => {
+    const stored = JSON.parse('{"skin":2,"hair":"long","shirt":5}');
+    const a = parseAvatar(stored);
+    expect(a).toEqual({ skin: 2, hair: "long", shirt: 5 });
+    expect(JSON.stringify(a)).toBe('{"skin":2,"hair":"long","shirt":5}');
+  });
+  it("accepts_outfit_and_accessories", () => {
+    expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, outfit: "hoodie", acc: ["cap", "glasses", "towel"] })).toEqual({
+      skin: 0, hair: "short", shirt: 0, outfit: "hoodie", acc: ["cap", "glasses", "towel"],
+    });
+    // 빈 목록은 저장하지 않는다
+    expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, acc: [] })).toEqual({ skin: 0, hair: "short", shirt: 0 });
+  });
+  it("rejects_unknown_outfit_or_accessory", () => {
+    expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, outfit: "tuxedo" })).toBeNull();
+    expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, outfit: "cap" })).toBeNull();
+    expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, outfit: 3 })).toBeNull();
+    expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, acc: ["crown"] })).toBeNull();
+    expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, acc: ["hoodie"] })).toBeNull();
+    expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, acc: "cap" })).toBeNull();
+  });
+  it("one_accessory_per_body_slot", () => {
+    // 헤어밴드와 모자는 둘 다 머리
+    expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, acc: ["headband", "cap"] })).toBeNull();
+    expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, acc: ["cap", "cap"] })).toBeNull();
+    expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, acc: ["headband", "glasses", "earphones", "towel", "wristbands"] })).not.toBeNull();
+  });
 });

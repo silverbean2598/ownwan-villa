@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { app } from "../index";
-import { CATALOG, findItem } from "../../shared/catalog";
+import { CATALOG, SHOP_ITEMS, findItem } from "../../shared/catalog";
 import { SPORTS } from "../../shared/sports";
 
 let n = 0;
@@ -139,3 +139,89 @@ describe("PUT /api/placements", () => {
     expect(v.members[0].placements).toEqual([{ slot: "wall1", itemId: "trophy-shelf" }]);
   });
 });
+
+describe("꾸미기 확장: 가구 · 옷 · 소품", () => {
+  const makeVilla = (cookie: string) => send(cookie, "/api/villas", { name: "빌라" });
+  const villaOf = async (id: string) =>
+    (await env.DB.prepare("SELECT villa_id FROM memberships WHERE user_id = ? AND left_at IS NULL").bind(id).first<{ villa_id: string }>())!.villa_id;
+
+  it("new_furniture_can_be_bought_and_placed", async () => {
+    const u = await signup(500);
+    expect(await (await buy(u.cookie, "aquarium")).json()).toEqual({ points: 320 });
+    expect((await place(u.cookie, "floor1", "aquarium")).status).toBe(200);
+    await buy(u.cookie, "string-lights");
+    expect((await place(u.cookie, "floor2", "string-lights")).status).toBe(400);
+    expect((await place(u.cookie, "wall1", "string-lights")).status).toBe(200);
+  });
+  it("buying_outfit_or_accessory_adds_to_inventory_and_drops_points", async () => {
+    const u = await signup(300);
+    expect(await (await buy(u.cookie, "hoodie")).json()).toEqual({ points: 300 - findItemPrice("hoodie") });
+    expect(await (await buy(u.cookie, "cap")).json()).toEqual({ points: 300 - findItemPrice("hoodie") - findItemPrice("cap") });
+    const s = await shop(u.cookie);
+    expect(s.owned).toEqual(["hoodie", "cap"]);
+    const again = await buy(u.cookie, "cap");
+    expect(again.status).toBe(409);
+    expect((await again.json<any>()).error).toBe("이미 갖고 있는 소품이에요");
+  });
+  it("bought_event_carries_outfit_name", async () => {
+    const u = await signup(300);
+    await buy(u.cookie, "rashguard");
+    const row = await env.DB.prepare("SELECT payload FROM events WHERE user_id = ? AND type = 'bought'").bind(u.id).first<{ payload: string }>();
+    expect(JSON.parse(row!.payload)).toEqual({ itemId: "rashguard", itemName: "래시가드" });
+  });
+  it("placements_reject_outfits_and_accessories", async () => {
+    const u = await signup(300);
+    await buy(u.cookie, "singlet");
+    await buy(u.cookie, "towel");
+    for (const [slot, id] of [["floor1", "singlet"], ["wall1", "towel"]]) {
+      const res = await place(u.cookie, slot, id);
+      expect(res.status, id).toBe(400);
+      expect((await res.json<any>()).error).toBe("방에 놓을 수 없는 물건이에요");
+    }
+    expect((await shop(u.cookie)).placements).toEqual([]);
+  });
+  it("gold_statue_needs_current_penthouse_holder", async () => {
+    const u = await signup(1000);
+    // 빌라 없음 → 403, 포인트 그대로
+    let res = await buy(u.cookie, "gold-statue");
+    expect(res.status).toBe(403);
+    expect((await res.json<any>()).error).toBe("펜트하우스 주인만 살 수 있어요");
+    expect((await shop(u.cookie)).penthouse).toBe(false);
+    // 빌라를 만들면 펜트하우스 주인
+    await makeVilla(u.cookie);
+    expect((await shop(u.cookie)).penthouse).toBe(true);
+    res = await buy(u.cookie, "gold-statue");
+    expect(await res.json()).toEqual({ points: 700 });
+    // 펜트하우스를 잃어도 계속 갖고 어디든 놓을 수 있다
+    await env.DB.prepare("UPDATE villas SET penthouse_user_id = NULL WHERE id = ?").bind(await villaOf(u.id)).run();
+    expect((await shop(u.cookie)).penthouse).toBe(false);
+    expect((await shop(u.cookie)).owned).toEqual(["gold-statue"]);
+    expect((await place(u.cookie, "floor3", "gold-statue")).status).toBe(200);
+  });
+  it("gold_statue_rejected_for_villa_member_who_is_not_penthouse", async () => {
+    const owner = await signup(0);
+    await makeVilla(owner.cookie);
+    const u = await signup(1000);
+    const vid = await villaOf(owner.id);
+    await env.DB.prepare("INSERT INTO memberships (id, user_id, villa_id, floor, floor_reached_at, joined_at) VALUES (?, ?, ?, 1, 0, 0)")
+      .bind(crypto.randomUUID(), u.id, vid)
+      .run();
+    const res = await buy(u.cookie, "gold-statue");
+    expect(res.status).toBe(403);
+    expect((await shop(u.cookie)).points).toBe(1000);
+    // 펜트하우스가 바뀌면 살 수 있다
+    await env.DB.prepare("UPDATE villas SET penthouse_user_id = ? WHERE id = ?").bind(u.id, vid).run();
+    expect((await buy(u.cookie, "gold-statue")).status).toBe(200);
+  });
+  it("gold_statue_short_points_is_still_400_for_holder", async () => {
+    const u = await signup(299);
+    await makeVilla(u.cookie);
+    const res = await buy(u.cookie, "gold-statue");
+    expect(res.status).toBe(400);
+    expect((await res.json<any>()).error).toBe("포인트가 모자라요");
+  });
+});
+
+function findItemPrice(id: string) {
+  return SHOP_ITEMS.find((i) => i.id === id)!.price;
+}

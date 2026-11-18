@@ -64,3 +64,50 @@ describe("PATCH /api/me", () => {
     expect((await me(c)).nickname).toBe("새이름");
   });
 });
+
+describe("PATCH /api/me 옷 · 소품", () => {
+  const buy = (cookie: string, itemId: string) =>
+    app.request("/api/shop/buy", { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ itemId }) }, env);
+  const give = async (cookie: string, points: number) => {
+    const { id } = await me(cookie);
+    await env.DB.prepare("UPDATE users SET points = ? WHERE id = ?").bind(points, id).run();
+  };
+  const base = { skin: 0, hair: "beanie", shirt: 3 };
+
+  it("rejects_unowned_outfit_or_accessory", async () => {
+    const c = await signup();
+    for (const extra of [{ outfit: "hoodie" }, { acc: ["glasses"] }]) {
+      const res = await patch(c, { avatar: { ...base, ...extra } });
+      expect(res.status).toBe(400);
+      expect((await res.json<any>()).error).toBe("아직 갖고 있지 않은 꾸미기예요");
+    }
+    expect((await me(c)).avatar).toEqual(DEFAULT_AVATAR);
+  });
+  it("accepts_owned_outfit_and_accessories", async () => {
+    const c = await signup();
+    await give(c, 500);
+    for (const id of ["hoodie", "glasses", "wristbands"]) expect((await buy(c, id)).status).toBe(200);
+    const avatar = { ...base, outfit: "hoodie", acc: ["glasses", "wristbands"] };
+    expect((await patch(c, { avatar })).status).toBe(200);
+    expect((await me(c)).avatar).toEqual(avatar);
+    // 하나라도 없는 게 섞이면 전체 거절
+    expect((await patch(c, { avatar: { ...avatar, acc: ["glasses", "towel"] } })).status).toBe(400);
+    expect((await me(c)).avatar).toEqual(avatar);
+    // 다시 기본 옷으로
+    expect((await patch(c, { avatar: base })).status).toBe(200);
+    expect((await me(c)).avatar).toEqual(base);
+  });
+  it("one_accessory_per_slot", async () => {
+    const c = await signup();
+    await give(c, 500);
+    await buy(c, "headband");
+    await buy(c, "cap");
+    expect((await patch(c, { avatar: { ...base, acc: ["headband", "cap"] } })).status).toBe(400);
+  });
+  it("old_stored_avatar_still_reads", async () => {
+    const c = await signup();
+    const { id } = await me(c);
+    await env.DB.prepare("UPDATE users SET avatar = ? WHERE id = ?").bind('{"skin":3,"hair":"bun","shirt":1}', id).run();
+    expect((await me(c)).avatar).toEqual({ skin: 3, hair: "bun", shirt: 1 });
+  });
+});

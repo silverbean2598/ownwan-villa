@@ -3,7 +3,7 @@ import type { AppEnv } from "../env";
 import { jsonError, requireUser } from "../http";
 import { SPORTS } from "../../shared/sports";
 import { isValidNickname } from "../../shared/nickname";
-import { parseAvatar } from "../../shared/avatar";
+import { parseAvatar, wornItemIds } from "../../shared/avatar";
 import { getCookie, deleteCookie } from "hono/cookie";
 import { COOKIE } from "../auth/session";
 import { PASSWORD_LENGTH_MSG, hashPassword, isValidPasswordLength, verifyPassword } from "../auth/password";
@@ -28,6 +28,16 @@ profile.patch("/api/me", requireUser, async (c) => {
   if ("avatar" in b) {
     const a = parseAvatar(b.avatar);
     if (!a) return jsonError(c, 400, "캐릭터 설정이 올바르지 않아요");
+    // 옷 · 소품은 산 것만 입을 수 있다
+    const worn = wornItemIds(a);
+    if (worn.length) {
+      const { results } = await c.env.DB.prepare(
+        `SELECT item_id FROM inventory WHERE user_id = ? AND item_id IN (${worn.map(() => "?").join(", ")})`,
+      )
+        .bind(c.get("userId"), ...worn)
+        .all();
+      if (results.length !== worn.length) return jsonError(c, 400, "아직 갖고 있지 않은 꾸미기예요");
+    }
     sets.push("avatar = ?");
     vals.push(JSON.stringify(a));
   }
