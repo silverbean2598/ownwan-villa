@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { app } from "../index";
 
 let n = 0;
@@ -94,7 +94,42 @@ describe("password change", () => {
   });
 });
 
+describe("password change lockout", () => {
+  it("locks_after_5_wrong_attempts_even_with_correct_password", async () => {
+    const u = await signup();
+    for (let i = 0; i < 5; i++) {
+      expect((await req("/api/me/password", "POST", u.cookie, { current: "wrongwrong", next: "newpassword1" })).status).toBe(400);
+    }
+    const res = await req("/api/me/password", "POST", u.cookie, { current: "password1", next: "newpassword1" });
+    expect(res.status).toBe(423);
+  });
+
+  it("success_resets_failure_count", async () => {
+    const u = await signup();
+    for (let i = 0; i < 4; i++) await req("/api/me/password", "POST", u.cookie, { current: "wrongwrong", next: "newpassword1" });
+    expect((await req("/api/me/password", "POST", u.cookie, { current: "password1", next: "newpassword1" })).status).toBe(200);
+    expect((await req("/api/me/password", "POST", u.cookie, { current: "wrongwrong", next: "newpassword2" })).status).toBe(400);
+    expect((await req("/api/me/password", "POST", u.cookie, { current: "newpassword1", next: "newpassword2" })).status).toBe(200);
+  });
+});
+
 describe("delete account", () => {
+  it("deletes_many_photos_with_one_bulk_call", async () => {
+    const u = await signup();
+    const keys: string[] = [];
+    for (let i = 0; i < 30; i++) {
+      const id = await photo(u.cookie, i + 1);
+      keys.push((await env.DB.prepare("SELECT r2_key FROM certs WHERE id = ?").bind(id).first<{ r2_key: string }>())!.r2_key);
+    }
+    const spy = vi.spyOn(env.PHOTOS, "delete");
+    const res = await req("/api/me", "DELETE", u.cookie);
+    expect(res.status).toBe(200);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0][0]).toHaveLength(30);
+    spy.mockRestore();
+    for (const k of keys) expect(await env.PHOTOS.get(k)).toBeNull();
+  });
+
   it("removes_everything_and_hands_over_ownership", async () => {
     const owner = await signup();
     const token = await makeVilla(owner.cookie);

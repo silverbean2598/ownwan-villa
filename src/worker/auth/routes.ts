@@ -6,12 +6,11 @@ import { hashToken, newRecoveryCode } from "../recovery/codes";
 import { isValidNickname } from "../../shared/nickname";
 import { DEFAULT_AVATAR, parseAvatar } from "../../shared/avatar";
 import { hashPassword, verifyPassword } from "./password";
+import { LOCKED_MSG, isLocked, recordFailure, resetFailures } from "./lockout";
 import { createSession, endSession, requireUser, setSessionCookie } from "./session";
 
 export const auth = new Hono<AppEnv>();
 
-const LOCK_MS = 15 * 60 * 1000;
-const MAX_FAILS = 5;
 const BAD_LOGIN = "아이디 또는 비밀번호가 맞지 않아요";
 
 auth.post("/api/signup", async (c) => {
@@ -52,24 +51,13 @@ auth.post("/api/login", async (c) => {
     .first<{ id: string; password_hash: string; failed_logins: number; locked_until: number | null }>();
   if (!user) return jsonError(c, 401, BAD_LOGIN);
 
-  const t = now();
-  if (user.locked_until && user.locked_until > t) return jsonError(c, 423, "로그인을 5번 실패해서 15분 동안 잠겼어요");
+  if (isLocked(user)) return jsonError(c, 423, LOCKED_MSG);
 
   if (!(await verifyPassword(password, user.password_hash))) {
-    // 동시 요청에도 횟수가 유실되지 않도록 SQL 한 문장으로 원자적으로 갱신한다.
-    // 잠금이 풀린 뒤의 첫 실패는 1로 새로 센다.
-    const expired = "(locked_until IS NOT NULL AND locked_until <= ?)";
-    const count = `CASE WHEN ${expired} THEN 1 ELSE failed_logins + 1 END`;
-    await c.env.DB.prepare(
-      `UPDATE users SET failed_logins = ${count},
-         locked_until = CASE WHEN ${count} >= ? THEN ? WHEN ${expired} THEN NULL ELSE locked_until END
-       WHERE id = ?`,
-    )
-      .bind(t, t, MAX_FAILS, t + LOCK_MS, t, user.id)
-      .run();
+    await recordFailure(c.env, user.id);
     return jsonError(c, 401, BAD_LOGIN);
   }
-  await c.env.DB.prepare("UPDATE users SET failed_logins = 0, locked_until = NULL WHERE id = ?").bind(user.id).run();
+  await resetFailures(c.env, user.id);
   // 비밀번호를 기억해냈으니 진행 중인 방장 확인 요청은 취소한다
   await c.env.DB.prepare(
     "UPDATE recovery_requests SET status = 'cancelled' WHERE user_id = ? AND status IN ('pending','approved')",

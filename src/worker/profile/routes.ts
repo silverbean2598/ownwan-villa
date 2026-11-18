@@ -8,7 +8,8 @@ import { getCookie, deleteCookie } from "hono/cookie";
 import { COOKIE } from "../auth/session";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { hashToken } from "../recovery/codes";
-import { deletePhotoBlob } from "../storage";
+import { LOCKED_MSG, isLocked, recordFailure, resetFailures } from "../auth/lockout";
+import { deletePhotoBlobs } from "../storage";
 import { NotInVillaError, leaveVilla } from "../villa/service";
 
 export const profile = new Hono<AppEnv>();
@@ -49,8 +50,14 @@ profile.post("/api/me/password", requireUser, async (c) => {
   const current = typeof b?.current === "string" ? b.current : "";
   const next = typeof b?.next === "string" ? b.next : "";
   const userId = c.get("userId");
-  const u = await c.env.DB.prepare("SELECT password_hash FROM users WHERE id = ?").bind(userId).first<{ password_hash: string }>();
-  if (!u || !(await verifyPassword(current, u.password_hash))) return jsonError(c, 400, "지금 비밀번호가 맞지 않아요");
+  const u = await c.env.DB.prepare("SELECT password_hash, locked_until FROM users WHERE id = ?").bind(userId).first<{ password_hash: string; locked_until: number | null }>();
+  if (!u) return jsonError(c, 401, "로그인이 필요해요");
+  if (isLocked(u)) return jsonError(c, 423, LOCKED_MSG);
+  if (!(await verifyPassword(current, u.password_hash))) {
+    await recordFailure(c.env, userId);
+    return jsonError(c, 400, "지금 비밀번호가 맞지 않아요");
+  }
+  await resetFailures(c.env, userId);
   if (next.length < 8) return jsonError(c, 400, "비밀번호는 8자 이상이어야 해요");
   const keep = await hashToken(getCookie(c, COOKIE) ?? "");
   await c.env.DB.batch([
@@ -64,7 +71,7 @@ profile.post("/api/me/password", requireUser, async (c) => {
 profile.delete("/api/me", requireUser, async (c) => {
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare("SELECT r2_key FROM certs WHERE user_id = ?").bind(userId).all<{ r2_key: string | null }>();
-  for (const cert of results) await deletePhotoBlob(c.env, cert);
+  await deletePhotoBlobs(c.env, results);
   try {
     await leaveVilla(c.env, userId);
   } catch (e) {
