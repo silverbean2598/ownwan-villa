@@ -1,94 +1,87 @@
+import type { ReactNode } from "react";
 import { Avatar } from "./Avatar";
 import type { AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
+import { Box, Cork, Frame, GEOM, Moonbeam, PALETTE, Pendant, Window } from "./room/Box";
+import { Equipment } from "./room/Equipment";
+import { Chandelier, PenthouseDecor } from "./room/Penthouse";
 
-type Props = { sport: Sport; lit: boolean; avatar: AvatarSpec };
+type Props = {
+  sport: Sport;
+  lit: boolean;
+  avatar: AvatarSpec;
+  penthouse?: boolean;
+  /** tile: 빌라 단면의 작은 방 / detail: 방 상세(왼쪽 벽에 게시판) */
+  variant?: "tile" | "detail";
+  /** detail에서 왼쪽 벽에 붙일 게시판(HTML) */
+  board?: ReactNode;
+};
 
-// 종목별 운동 기구 (viewBox 150x96). 움직이는 부분은 a-* 클래스로 villa.css가 애니메이션한다.
-function Equipment({ sport, lit }: { sport: Sport; lit: boolean }) {
-  const ink = lit ? "#1B1F27" : "#55607A";
-  if (!lit) {
-    return (
-      <>
-        <rect x="14" y="76" width="64" height="14" rx="3" fill="#3A4254" />
-        <rect x="14" y="68" width="8" height="22" rx="2" fill="#4A5366" />
-      </>
-    );
-  }
-  switch (sport) {
-    case "gym":
-      return (
-        <g className="a-press">
-          <line x1="40" y1="34" x2="110" y2="34" stroke={ink} strokeWidth="3" />
-          <rect x="32" y="26" width="8" height="16" rx="1" fill={ink} />
-          <rect x="110" y="26" width="8" height="16" rx="1" fill={ink} />
-        </g>
-      );
-    case "running":
-      return (
-        <>
-          <rect x="30" y="84" width="90" height="6" rx="3" fill="#4B5563" />
-          <line className="belt" x1="36" y1="84" x2="114" y2="84" stroke="#9CA3AF" strokeWidth="2" strokeDasharray="4 4" />
-          <line x1="112" y1="84" x2="120" y2="48" stroke="#4B5563" strokeWidth="3" />
-          <rect x="112" y="44" width="14" height="6" rx="2" fill="#4B5563" />
-        </>
-      );
-    case "pilates":
-      return (
-        <>
-          <rect x="18" y="86" width="114" height="5" rx="2" fill="#C8B6E2" />
-          <g className="a-pil">
-            <line className="leg" x1="86" y1="78" x2="118" y2="78" stroke={ink} strokeWidth="4" strokeLinecap="round" />
-          </g>
-        </>
-      );
-    case "climbing":
-      return (
-        <>
-          <rect x="22" y="6" width="106" height="86" fill="#E9E2D4" />
-          {(
-            [
-              [36, 18, "#E4572E"],
-              [110, 26, "#2A9D8F"],
-              [30, 46, "#F4A261"],
-              [116, 58, "#9B5DE5"],
-              [36, 74, "#2F5BEA"],
-            ] as const
-          ).map(([x, y, c]) => (
-            <circle key={x + "-" + y} cx={x} cy={y} r="4" fill={c} />
-          ))}
-          <rect x="18" y="88" width="114" height="4" rx="2" fill="#5B6B8C" />
-        </>
-      );
-    case "jiujitsu":
-      return (
-        <>
-          <rect x="10" y="86" width="130" height="6" rx="2" fill="#7FA7C9" />
-          <rect x="112" y="48" width="14" height="38" rx="6" fill="#A68A64" />
-          <circle cx="119" cy="42" r="7" fill="#A68A64" />
-        </>
-      );
-  }
-}
+// 아바타 svg 안에서 발바닥 높이 비율(서 있음 155/168), 누운 자세의 바닥 접점 비율
+const FEET = 155 / 168;
+const LYING_FLOOR = 0.7;
 
-export function RoomScene({ sport, lit, avatar }: Props) {
+/** 인형의 집 상자 방. 불이 켜지면 종목 자세로 운동하고, 꺼지면 달빛 아래 잠잔다. */
+export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "tile", board }: Props) {
+  const detail = variant === "detail";
+  const g = detail ? GEOM.detail : penthouse ? GEOM.phTile : GEOM.tile;
+  const c = penthouse ? (lit ? PALETTE.phLit : PALETTE.phUnlit) : lit ? PALETTE.lit : PALETTE.unlit;
+  const u = (g.by1 - g.by0) / 54;
+  const sw = 1.1 * Math.max(1, u * 0.6);
+  const bw = g.bx1 - g.bx0;
+  const pose = lit ? sport : "sleep";
+
+  // 캐릭터 크기와 발 위치
+  // 상세 화면은 상자가 크므로 캐릭터를 상대적으로 작게(뒷벽 높이의 약 0.7배)
+  const du = u * (detail ? 0.62 : 1); // 캐릭터 · 가구 배율
+  const size = 42 * du;
+  const fx = g.bx0 + bw * (penthouse ? (detail ? 0.34 : 0.42) : detail ? 0.45 : 0.5);
+  const fy = g.by1 + (g.H - g.by1) * (detail ? 0.5 : 0.62);
+  const lying = pose === "pilates";
+  const k = size / 42; // 기구 배율
+  // 잘 때는 기구 옆에 선다. 클라이밍은 벽 홀드를 딛고 조금 올라가 있다.
+  const ex = lit ? fx : fx - bw * 0.16;
+  const cx = lit ? fx : fx + bw * 0.14;
+  const lift = pose === "climbing" ? 10 * k : 0;
+  const avX = lying ? cx - size * 1.4 * 0.5 : cx - size / 2;
+  const avY = (lying ? fy - size * LYING_FLOOR : fy - size * 1.4 * FEET) - lift;
+
+  const win = penthouse
+    ? null
+    : { x: g.bx0 + bw * 0.66, y: g.by0 + (g.by1 - g.by0) * 0.18, w: bw * 0.2, h: (g.by1 - g.by0) * 0.34 };
+  const lampX = penthouse ? g.bx0 + bw * 0.4 : g.bx0 + bw * 0.42;
+
   return (
-    <div className={`scene s-${sport}`}>
-      <svg className="scene-bg" viewBox="0 0 150 96" aria-hidden="true" preserveAspectRatio="xMidYMax meet">
-        {lit ? (
-          <circle cx="75" cy="4" r="4" fill="#FFD25A" />
+    <div className={`scene ${variant} s-${sport}${penthouse ? " ph-scene" : ""}`}>
+      <svg className="scene-bg" viewBox={`0 0 ${g.W} ${g.H}`} aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+        <Box g={g} c={c} sw={sw} />
+        {!detail && <Cork g={g} sw={sw * 0.8} ink={c.ink} lit={lit} />}
+        {win && <Window {...win} lit={lit} sw={sw * 0.8} ink={c.ink} />}
+        {penthouse && <PenthouseDecor g={g} u={du} lit={lit} ink={c.ink} sw={sw} />}
+        {penthouse ? (
+          <Chandelier x={lampX} top={g.by0} u={du} lit={lit} ink={c.ink} />
         ) : (
-          <circle cx="75" cy="4" r="3" fill="#3A4254" />
+          <Pendant x={lampX} top={g.by0 - 4 * u} len={10 * u} u={u} lit={lit} sw={sw} ink={c.ink} floorY={g.by1 + 6 * u} />
         )}
-        <rect x="120" y="8" width="24" height="18" rx="2" fill={lit ? "#DCEBFF" : "#1E2330"} stroke={lit ? "#C9D6EA" : "#3A4254"} />
-        <line x1="0" y1="92" x2="150" y2="92" stroke={lit ? "#E7D9A8" : "#3A4254"} strokeWidth="2" />
-        <Equipment sport={sport} lit={lit} />
+        <g transform={`translate(${ex} ${fy}) scale(${k})`}>
+          <Equipment sport={sport} lit={lit} />
+        </g>
+        {!lit && (
+          <>
+            <rect x="0" y="0" width={g.W} height={g.H} fill="#101A3A" opacity="0.28" />
+            <Moonbeam
+              win={win ?? { x: g.bx1 - bw * 0.3, y: g.by0, w: bw * 0.24, h: g.by1 - g.by0 }}
+              floorY={g.H - 4}
+              spread={bw * 0.3}
+            />
+          </>
+        )}
+        <g transform={`translate(${avX} ${avY})`}>
+          <Avatar spec={avatar} size={size} pose={pose} />
+        </g>
+        <Frame g={g} c={c} sw={sw} />
       </svg>
-      <div className="figpos">
-        <div className="fig">
-          <Avatar spec={avatar} size={40} pose={lit ? "idle" : "sleep"} />
-        </div>
-      </div>
+      {detail && <div className="wall-board">{board}</div>}
     </div>
   );
 }

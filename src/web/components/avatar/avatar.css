@@ -1,0 +1,47 @@
+/* 캐릭터 리그 움직임. 관절 그룹은 인라인 --a(기본 각도)를 갖고, --d만큼 왕복한다. */
+.av { overflow: visible; }
+.av [data-part] { transform-box: view-box; }
+
+@media (prefers-reduced-motion: no-preference) {
+
+  /* 숨쉬기 */
+  .pose-idle [data-part="upper"] { animation: av-breathe 3.2s ease-in-out infinite; }
+  .pose-sleep [data-part="upper"] { animation: av-breathe 4.4s ease-in-out infinite; }
+  .pose-sleep .z1 { animation: av-z 3s ease-in-out infinite; }
+  .pose-sleep .z2 { animation: av-z 3s ease-in-out 1.5s infinite; }
+
+  /* 헬스: 팔꿈치를 펴며 바벨을 밀어 올린다 */
+  .pose-gym [data-part="armL"] { --d: 40deg; animation: av-swing .9s ease-in-out infinite alternate; }
+  .pose-gym [data-part="armR"] { --d: -40deg; animation: av-swing .9s ease-in-out infinite alternate; }
+  .pose-gym [data-part="foreL"] { --d: -40deg; animation: av-swing .9s ease-in-out infinite alternate; }
+  .pose-gym [data-part="foreR"] { --d: 40deg; animation: av-swing .9s ease-in-out infinite alternate; }
+  .pose-gym [data-part="barbell"] { animation: av-lift .9s ease-in-out infinite alternate; }
+
+  /* 러닝: 다리 · 팔 번갈아 흔들기 + 통통 */
+  .pose-running [data-part="legL"] { --d: -40deg; animation: av-swing .42s ease-in-out infinite alternate; }
+  .pose-running [data-part="legR"] { --d: 40deg; animation: av-swing .42s ease-in-out infinite alternate; }
+  .pose-running [data-part="armL"] { --d: -24deg; animation: av-swing .42s ease-in-out infinite alternate; }
+  .pose-running [data-part="armR"] { --d: 24deg; animation: av-swing .42s ease-in-out infinite alternate; }
+  .pose-running [data-part="body"] { animation: av-hop .21s ease-in-out infinite alternate; }
+
+  /* 필라테스: 위쪽 다리 올렸다 내리기 */
+  .pose-pilates [data-part="legR"] { --d: 30deg; animation: av-swing 1.5s ease-in-out infinite alternate; }
+
+  /* 클라이밍: 팔 번갈아 뻗으며 몸을 조금씩 끌어올림 */
+  .pose-climbing [data-part="armL"] { --d: -45deg; animation: av-swing 1.1s ease-in-out infinite alternate; }
+  .pose-climbing [data-part="armR"] { --d: -45deg; animation: av-swing 1.1s ease-in-out infinite alternate-reverse; }
+  .pose-climbing [data-part="legL"] { --d: -26deg; animation: av-swing 1.1s ease-in-out infinite alternate; }
+  .pose-climbing [data-part="body"] { animation: av-climb 1.1s ease-in-out infinite alternate; }
+
+  /* 주짓수: 가드 자세로 가볍게 들썩 */
+  .pose-jiujitsu [data-part="body"] { animation: av-hop .6s ease-in-out infinite alternate; }
+  .pose-jiujitsu [data-part="armL"] { --d: 8deg; animation: av-swing .6s ease-in-out infinite alternate; }
+  .pose-jiujitsu [data-part="armR"] { --d: -8deg; animation: av-swing .6s ease-in-out infinite alternate; }
+}
+
+@keyframes av-swing { to { transform: rotate(calc(var(--a) + var(--d, 0deg))); } }
+@keyframes av-breathe { 50% { transform: rotate(var(--a)) translateY(0.9px); } }
+@keyframes av-lift { to { transform: translateY(-6px); } }
+@keyframes av-hop { to { transform: translateY(-2.5px); } }
+@keyframes av-climb { to { transform: translateY(-3px); } }
+@keyframes av-z { 0% { opacity: 0; transform: translate(0, 4px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(4px, -6px); } }

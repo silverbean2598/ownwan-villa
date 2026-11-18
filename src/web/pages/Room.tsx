@@ -83,26 +83,32 @@ export function Room() {
           <Link className="btn primary" to="/certify">오늘 오운완 인증하기</Link>
         )}
       </header>
-      <div className="room-view">
-        <section className="left-wall" aria-label="게시판">
-          <Link className="board-link" to={`/room/${member.userId}/board`} aria-label="전체 기록 보기">
-            {boardError ? <p className="error" role="alert">{boardError}</p> : <Board items={items ?? []} />}
-          </Link>
-          <Link className="btn ghost board-all" to={`/room/${member.userId}/board`}>전체 기록 보기</Link>
-        </section>
-        <div className={`room-stage ${member.certifiedToday ? "on" : "off"}`}>
-          <div className={`room ${member.certifiedToday ? "on" : "off"} big`}>
-            <RoomScene sport={member.sport} lit={member.certifiedToday} avatar={member.avatar} />
-          </div>
-          {isMe && (
-            <div className="slots" aria-hidden="true">
-              {SLOTS.map((s) => (
-                <span key={s} className={`slot ${s}`} data-slot={s} />
-              ))}
-            </div>
-          )}
+      <div className={`room-stage ${member.certifiedToday ? "on" : "off"}`}>
+        <div className={`room ${member.certifiedToday ? "on" : "off"} big`}>
+          <RoomScene
+            sport={member.sport}
+            lit={member.certifiedToday}
+            avatar={member.avatar}
+            penthouse={penthouse}
+            variant="detail"
+            board={
+              <section className="left-wall" aria-label="게시판">
+                <Link className="board-link" to={`/room/${member.userId}/board`} aria-label="전체 기록 보기">
+                  {boardError ? <p className="error" role="alert">{boardError}</p> : <Board items={items ?? []} />}
+                </Link>
+              </section>
+            }
+          />
         </div>
+        {isMe && (
+          <div className="slots" aria-hidden="true">
+            {SLOTS.map((s) => (
+              <span key={s} className={`slot ${s}`} data-slot={s} />
+            ))}
+          </div>
+        )}
       </div>
+      <Link className="btn ghost board-all" to={`/room/${member.userId}/board`}>전체 기록 보기</Link>
     </main>
   );
 }

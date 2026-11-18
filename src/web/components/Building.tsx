@@ -64,7 +64,9 @@ type Props = { members: Member[]; penthouseUserId: string | null; ownerId: strin
 
 export function Building({ members, penthouseUserId, ownerId, meId }: Props) {
   const rows = layoutFloors(members, penthouseUserId);
-  const tile = (m: Member) => <RoomTile key={m.userId} member={m} isMe={m.userId === meId} isOwner={m.userId === ownerId} />;
+  const tile = (m: Member, penthouse = false) => (
+    <RoomTile key={m.userId} member={m} isMe={m.userId === meId} isOwner={m.userId === ownerId} penthouse={penthouse} />
+  );
   return (
     <section className="bldg" aria-label="빌라 단면">
       <div className="tower">
@@ -82,12 +84,12 @@ export function Building({ members, penthouseUserId, ownerId, meId }: Props) {
             return (
               <div className="ph" key="ph">
                 <div className="ph-label">PENTHOUSE</div>
-                {r.members.map(tile)}
+                {r.members.map((m) => tile(m, true))}
               </div>
             );
           }
           // 1층 행: 빈방을 남은 칸부터 채우고, 넘치면 다음 행으로
-          const cells: JSX.Element[] = r.members.map(tile);
+          const cells: JSX.Element[] = r.members.map((m) => tile(m));
           const vacants = Array.from({ length: r.emptySlots ?? 0 }, (_, k) => <VacantRoom key={`v${k}`} />);
           const all = [...cells, ...vacants];
           const chunks: JSX.Element[][] = [];
