@@ -14,9 +14,9 @@ type Note = { ok?: string; err?: string };
 
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
 
-function Section({ title, note, children }: { title: ReactNode; note?: Note; children: ReactNode }) {
+function Section({ title, note, children, id }: { title: ReactNode; note?: Note; children: ReactNode; id?: string }) {
   return (
-    <section className="settings-section">
+    <section className="settings-section" id={id}>
       <h2>{title}</h2>
       {children}
       {note?.ok && <p className="ok" role="status">{note.ok}</p>}
@@ -35,6 +35,7 @@ export function Settings() {
   const [nickname, setNickname] = useState("");
   const [sport, setSport] = useState<Sport | null>(null);
   const [avatar, setAvatar] = useState<AvatarSpec>(DEFAULT_AVATAR);
+  const [owned, setOwned] = useState<string[]>([]);
   const [pw, setPw] = useState({ current: "", next: "" });
   const [newCode, setNewCode] = useState("");
   const [codeCopied, setCodeCopied] = useState(false);
@@ -66,6 +67,7 @@ export function Settings() {
         setNickname(m.nickname);
         setSport(m.sport);
         setAvatar(m.avatar);
+        setOwned((await api<{ owned: string[] }>("/api/shop")).owned);
         setVilla(v);
         setVillaName(v?.name ?? "");
         if (v) await loadPending();
@@ -75,6 +77,11 @@ export function Settings() {
       }
     })();
   }, [nav]);
+
+  // 상점의 [꾸미러 가기](/settings#avatar)로 오면 캐릭터 꾸미기로 내려간다
+  useEffect(() => {
+    if (me && location.hash === "#avatar") document.getElementById("avatar")?.scrollIntoView();
+  }, [me]);
 
   if (loadError) return <main className="page"><p className="error" role="alert">{loadError}</p></main>;
   if (!me) return <main className="page"><p className="muted">불러오는 중이에요</p></main>;
@@ -125,8 +132,8 @@ export function Settings() {
         </button>
       </Section>
 
-      <Section title="캐릭터 꾸미기" note={notes.avatar}>
-        <AvatarEditor value={avatar} onChange={setAvatar} />
+      <Section title="캐릭터 꾸미기" note={notes.avatar} id="avatar">
+        <AvatarEditor value={avatar} onChange={setAvatar} owned={owned} />
         <button className="btn" type="button" onClick={() => run("avatar", "저장했어요", () => patch({ avatar }))}>저장</button>
       </Section>
 

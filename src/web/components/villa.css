@@ -142,3 +142,10 @@
 .confirm-row { display: flex; gap: 8px; }
 .confirm-row .btn { flex: 1; padding: 10px; font-size: 14px; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #111827; color: #fff; padding: 10px 18px; border-radius: 20px; font-size: 14px; z-index: 30; }
+
+/* 상점 탭 · 펜트하우스 전용 */
+.shop-tabs { display: flex; gap: 6px; margin: 14px 0 4px; padding: 4px; background: #F6F1E8; border-radius: 12px; }
+.shop-tab { flex: 1; min-height: 40px; border: none; border-radius: 9px; background: none; font: inherit; font-size: 15px; color: var(--muted); cursor: pointer; }
+.shop-tab.on { background: #fff; color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.shop-lock { font-size: 13px; margin: -4px 0 10px; }
+.locked-tag { margin-top: auto; min-height: 44px; display: flex; align-items: center; box-sizing: border-box; font-size: 12px; font-weight: 700; color: #8A6D1E; background: #FBF1D3; border-radius: 999px; padding: 6px 10px; word-break: keep-all; }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { AvatarEditor } from "../components/AvatarEditor";
@@ -13,6 +13,12 @@ export function Onboard() {
   const [avatar, setAvatar] = useState<AvatarSpec>(DEFAULT_AVATAR);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [owned, setOwned] = useState<string[]>([]);
+
+  // 이미 산 옷 · 소품이 있으면 고를 수 있게 (처음 가입한 사람은 보통 없다)
+  useEffect(() => {
+    api<{ owned: string[] }>("/api/shop").then((s) => setOwned(s.owned), () => {});
+  }, []);
 
   async function finish() {
     setError("");
@@ -43,7 +49,7 @@ export function Onboard() {
   return (
     <main className="page">
       <h1>캐릭터 꾸미기</h1>
-      <AvatarEditor value={avatar} onChange={setAvatar} />
+      <AvatarEditor value={avatar} onChange={setAvatar} owned={owned} />
       {error && <p className="error" role="alert">{error}</p>}
       <div className="row">
         <button className="btn ghost" type="button" onClick={() => setStep(1)}>이전</button>

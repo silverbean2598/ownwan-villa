@@ -42,6 +42,11 @@ describe("eventCopy", () => {
     expect(eventCopy(ev("1", "streak6", { streak: 6 }))).toBe("내일 인증하면 한 층 올라가요");
     expect(eventCopy(ev("1", "bought", { itemName: "화분" }))).toBe("화분을 샀어요");
     expect(eventCopy(ev("1", "bought", { itemName: "러그" }))).toBe("러그를 샀어요");
+    // 옷 · 소품도 같은 문구
+    expect(eventCopy(ev("1", "bought", { itemName: "후드티" }))).toBe("후드티를 샀어요");
+    expect(eventCopy(ev("1", "bought", { itemName: "목 이어폰" }))).toBe("목 이어폰을 샀어요");
+    expect(eventCopy(ev("1", "bought", { itemName: "민소매 · 조거" }))).toBe("민소매 · 조거를 샀어요");
+    expect(eventCopy(ev("1", "bought", { itemName: "모자" }))).toBe("모자를 샀어요");
     expect(eventCopy(ev("1", "friend_joined", { nickname: "씨씨" }))).toBe("씨씨 님이 입주했어요");
     expect(eventCopy(ev("1", "night_reminder"))).toBe("오늘 아직 불이 꺼져 있어요");
   });

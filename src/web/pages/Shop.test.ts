@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shopSections } from "./Shop";
+import { furnitureSections, shopSections } from "./Shop";
 
 describe("shopSections", () => {
   it("my_sport_and_common_first_then_other_sports", () => {
@@ -13,5 +13,17 @@ describe("shopSections", () => {
     const secs = shopSections(null);
     expect(secs[0].title).toBe("공용");
     expect(secs).toHaveLength(7);
+  });
+});
+
+describe("furnitureSections", () => {
+  it("mine_first_then_new_categories_then_other_sports_then_penthouse", () => {
+    const secs = furnitureSections("gym");
+    expect(secs.map((s) => s.title)).toEqual([
+      "헬스 · 공용", "운동 기구", "휴식 가구", "계절·특별", "필라테스", "러닝", "클라이밍", "주짓수", "태권도", "펜트하우스 전용",
+    ]);
+    expect(secs.flatMap((s) => s.items)).toHaveLength(49);
+    expect(secs.at(-1)).toMatchObject({ penthouseOnly: true });
+    expect(secs.at(-1)!.items.map((i) => i.id)).toEqual(["gold-statue"]);
   });
 });

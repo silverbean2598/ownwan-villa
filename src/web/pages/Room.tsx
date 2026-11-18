@@ -9,7 +9,7 @@ import { RoomScene } from "../components/RoomScene";
 import type { Member } from "../components/Building";
 import { FurnitureIcon } from "../components/furniture";
 import { slotAnchors, sceneGeom, type Anchor } from "../components/furniture/layout";
-import { CATALOG, SLOTS, findItem, slotType, type Slot } from "../../shared/catalog";
+import { FURNITURE, SLOTS, findItem, slotType, type Slot } from "../../shared/catalog";
 import { CertifyButton } from "../components/CertifyButton";
 import "../components/villa.css";
 
@@ -245,7 +245,7 @@ type PickerProps = {
 function Picker({ slot, placements, owned, busy, error, onSlot, onPlace, onClose }: PickerProps) {
   const type = slotType(slot);
   const current = placements.find((p) => p.slot === slot)?.itemId;
-  const items = CATALOG.filter((i) => i.slotType === type && owned.includes(i.id));
+  const items = FURNITURE.filter((i) => i.slotType === type && owned.includes(i.id));
   return (
     <section className="picker" role="dialog" aria-label="가구 놓기">
       <div className="picker-head">
