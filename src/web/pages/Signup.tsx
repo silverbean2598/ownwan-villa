@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
+import { safeNext } from "../next";
 
 type Errors = Partial<Record<"username" | "password" | "password2" | "nickname" | "agree" | "form", string>>;
 
 export function Signup() {
   const nav = useNavigate();
+  const next = safeNext(useSearchParams()[0].get("next"));
   const [f, setF] = useState({ username: "", password: "", password2: "", nickname: "" });
   const [over14, setOver14] = useState(false);
   const [agree, setAgree] = useState(false);
@@ -30,7 +32,7 @@ export function Signup() {
         method: "POST",
         body: JSON.stringify({ username: f.username, password: f.password, nickname: nick, over14, agree }),
       });
-      nav("/signup/code", { state: { recoveryCode } });
+      nav("/signup/code", { state: { recoveryCode, next } });
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요";
       setErrors(e instanceof ApiError && e.status === 409 ? { username: msg } : { form: msg });

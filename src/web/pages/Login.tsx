@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
+import { safeNext } from "../next";
 
 export function Login() {
   const nav = useNavigate();
+  const next = safeNext(useSearchParams()[0].get("next"));
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ username?: string; password?: string; form?: string }>({});
@@ -19,7 +21,7 @@ export function Login() {
     setBusy(true);
     try {
       await api("/api/login", { method: "POST", body: JSON.stringify({ username, password }) });
-      nav("/");
+      nav(next, { replace: true });
     } catch (e) {
       setErrors({ form: e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요" });
     } finally {
@@ -48,7 +50,7 @@ export function Login() {
         <Link to="/recover">비밀번호를 잊었어요</Link>
       </p>
       <p className="muted">
-        아직 계정이 없나요? <Link to="/signup">가입하기</Link>
+        아직 계정이 없나요? <Link to={next === "/" ? "/signup" : `/signup?next=${encodeURIComponent(next)}`}>가입하기</Link>
       </p>
     </main>
   );

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { safeNext } from "../next";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 function saveAsImage(code: string) {
@@ -22,7 +23,8 @@ function saveAsImage(code: string) {
 
 export function RecoveryCode() {
   const nav = useNavigate();
-  const code = (useLocation().state as { recoveryCode?: string } | null)?.recoveryCode;
+  const state = useLocation().state as { recoveryCode?: string; next?: string } | null;
+  const code = state?.recoveryCode;
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   if (!code) return <Navigate to="/" replace />;
@@ -49,7 +51,7 @@ export function RecoveryCode() {
         <input id="saved" type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} />
         복구 코드를 저장했어요
       </label>
-      <button className="btn" type="button" disabled={!saved} onClick={() => nav("/", { replace: true })} style={{ marginTop: 16 }}>다음</button>
+      <button className="btn" type="button" disabled={!saved} onClick={() => nav(safeNext(state?.next), { replace: true })} style={{ marginTop: 16 }}>다음</button>
     </main>
   );
 }
