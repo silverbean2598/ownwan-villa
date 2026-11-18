@@ -7,6 +7,7 @@ Cloudflare Worker 하나가 React(Vite) 화면과 Hono API(`/api/*`)를 함께 �
 ## 로컬 개발
 ```
 npm ci
+npx wrangler d1 migrations apply ownwan-villa --local   # 로컬 D1 테이블 만들기 (마이그레이션이 늘면 다시)
 npm run dev     # 로컬 개발 서버 (D1은 로컬 시뮬레이션)
 npm test        # 전체 테스트
 ```

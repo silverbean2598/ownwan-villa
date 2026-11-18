@@ -5,7 +5,9 @@ import { safeNext } from "../next";
 
 export function Login() {
   const nav = useNavigate();
-  const next = safeNext(useSearchParams()[0].get("next"));
+  const nextParam = useSearchParams()[0].get("next");
+  // 기본은 빌라 화면 (빌라가 없으면 그 화면이 빌라 만들기를 안내한다)
+  const next = nextParam ? safeNext(nextParam) : "/villa";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ username?: string; password?: string; form?: string }>({});
@@ -35,7 +37,7 @@ export function Login() {
       <form onSubmit={submit} noValidate>
         <div className="field">
           <label htmlFor="username">아이디</label>
-          <input id="username" type="text" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+          <input id="username" type="text" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
           {errors.username && <p className="error">{errors.username}</p>}
         </div>
         <div className="field">
@@ -50,7 +52,7 @@ export function Login() {
         <Link to="/recover">비밀번호를 잊었어요</Link>
       </p>
       <p className="muted">
-        아직 계정이 없나요? <Link to={next === "/" ? "/signup" : `/signup?next=${encodeURIComponent(next)}`}>가입하기</Link>
+        아직 계정이 없나요? <Link to={nextParam ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}>가입하기</Link>
       </p>
     </main>
   );

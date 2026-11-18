@@ -10,6 +10,7 @@ import type { Member } from "../components/Building";
 import { FurnitureIcon } from "../components/furniture";
 import { slotAnchors, sceneGeom, type Anchor } from "../components/furniture/layout";
 import { CATALOG, SLOTS, findItem, slotType, type Slot } from "../../shared/catalog";
+import { CertifyButton } from "../components/CertifyButton";
 import "../components/villa.css";
 
 type VillaData = { ownerId: string; penthouseUserId: string | null; members: Member[] } | null;
@@ -160,9 +161,7 @@ export function Room() {
           <span className="chip">{penthouse ? "펜트하우스" : `${member.floor}층`}</span>
           <span className="chip">연속 <b>{displayStreak(member.streak, member.certifiedToday)}</b>일</span>
         </div>
-        {isMe && !member.certifiedToday && (
-          <Link className="btn primary" to="/certify">오늘 오운완 인증하기</Link>
-        )}
+        {isMe && <CertifyButton certifiedToday={member.certifiedToday} />}
       </header>
       <div className={`room-stage ${member.certifiedToday ? "on" : "off"}`}>
         <div className={`room ${member.certifiedToday ? "on" : "off"} big`}>

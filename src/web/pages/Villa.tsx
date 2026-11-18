@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { Badge } from "../components/Badge";
+import { CertifyButton } from "../components/CertifyButton";
 import { Building, CAPACITY, type Member } from "../components/Building";
 
 type VillaData = {
@@ -78,9 +79,7 @@ export function Villa() {
           <span className="chip"><span>오늘 완료 <b>{done}</b>명</span></span>
         </div>
         <div className="villa-actions">
-          {mine && !mine.certifiedToday && (
-            <Link className="btn primary" to="/certify">오늘 오운완 인증하기</Link>
-          )}
+          {mine && <CertifyButton certifiedToday={mine.certifiedToday} />}
           <Link className="btn ghost" to="/shop">가구 상점</Link>
           <Link className="btn ghost gear-link" to="/settings" aria-label={badge ? `설정, 알림 ${badge}건` : "설정"}>
             설정<Badge count={badge} />

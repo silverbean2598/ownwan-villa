@@ -45,7 +45,7 @@ export function Recover() {
     }
     if (step === "code" && !code) return setError("복구 코드를 입력해 주세요");
     if (step === "complete" && !ticket) return setError("요청 번호를 입력해 주세요");
-    if (password.length < 8) return setError("새 비밀번호는 8자 이상이어야 해요");
+    if (password.length < 8 || password.length > 128) return setError("비밀번호는 8~128자로 정해 주세요");
     run(async () => {
       const r =
         step === "code"
@@ -86,7 +86,7 @@ export function Recover() {
       <form onSubmit={submit} noValidate>
         <div className="field">
           <label htmlFor="username">아이디</label>
-          <input id="username" type="text" autoCapitalize="none" autoCorrect="off" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+          <input id="username" type="text" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
         </div>
         {step === "code" && (
           <div className="field">

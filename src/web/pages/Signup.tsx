@@ -18,8 +18,9 @@ export function Signup() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     const err: Errors = {};
-    if (!/^[a-z0-9]{4,16}$/.test(f.username)) err.username = "영문 소문자와 숫자 4~16자로 입력해 주세요";
-    if (f.password.length < 8) err.password = "비밀번호는 8자 이상이어야 해요";
+    const username = f.username.trim().toLowerCase();
+    if (!/^[a-z0-9]{4,16}$/.test(username)) err.username = "영문 소문자와 숫자 4~16자로 입력해 주세요";
+    if (f.password.length < 8 || f.password.length > 128) err.password = "비밀번호는 8~128자로 정해 주세요";
     if (f.password2 !== f.password) err.password2 = "비밀번호가 서로 달라요";
     const nick = f.nickname.trim();
     if (nick.length < 2 || nick.length > 10) err.nickname = "닉네임은 2~10자로 입력해 주세요";
@@ -30,7 +31,7 @@ export function Signup() {
     try {
       const { recoveryCode } = await api<{ recoveryCode: string }>("/api/signup", {
         method: "POST",
-        body: JSON.stringify({ username: f.username, password: f.password, nickname: nick, over14, agree }),
+        body: JSON.stringify({ username, password: f.password, nickname: nick, over14, agree }),
       });
       nav("/signup/code", { state: { recoveryCode, next } });
     } catch (e) {
@@ -47,7 +48,7 @@ export function Signup() {
       <form onSubmit={submit} noValidate>
         <div className="field">
           <label htmlFor="username">아이디</label>
-          <input id="username" type="text" autoComplete="username" value={f.username} onChange={set("username")} />
+          <input id="username" type="text" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" value={f.username} onChange={set("username")} />
           {errors.username && <p className="error">{errors.username}</p>}
         </div>
         <div className="field">

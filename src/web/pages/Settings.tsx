@@ -136,7 +136,7 @@ export function Settings() {
           <input id="pw-current" type="password" autoComplete="current-password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} />
         </div>
         <div className="field">
-          <label htmlFor="pw-next">새 비밀번호 (8자 이상)</label>
+          <label htmlFor="pw-next">새 비밀번호 (8~128자)</label>
           <input id="pw-next" type="password" autoComplete="new-password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} />
         </div>
         <button
