@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { Building, layoutFloors, type Member } from "./Building";
 import { RoomTile } from "./RoomTile";
+import { VILLA_CAPACITY } from "../../shared/villa";
 import { DEFAULT_AVATAR } from "../../shared/avatar";
 
 const m = (userId: string, floor: number, streak = 0, certifiedToday = false): Member => ({
@@ -28,7 +29,24 @@ describe("layoutFloors", () => {
     const f12 = rows[1] as { members: Member[] };
     expect(f12.members.map((x) => x.userId)).toEqual(["e"]);
     const f1 = rows[rows.length - 1] as { emptySlots?: number };
-    expect(f1.emptySlots).toBe(10 - members.length);
+    // 1층에 d 한 명: 마지막 줄의 남은 2칸만 그리고, 나머지(20-5-2)는 "빈방 n개"로 접는다
+    expect(f1.emptySlots).toBe(2);
+    expect((f1 as { vacantMore?: number }).vacantMore).toBe(VILLA_CAPACITY - members.length - 2);
+  });
+
+  it("vacancy_collapse_cases", () => {
+    const f1 = (ms: Member[]) => layoutFloors(ms, null).filter((r) => "floor" in r && r.floor === 1).pop() as { emptySlots?: number; vacantMore?: number };
+    // 1층이 꽉 찬 줄이면 새 한 줄(3칸)
+    const three = [m("a", 1), m("b", 1), m("c", 1)];
+    expect(f1(three)).toMatchObject({ emptySlots: 3, vacantMore: VILLA_CAPACITY - 3 - 3 });
+    // 만원이면 빈방 없음
+    const full = Array.from({ length: VILLA_CAPACITY }, (_, i) => m(`u${i}`, 1));
+    expect(f1(full).emptySlots).toBe(0);
+    expect(f1(full).vacantMore).toBeUndefined();
+    // 빈방이 한 줄 안에 다 들어가면 접지 않는다
+    const nearly = Array.from({ length: VILLA_CAPACITY - 2 }, (_, i) => m(`u${i}`, 1));
+    expect(f1(nearly).emptySlots).toBe(2);
+    expect(f1(nearly).vacantMore).toBeUndefined();
   });
 
   it("collapses_9_to_11", () => {
@@ -53,7 +71,8 @@ describe("layoutFloors", () => {
     const last = rows[rows.length - 1] as { floor: number; members: Member[]; emptySlots?: number };
     expect(last.floor).toBe(1);
     expect(last.members).toEqual([]);
-    expect(last.emptySlots).toBe(9);
+    expect(last.emptySlots).toBe(3);
+    expect((last as { vacantMore?: number }).vacantMore).toBe(VILLA_CAPACITY - 1 - 3);
     expect(rows.map((r) => ("gap" in r ? r.gap : r.floor))).toEqual([4, [2, 3], 1]);
   });
 });
