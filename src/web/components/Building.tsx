@@ -1,5 +1,6 @@
 import type { AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
+import { VILLA_CAPACITY } from "../../shared/villa";
 import { RoomTile } from "./RoomTile";
 import "./villa.css";
 
@@ -15,10 +16,10 @@ export type Member = {
   placements: { slot: string; itemId: string }[];
 };
 
-export const CAPACITY = 10;
+export const CAPACITY = VILLA_CAPACITY;
 const PER_ROW = 3;
 
-export type FloorRow = { floor: number | "PH"; members: Member[]; emptySlots?: number; cont?: boolean };
+export type FloorRow = { floor: number | "PH"; members: Member[]; emptySlots?: number; vacantMore?: number; cont?: boolean };
 export type GapRow = { gap: [number, number] };
 export type Row = FloorRow | GapRow;
 
@@ -46,7 +47,13 @@ export function layoutFloors(members: Member[], penthouseUserId: string | null):
     chunks.forEach((c, k) => {
       const row: FloorRow = { floor: f, members: c };
       if (k > 0) row.cont = true;
-      if (f === 1 && k === chunks.length - 1) row.emptySlots = Math.max(0, CAPACITY - members.length);
+      if (f === 1 && k === chunks.length - 1) {
+        // 빈방은 최대 한 줄만 그린다: 마지막 줄의 남은 칸, 줄이 꽉 찼으면 새 한 줄. 나머지는 "빈방 n개"로 접는다.
+        const vacant = Math.max(0, CAPACITY - members.length);
+        const room = c.length === PER_ROW ? PER_ROW : PER_ROW - c.length;
+        row.emptySlots = Math.min(vacant, room);
+        if (vacant > row.emptySlots) row.vacantMore = vacant - row.emptySlots;
+      }
       rows.push(row);
     });
   });
@@ -104,7 +111,11 @@ export function Building({ members, penthouseUserId, ownerId, meId }: Props) {
                 <div className="wall" key={`w${w}`} />
               ))}
             </div>
-          ));
+          )).concat(
+            r.vacantMore
+              ? [<div className="vacant-more" key={`vm${i}`}>빈방 {r.vacantMore}개</div>]
+              : [],
+          );
         })}
         <div className="entry">
           <div className="door" />

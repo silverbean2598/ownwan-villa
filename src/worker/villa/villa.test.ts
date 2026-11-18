@@ -116,24 +116,24 @@ describe("villa", () => {
     expect(await me()).toMatchObject({ floor: 2, floorUpToday: false });
   });
 
-  it("join_rejects_11th_member", async () => {
+  it("join_rejects_21st_member", async () => {
     const owner = await signup();
     const { id, inviteToken } = await create(owner);
-    for (let i = 0; i < 9; i++) expect((await join(await signup(), inviteToken)).status).toBe(200);
-    expect(await active(id)).toBe(10);
+    for (let i = 0; i < 19; i++) expect((await join(await signup(), inviteToken)).status).toBe(200);
+    expect(await active(id)).toBe(20);
     const r = await join(await signup(), inviteToken);
     expect(r.status).toBe(409);
     expect(((await r.json()) as any).error).toBe("빌라가 꽉 찼어요");
   });
 
-  it("concurrent_joins_never_exceed_10", async () => {
+  it("concurrent_joins_never_exceed_20", async () => {
     const owner = await signup();
     const { id, inviteToken } = await create(owner);
-    for (let i = 0; i < 8; i++) await join(await signup(), inviteToken);
-    expect(await active(id)).toBe(9);
+    for (let i = 0; i < 18; i++) await join(await signup(), inviteToken);
+    expect(await active(id)).toBe(19);
     const rs = await Promise.all([join(await signup(), inviteToken), join(await signup(), inviteToken)]);
     expect(rs.map((r) => r.status).sort()).toEqual([200, 409]);
-    expect(await active(id)).toBe(10);
+    expect(await active(id)).toBe(20);
   });
 
   it("join rejects when already in a villa", async () => {

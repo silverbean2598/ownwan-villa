@@ -1,4 +1,5 @@
 import type { Env } from "../env";
+import { VILLA_CAPACITY } from "../../shared/villa";
 import { now } from "../clock";
 import { CERTIFIED_PHOTO } from "../cert/certified";
 import { kstDay } from "../../shared/rules/day";
@@ -6,7 +7,7 @@ import { displayFloor, displayStreak } from "../../shared/rules/streak";
 import { pickPenthouse } from "../../shared/rules/penthouse";
 import { logEvents } from "../events/log";
 
-export const MAX_MEMBERS = 10;
+export const MAX_MEMBERS = VILLA_CAPACITY;
 
 export function newInviteToken(): string {
   const raw = crypto.getRandomValues(new Uint8Array(16));

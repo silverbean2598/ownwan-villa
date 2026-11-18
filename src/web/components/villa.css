@@ -33,6 +33,7 @@
 .room.me { border-color: var(--accent); }
 .room.empty { background: #fff; border: 2px dashed var(--line); align-items: center; justify-content: center; color: var(--muted); font-size: 12px; min-height: 100px; cursor: default; }
 .room.empty:hover { transform: none; }
+.vacant-more { border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); padding: 6px 8px; color: var(--muted); font-size: 12px; text-align: center; background: #F7F8FA; }
 .wall { min-height: 100px; border-radius: 8px; background: repeating-linear-gradient(0deg, #F3F4F7 0 12px, #ECEEF2 12px 13px); }
 .tag { display: flex; justify-content: space-between; align-items: center; gap: 4px; padding: 3px 6px 5px; font-size: 12px; color: var(--darkInk); min-width: 0; }
 .on .tag { color: var(--ink); }

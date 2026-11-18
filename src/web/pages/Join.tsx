@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { VILLA_CAPACITY } from "../../shared/villa";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 
@@ -46,7 +47,7 @@ export function Join() {
       <h1>빌라 초대</h1>
       {preview && (
         <p>
-          <strong>{preview.villaName}</strong> · 입주민 {preview.memberCount}/10명
+          <strong>{preview.villaName}</strong> · 입주민 {preview.memberCount}/{VILLA_CAPACITY}명
         </p>
       )}
       {error && <p className="error" role="alert">{error}</p>}
