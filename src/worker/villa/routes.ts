@@ -2,10 +2,19 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { now } from "../clock";
 import { jsonError, requireUser } from "../http";
+import { DEFAULT_AVATAR, parseAvatar } from "../../shared/avatar";
 import { kstDay } from "../../shared/rules/day";
 import { MAX_MEMBERS, NotInVillaError, leaveVilla, newInviteToken, recomputePenthouse } from "./service";
 
 export const villa = new Hono<AppEnv>();
+
+function safeAvatar(raw: string) {
+  try {
+    return parseAvatar(JSON.parse(raw)) ?? DEFAULT_AVATAR;
+  } catch {
+    return DEFAULT_AVATAR;
+  }
+}
 
 const BAD_NAME = "빌라 이름은 1~20자로 지어 주세요";
 const IN_VILLA = "지금 빌라를 먼저 나가야 해요";
@@ -68,7 +77,7 @@ villa.get("/api/villas/mine", requireUser, async (c) => {
     .all<{ userId: string; slot: string; itemId: string }>();
   const members = results.map((r) => ({
     ...r,
-    avatar: JSON.parse(r.avatar),
+    avatar: safeAvatar(r.avatar),
     certifiedToday: !!r.certifiedToday,
     placements: pl.results.filter((p) => p.userId === r.userId).map((p) => ({ slot: p.slot, itemId: p.itemId })),
   }));

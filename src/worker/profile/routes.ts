@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { jsonError, requireUser } from "../http";
 import { SPORTS } from "../../shared/sports";
+import { isValidNickname } from "../../shared/nickname";
 import { parseAvatar } from "../../shared/avatar";
 
 export const profile = new Hono<AppEnv>();
@@ -25,7 +26,7 @@ profile.patch("/api/me", requireUser, async (c) => {
   }
   if ("nickname" in b) {
     const nickname = typeof b.nickname === "string" ? b.nickname.trim() : "";
-    if (nickname.length < 2 || nickname.length > 10) return jsonError(c, 400, "닉네임은 2~10자로 입력해 주세요");
+    if (!isValidNickname(nickname)) return jsonError(c, 400, "닉네임은 2~10자로 입력해 주세요");
     sets.push("nickname = ?");
     vals.push(nickname);
   }

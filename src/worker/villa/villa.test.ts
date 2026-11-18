@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { app } from "../index";
 import { setNow } from "../clock";
 import { kstDay } from "../../shared/rules/day";
+import { DEFAULT_AVATAR } from "../../shared/avatar";
 
 let n = 0;
 const uname = () => `vl${Date.now().toString(36)}${n++}`.slice(0, 16);
@@ -65,6 +66,16 @@ describe("villa", () => {
     const r = await send("POST", "/api/villas", { name: "또" }, u.cookie);
     expect(r.status).toBe(409);
     expect(((await r.json()) as any).error).toBe("지금 빌라를 먼저 나가야 해요");
+  });
+
+  it("mine returns default avatar for unparseable stored avatar", async () => {
+    const u = await signup();
+    await create(u);
+    for (const raw of ["{}", "not json"]) {
+      await env.DB.prepare("UPDATE users SET avatar = ? WHERE id = ?").bind(raw, u.id).run();
+      const mine = (await (await send("GET", "/api/villas/mine", undefined, u.cookie)).json()) as any;
+      expect(mine.members[0].avatar).toEqual(DEFAULT_AVATAR);
+    }
   });
 
   it("mine is null without villa", async () => {

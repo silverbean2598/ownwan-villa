@@ -3,6 +3,7 @@ import type { AppEnv } from "../env";
 import { now } from "../clock";
 import { jsonError } from "../http";
 import { hashToken, newRecoveryCode } from "../recovery/codes";
+import { isValidNickname } from "../../shared/nickname";
 import { DEFAULT_AVATAR, parseAvatar } from "../../shared/avatar";
 import { hashPassword, verifyPassword } from "./password";
 import { createSession, endSession, requireUser, setSessionCookie } from "./session";
@@ -20,7 +21,7 @@ auth.post("/api/signup", async (c) => {
   const nickname = typeof b?.nickname === "string" ? b.nickname.trim() : "";
   if (!/^[a-z0-9]{4,16}$/.test(username)) return jsonError(c, 400, "아이디는 영문 소문자와 숫자 4~16자로 입력해 주세요");
   if (password.length < 8) return jsonError(c, 400, "비밀번호는 8자 이상이어야 해요");
-  if (nickname.length < 2 || nickname.length > 10) return jsonError(c, 400, "닉네임은 2~10자로 입력해 주세요");
+  if (!isValidNickname(nickname)) return jsonError(c, 400, "닉네임은 2~10자로 입력해 주세요");
   if (b?.over14 !== true) return jsonError(c, 400, "만 14세 이상만 가입할 수 있어요");
   if (b?.agree !== true) return jsonError(c, 400, "이용약관과 개인정보 처리방침에 동의해 주세요");
 
