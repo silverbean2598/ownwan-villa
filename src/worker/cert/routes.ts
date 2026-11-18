@@ -12,7 +12,7 @@ const MAX_BYTES = 300 * 1024;
 const FORBIDDEN = "같은 빌라 입주민만 볼 수 있어요";
 
 /** 본인이거나, 둘 다 같은 (해산되지 않은) 빌라의 현재 입주민 */
-async function canView(env: Env, viewerId: string, ownerId: string): Promise<boolean> {
+export async function canView(env: Env, viewerId: string, ownerId: string): Promise<boolean> {
   if (viewerId === ownerId) return true;
   const row = await env.DB.prepare(
     `SELECT 1 AS ok FROM memberships a

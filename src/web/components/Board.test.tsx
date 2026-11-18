@@ -53,4 +53,14 @@ describe("groupByDay", () => {
     const g = groupByDay([photo("a", 0), routine("r", 1), routine("s", 2)]);
     expect(g.map((x) => [x.heading, x.items.length])).toEqual([["11월 18일", 1], ["11월 17일", 2]]);
   });
+  it("photo_actions_render_only_on_visible_photos", () => {
+    const html = renderToStaticMarkup(
+      <Board
+        items={[photo("a", 0), photo("h", 1, { hidden: true, photoUrl: undefined }), routine("r", 2)]}
+        renderPhotoActions={(it) => <i className="act">{it.id}</i>}
+      />,
+    );
+    expect(html.split('class="act"').length - 1).toBe(1);
+    expect(html).toContain(">a</i>");
+  });
 });

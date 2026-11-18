@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { SPORT_LABEL } from "../../shared/sports";
 import { Board, type BoardItemData } from "../components/Board";
+import { usePhotoActions } from "../components/PhotoActions";
 import { RoomScene } from "../components/RoomScene";
 import type { Member } from "../components/Building";
 import { FurnitureIcon } from "../components/furniture";
@@ -10,7 +11,7 @@ import { slotAnchors, sceneGeom, type Anchor } from "../components/furniture/lay
 import { CATALOG, SLOTS, findItem, slotType, type Slot } from "../../shared/catalog";
 import "../components/villa.css";
 
-type VillaData = { penthouseUserId: string | null; members: Member[] } | null;
+type VillaData = { ownerId: string; penthouseUserId: string | null; members: Member[] } | null;
 type Me = { id: string };
 
 type Placement = { slot: string; itemId: string };
@@ -43,7 +44,7 @@ function slotStyle(p: Anchor): CSSProperties {
 /** 방 주인의 방 정보를 불러온다. 401이면 로그인으로 보낸다. */
 export function useRoomMember(userId: string | undefined, path: string) {
   const nav = useNavigate();
-  const [state, setState] = useState<{ me: Me; member: Member | null; penthouse: boolean } | null>(null);
+  const [state, setState] = useState<{ me: Me; member: Member | null; penthouse: boolean; iAmVillaOwner: boolean } | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
     let alive = true;
@@ -52,7 +53,7 @@ export function useRoomMember(userId: string | undefined, path: string) {
         const me = await api<Me>("/api/me");
         const villa = await api<VillaData>("/api/villas/mine");
         const member = villa?.members.find((m) => m.userId === userId) ?? null;
-        if (alive) setState({ me, member, penthouse: !!member && villa?.penthouseUserId === member.userId });
+        if (alive) setState({ me, member, penthouse: !!member && villa?.penthouseUserId === member.userId, iAmVillaOwner: villa?.ownerId === me.id });
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) return nav(`/login?next=${encodeURIComponent(path)}`, { replace: true });
         if (alive) setError(e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
@@ -101,6 +102,7 @@ export function Room() {
     };
   }, [isMe]);
 
+  const [reload, setReload] = useState(0);
   useEffect(() => {
     if (!state?.member) return;
     let alive = true;
@@ -110,7 +112,13 @@ export function Room() {
     return () => {
       alive = false;
     };
-  }, [state?.member]);
+  }, [state?.member, reload]);
+  const photoActions = usePhotoActions({
+    ownerId: userId ?? "",
+    meId: state?.me.id ?? "",
+    iAmVillaOwner: !!state?.iAmVillaOwner,
+    onDone: () => setReload((n) => n + 1),
+  });
 
   if (error) return <main className="page"><p className="error" role="alert">{error}</p></main>;
   if (!state) return <main className="page"><p className="muted">불러오는 중이에요</p></main>;
@@ -167,7 +175,7 @@ export function Room() {
             board={
               <section className="left-wall" aria-label="게시판">
                 <Link className="board-link" to={`/room/${member.userId}/board`} aria-label="전체 기록 보기">
-                  {boardError ? <p className="error" role="alert">{boardError}</p> : <Board items={items ?? []} />}
+                  {boardError ? <p className="error" role="alert">{boardError}</p> : <Board items={items ?? []} renderPhotoActions={photoActions.render} />}
                 </Link>
               </section>
             }
@@ -216,6 +224,7 @@ export function Room() {
         </div>
       )}
       <Link className="btn ghost board-all" to={`/room/${member.userId}/board`}>전체 기록 보기</Link>
+      {photoActions.dialog}
     </main>
   );
 }

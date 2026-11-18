@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { BoardItem, groupByDay, type BoardItemData } from "../components/Board";
+import { usePhotoActions } from "../components/PhotoActions";
 import { NotFoundRoom, useRoomMember } from "./Room";
 import "../components/villa.css";
 
@@ -16,6 +17,12 @@ export function RoomBoard() {
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState("");
   const target = state?.member?.userId;
+  const photoActions = usePhotoActions({
+    ownerId: userId ?? "",
+    meId: state?.me.id ?? "",
+    iAmVillaOwner: !!state?.iAmVillaOwner,
+    onDone: () => void load(),
+  });
 
   const load = useCallback(
     async (before?: number) => {
@@ -55,7 +62,7 @@ export function RoomBoard() {
         <section key={g.day} className="day-group">
           <h2>{g.heading}</h2>
           <div className="board full">
-            {g.items.map((it) => <BoardItem key={it.id} item={it} />)}
+            {g.items.map((it) => <BoardItem key={it.id} item={it} renderPhotoActions={photoActions.render} />)}
           </div>
         </section>
       ))}
@@ -64,6 +71,7 @@ export function RoomBoard() {
           {loading ? "불러오는 중이에요" : "더 보기"}
         </button>
       )}
+      {photoActions.dialog}
     </main>
   );
 }
