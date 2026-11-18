@@ -1,4 +1,4 @@
-export type Pose = "idle" | "sleep" | "gym" | "running" | "pilates" | "climbing" | "jiujitsu";
+export type Pose = "idle" | "sleep" | "gym" | "running" | "pilates" | "climbing" | "jiujitsu" | "taekwondo";
 export type Face = "smile" | "happy" | "effort" | "sleep";
 
 /**
@@ -21,11 +21,16 @@ export type PoseDef = {
   fore?: number;
   /** 팔을 머리 앞에 그린다(바벨). */
   armsFront?: boolean;
-  /** 리그 전체를 눕힌다(필라테스). */
-  lying?: boolean;
-  gi?: boolean;
+  /** 리그 전체를 눕힌다(필라테스 · 주짓수). 값은 리그에 거는 안쪽 transform (viewBox 원점은 늘 0 0). */
+  lying?: string;
+  /** 누운 자세에서 바닥에 닿는 높이(svg 높이 비율) */
+  floorAt?: number;
+  uniform?: "gi" | "dobok";
+  /** 주짓수 가드: 그래플링 더미를 다리 사이에 둔다 */
+  dummy?: boolean;
 };
 
+const LYING = "translate(36 -42) rotate(-90 60 100)";
 const base = { elbL: 0, elbR: 0, torso: 0, headTilt: 0, offsetY: 0 };
 
 export const POSES: Record<Pose, PoseDef> = {
@@ -33,7 +38,10 @@ export const POSES: Record<Pose, PoseDef> = {
   sleep: { ...base, armL: 6, armR: -6, legL: 2, legR: -2, headTilt: 7, face: "sleep" },
   gym: { ...base, armL: 100, armR: -100, elbL: 80, elbR: -80, legL: 7, legR: -7, face: "effort", fore: 26, armsFront: true },
   running: { ...base, armL: 30, armR: -30, elbL: -95, elbR: 95, legL: 20, legR: -20, face: "happy" },
-  pilates: { ...base, armL: 168, armR: -18, elbL: -125, elbR: 0, legL: 2, legR: -38, headTilt: 12, face: "happy", lying: true },
+  pilates: { ...base, armL: 168, armR: -18, elbL: -125, elbR: 0, legL: 2, legR: -38, headTilt: 12, face: "happy", lying: LYING, floorAt: 0.7 },
   climbing: { ...base, armL: 132, armR: -70, elbL: 18, elbR: -70, legL: 30, legR: -6, offsetY: -2, face: "happy", fore: 15 },
-  jiujitsu: { ...base, armL: 30, armR: -30, elbL: -140, elbR: 140, legL: 13, legR: -13, face: "smile", gi: true },
+  // 등을 대고 누워 더미 허리를 두 다리로 감고(클로즈드 가드) 두 손으로 깃을 잡는다
+  jiujitsu: { ...base, armL: -52, armR: -60, legL: -26, legR: -54, torso: 12, headTilt: -5, face: "happy", fore: 21, lying: "translate(28 -14) rotate(-90 60 100)", floorAt: 0.89, uniform: "gi", dummy: true },
+  // 겨루기 자세(주먹 가드)에서 앞차기
+  taekwondo: { ...base, armL: 30, armR: -30, elbL: -140, elbR: 140, legL: 13, legR: -13, face: "smile", uniform: "dobok" },
 };

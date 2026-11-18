@@ -9,7 +9,11 @@ const HAIR_HI = "#7E6760";
 const SHORTS = "#3D5089";
 const GI = "#FFFFFF";
 const GI_SHADE = "#E6E9F0";
-const BELT = "#2B3555";
+const BELT = { gi: "#2F6FD0", dobok: "#25252D" } as const;
+const V_TRIM = "#2A2A33";
+
+/** 옷: 반팔 티 / 주짓수 도복(두꺼운 깃 · 파란 띠) / 태권도 도복(V넥 · 검은 띠) */
+export type Uniform = "tee" | "gi" | "dobok";
 const SHOE_SOLE = "#E4DEDC";
 
 const line = { stroke: INK, strokeWidth: SW, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
@@ -195,18 +199,35 @@ export function FaceFeatures({ face }: { face: Face }) {
 }
 
 // ---------- 몸통 ----------
-export function Torso({ skin, shirt, gi }: { skin: string; shirt: string; gi: boolean }) {
+function Belt({ color }: { color: string }) {
+  return (
+    <>
+      <rect x="40.8" y="114" width="38.4" height="6.5" rx="1.5" fill={color} {...line} strokeWidth={1.1} />
+      <path d="M57 120 L53 131 L56.5 131.5 L60 121 L63.5 131.5 L67 131 L63 120 Z" fill={color} {...line} strokeWidth={1.1} />
+      <rect x="56.5" y="113.5" width="7" height="7.5" rx="1.5" fill={color} {...line} strokeWidth={1.1} />
+    </>
+  );
+}
+
+const JACKET = "M44 87 Q60 83.5 76 87 L79.5 131 Q60 134 40.5 131 Z";
+
+export function Torso({ skin, shirt, uniform }: { skin: string; shirt: string; uniform: Uniform }) {
   return (
     <g data-part="torso">
       <rect x="55.5" y="78" width="9" height="12" fill={skin} {...line} />
-      {gi ? (
+      {uniform === "gi" ? (
         <g data-part="gi">
-          <path d="M44 87 Q60 83.5 76 87 L79.5 131 Q60 134 40.5 131 Z" fill={GI} {...line} />
+          <path d={JACKET} fill={GI} {...line} />
           <path d="M53 86 L67 115 M67 86 L57.5 106" fill="none" {...line} strokeWidth={4.2} stroke={GI_SHADE} />
           <path d="M53 86 L67 115 M67 86 L57.5 106" fill="none" {...line} strokeWidth={1} />
-          <rect x="40.8" y="114" width="38.4" height="6.5" rx="1.5" fill={BELT} {...line} strokeWidth={1.1} />
-          <path d="M57 120 L53 131 L56.5 131.5 L60 121 L63.5 131.5 L67 131 L63 120 Z" fill={BELT} {...line} strokeWidth={1.1} />
-          <rect x="56.5" y="113.5" width="7" height="7.5" rx="1.5" fill={BELT} {...line} strokeWidth={1.1} />
+          <Belt color={BELT.gi} />
+        </g>
+      ) : uniform === "dobok" ? (
+        <g data-part="dobok">
+          <path d={JACKET} fill={GI} {...line} />
+          <path d="M54 87 L60 99 L66 87 Z" fill={skin} />
+          <path d="M52.5 86.5 L60 100.5 L67.5 86.5" fill="none" stroke={V_TRIM} strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
+          <Belt color={BELT.dobok} />
         </g>
       ) : (
         <>
@@ -222,7 +243,8 @@ export function Torso({ skin, shirt, gi }: { skin: string; shirt: string; gi: bo
 }
 
 // ---------- 팔 ----------
-export function Arm({ side, a, elb, fore = 13, skin, shirt, gi }: { side: "L" | "R"; a: number; elb: number; fore?: number; skin: string; shirt: string; gi: boolean }) {
+export function Arm({ side, a, elb, fore = 13, skin, shirt, uniform }: { side: "L" | "R"; a: number; elb: number; fore?: number; skin: string; shirt: string; uniform: Uniform }) {
+  const gi = uniform !== "tee";
   const [x, y] = side === "L" ? PIVOT.shoulderL : PIVOT.shoulderR;
   const ey = y + ELBOW_DY;
   const hy = ey + fore;
@@ -244,7 +266,8 @@ export function Arm({ side, a, elb, fore = 13, skin, shirt, gi }: { side: "L" | 
 }
 
 // ---------- 다리 ----------
-export function Leg({ side, a, skin, gi }: { side: "L" | "R"; a: number; skin: string; gi: boolean }) {
+export function Leg({ side, a, skin, uniform }: { side: "L" | "R"; a: number; skin: string; uniform: Uniform }) {
+  const gi = uniform !== "tee";
   const [x] = side === "L" ? PIVOT.hipL : PIVOT.hipR;
   const out = side === "L" ? -1 : 1;
   return (
@@ -282,6 +305,23 @@ export function Barbell({ y }: { y: number }) {
       {plate(104.5)}
       <rect x="15.5" y={y - 6} width="4" height="12" rx="1.5" fill="#5E5859" {...line} strokeWidth={1.1} />
       <rect x="100.5" y={y - 6} width="4" height="12" rx="1.5" fill="#5E5859" {...line} strokeWidth={1.1} />
+    </g>
+  );
+}
+
+/** 그래플링 더미: 둥근 몸통 + 머리 + 짧은 팔. 허리(0,0) 기준으로 서 있는 모양. */
+export function Dummy({ transform }: { transform?: string }) {
+  const BODY = "#B08560";
+  const DARK = "#8C6646";
+  return (
+    <g data-part="dummy" transform={transform}>
+      <path d="M-14 -30 Q-17 -12 -12 0 L12 0 Q17 -12 14 -30 Z" fill={BODY} {...line} />
+      <rect x="-21" y="-31" width="9" height="16" rx="4.5" fill={BODY} {...line} transform="rotate(14 -16 -30)" />
+      <rect x="12" y="-31" width="9" height="16" rx="4.5" fill={BODY} {...line} transform="rotate(-14 16 -30)" />
+      <path d="M-15 -30 Q0 -36 15 -30 Q14 -25 0 -25 Q-14 -25 -15 -30 Z" fill={DARK} {...line} strokeWidth={1.1} />
+      <rect x="-4" y="-38" width="8" height="8" fill={BODY} {...line} />
+      <circle cx="0" cy="-45" r="9" fill={BODY} {...line} />
+      <path d="M0 -24 V-4" stroke={DARK} strokeWidth="1" strokeLinecap="round" />
     </g>
   );
 }

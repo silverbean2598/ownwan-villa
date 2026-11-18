@@ -33,10 +33,16 @@
   .pose-climbing [data-part="legL"] { --d: -26deg; animation: av-swing 1.1s ease-in-out infinite alternate; }
   .pose-climbing [data-part="body"] { animation: av-climb 1.1s ease-in-out infinite alternate; }
 
-  /* 주짓수: 가드 자세로 가볍게 들썩 */
-  .pose-jiujitsu [data-part="body"] { animation: av-hop .6s ease-in-out infinite alternate; }
-  .pose-jiujitsu [data-part="armL"] { --d: 8deg; animation: av-swing .6s ease-in-out infinite alternate; }
-  .pose-jiujitsu [data-part="armR"] { --d: -8deg; animation: av-swing .6s ease-in-out infinite alternate; }
+  /* 주짓수 가드: 더미를 끌어당겼다 밀어내기 (팔 · 다리 함께) */
+  .pose-jiujitsu [data-part="dummy"] { animation: av-pull 1.3s ease-in-out infinite alternate; }
+  .pose-jiujitsu [data-part="armL"], .pose-jiujitsu [data-part="armR"] { --d: 10deg; animation: av-swing 1.3s ease-in-out infinite alternate; }
+  .pose-jiujitsu [data-part="legL"], .pose-jiujitsu [data-part="legR"] { --d: 8deg; animation: av-swing 1.3s ease-in-out infinite alternate; }
+  .pose-jiujitsu [data-part="upper"] { --d: 6deg; animation: av-swing 1.3s ease-in-out infinite alternate; }
+
+  /* 태권도: 가드 유지한 채 오른발 앞차기 */
+  .pose-taekwondo [data-part="legR"] { --d: -68deg; animation: av-kick 1.6s ease-out infinite; }
+  .pose-taekwondo [data-part="body"] { animation: av-hop .8s ease-in-out infinite alternate; }
+  .pose-taekwondo [data-part="armL"] { --d: 6deg; animation: av-swing .8s ease-in-out infinite alternate; }
 }
 
 @keyframes av-swing { to { transform: rotate(calc(var(--a) + var(--d, 0deg))); } }
@@ -44,4 +50,6 @@
 @keyframes av-lift { to { transform: translateY(-6px); } }
 @keyframes av-hop { to { transform: translateY(-2.5px); } }
 @keyframes av-climb { to { transform: translateY(-3px); } }
+@keyframes av-pull { to { transform: translate(-4px, 3px); } }
+@keyframes av-kick { 0%, 15%, 75%, 100% { transform: rotate(var(--a)); } 35%, 50% { transform: rotate(calc(var(--a) + var(--d))); } }
 @keyframes av-z { 0% { opacity: 0; transform: translate(0, 4px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(4px, -6px); } }

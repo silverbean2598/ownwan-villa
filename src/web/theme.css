@@ -36,3 +36,8 @@ body {
 .swatches { flex-wrap: wrap; }
 .swatch { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0; }
 .swatch.on { border-color: var(--ink); box-shadow: 0 0 0 2px #fff inset; }
+.sport-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sport-card { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 12px 8px; }
+.sport-pic { height: 76px; display: flex; align-items: flex-end; justify-content: center; }
+.sport-pic svg { max-height: 76px; width: auto; }
+@media (min-width: 560px) { .sport-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

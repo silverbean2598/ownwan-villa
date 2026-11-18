@@ -1,4 +1,4 @@
-export const SPORTS = ["gym", "pilates", "running", "climbing", "jiujitsu"] as const;
+export const SPORTS = ["gym", "pilates", "running", "climbing", "jiujitsu", "taekwondo"] as const;
 export type Sport = (typeof SPORTS)[number];
 
 export const SPORT_LABEL: Record<Sport, string> = {
@@ -7,4 +7,5 @@ export const SPORT_LABEL: Record<Sport, string> = {
   running: "러닝",
   climbing: "클라이밍",
   jiujitsu: "주짓수",
+  taekwondo: "태권도",
 };

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Avatar } from "./Avatar";
+import { Avatar, POSES } from "./Avatar";
 import type { AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
 import { Box, Cork, Frame, GEOM, Moonbeam, PALETTE, Pendant, Window } from "./room/Box";
@@ -17,9 +17,8 @@ type Props = {
   board?: ReactNode;
 };
 
-// 아바타 svg 안에서 발바닥 높이 비율(서 있음 155/168), 누운 자세의 바닥 접점 비율
+// 아바타 svg 안에서 발바닥 높이 비율(서 있음 155/168). 누운 자세는 POSES[pose].floorAt
 const FEET = 155 / 168;
-const LYING_FLOOR = 0.7;
 
 /** 인형의 집 상자 방. 불이 켜지면 종목 자세로 운동하고, 꺼지면 달빛 아래 잠잔다. */
 export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "tile", board }: Props) {
@@ -37,14 +36,15 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
   const size = 42 * du;
   const fx = g.bx0 + bw * (penthouse ? (detail ? 0.34 : 0.42) : detail ? 0.45 : 0.5);
   const fy = g.by1 + (g.H - g.by1) * (detail ? 0.5 : 0.62);
-  const lying = pose === "pilates";
+  const lying = !!POSES[pose].lying;
+  const lyingFloor = POSES[pose].floorAt ?? 0.7;
   const k = size / 42; // 기구 배율
   // 잘 때는 기구 옆에 선다. 클라이밍은 벽 홀드를 딛고 조금 올라가 있다.
   const ex = lit ? fx : fx - bw * 0.16;
   const cx = lit ? fx : fx + bw * 0.14;
   const lift = pose === "climbing" ? 10 * k : 0;
   const avX = lying ? cx - size * 1.4 * 0.5 : cx - size / 2;
-  const avY = (lying ? fy - size * LYING_FLOOR : fy - size * 1.4 * FEET) - lift;
+  const avY = (lying ? fy - size * lyingFloor : fy - size * 1.4 * FEET) - lift;
 
   const win = penthouse
     ? null

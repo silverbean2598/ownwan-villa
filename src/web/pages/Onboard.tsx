@@ -34,16 +34,19 @@ export function Onboard() {
       <main className="page">
         <h1>어떤 운동을 하시나요?</h1>
         <p className="muted">주로 하는 운동을 하나 골라 주세요.</p>
-        <div className="choices" role="radiogroup" aria-label="운동 종목">
+        <div className="choices sport-cards" role="radiogroup" aria-label="운동 종목">
           {SPORTS.map((s) => (
             <button
               key={s}
               type="button"
               role="radio"
               aria-checked={sport === s}
-              className={`choice${sport === s ? " on" : ""}`}
+              className={`choice sport-card${sport === s ? " on" : ""}`}
               onClick={() => setSport(s)}
             >
+              <span className="sport-pic" aria-hidden="true">
+                <Avatar spec={avatar} size={50} pose={s} />
+              </span>
               {SPORT_LABEL[s]}
             </button>
           ))}

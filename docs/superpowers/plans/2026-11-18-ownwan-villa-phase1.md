@@ -27,7 +27,7 @@
 - 인증 사진 · 루틴은 같은 빌라 현재 입주민만 열람. R2 버킷은 공개하지 않는다
 - 사진 : 브라우저에서 긴 변 1280px, JPEG 품질 0.8 시작, 150KB 이하가 될 때까지 품질을 0.1씩 낮춤(최저 0.5)
 - 신고 3건이면 사진 자동 가림. 방장은 빌라 입주민 사진 삭제 가능. 운영자 열람 기능 없음
-- 종목 : `gym` 헬스 / `pilates` 필라테스 / `running` 러닝 / `climbing` 클라이밍 / `jiujitsu` 주짓수. 이 외 추가 금지
+- 종목 : `gym` 헬스 / `pilates` 필라테스 / `running` 러닝 / `climbing` 클라이밍 / `jiujitsu` 주짓수 / `taekwondo` 태권도. 이 외 추가 금지
 - 디자인 : 화이트톤. 빌라 화면은 시안(https://claude.ai/artifact/QeQhRNtkvyJZkK6dnFyLV9)의 구성을 따른다
 - 화면 문구는 한국어. 사용자 기준 표현(예: "오늘 오운완 인증하기", "불이 켜졌어요")
 - 알림은 앱 안 배지만. 빌라 화면은 열 때 · 새로고침 때 갱신(실시간 아님)
@@ -160,7 +160,7 @@ CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   - `type DayState = { streak: number; missRun: number; floor: number | null }` (floor null = 빌라 없음)
   - `settleDay(s: DayState, certified: boolean): { next: DayState; floorChanged: "up" | "down" | null }`
   - `type Contender = { userId: string; floor: number; streak: number; floorReachedAt: number }`, `pickPenthouse(cs: Contender[]): string | null`
-  - `SPORTS = ["gym","pilates","running","climbing","jiujitsu"] as const`, `type Sport`, `SPORT_LABEL: Record<Sport,string>`
+  - `SPORTS = ["gym","pilates","running","climbing","jiujitsu","taekwondo"] as const`, `type Sport`, `SPORT_LABEL: Record<Sport,string>`
 
 - [ ] **Step 1: 실패하는 테스트**
 ```ts

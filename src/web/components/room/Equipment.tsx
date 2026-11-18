@@ -1,4 +1,5 @@
 import type { Sport } from "../../../shared/sports";
+import { Dummy } from "../avatar/parts";
 
 // 종목별 운동 기구. 캐릭터 발 위치를 (0,0)으로, 캐릭터 키 ≈ 58 단위 기준으로 그린다.
 const INK = "#5B4640";
@@ -66,10 +67,25 @@ export function Equipment({ sport, lit }: { sport: Sport; lit: boolean }) {
         </g>
       );
     case "jiujitsu":
+      // 회색 매트. 잘 때(가드 자세가 아닐 때)는 더미가 매트 위에 서 있다
       return (
         <g data-equip="jiujitsu">
-          <rect x="-40" y="-3" width="80" height="7" rx="1.5" fill="#94C9BA" {...line} />
-          <path d="M-36 -0.5 H36" stroke="#6FAE9C" strokeWidth="1" />
+          <rect x="-46" y="-3" width="92" height="7" rx="1.5" fill="#A9ADB4" {...line} />
+          <path d="M-42 -0.5 H42" stroke="#8D9199" strokeWidth="1" />
+          {!lit && <Dummy transform="translate(-20 -1) scale(0.8)" />}
+        </g>
+      );
+    case "taekwondo":
+      // 파랑 · 빨강 겨루기 매트 + 스탠드 킥 미트
+      return (
+        <g data-equip="taekwondo">
+          <rect x="-40" y="-3" width="80" height="7" rx="1.5" fill="#E2645E" {...line} />
+          <rect x="-30" y="-2.2" width="60" height="5.4" fill="#4C7FD0" />
+          <path d="M34 -1 V-30" stroke="#7C7F86" strokeWidth="2.6" strokeLinecap="round" />
+          <path d="M34 -1 V-30" stroke={INK} strokeWidth="0.6" />
+          <rect x="28" y="-2.5" width="12" height="3" rx="1.5" fill="#6B6E75" {...line} strokeWidth={1} />
+          <rect x="29" y="-44" width="10" height="16" rx="5" fill="#E2645E" {...line} />
+          <path d="M31.5 -40 V-32" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
         </g>
       );
   }

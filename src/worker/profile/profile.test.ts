@@ -46,6 +46,12 @@ describe("PATCH /api/me", () => {
     expect(m.sport).toBe("climbing");
     expect(m.avatar).toEqual({ skin: 2, hair: "long", shirt: 5 });
   });
+  it("accepts_taekwondo_as_sixth_sport", async () => {
+    const c = await signup();
+    expect((await patch(c, { sport: "taekwondo" })).status).toBe(200);
+    expect((await me(c)).sport).toBe("taekwondo");
+    expect((await patch(c, { sport: "yoga" })).status).toBe(400);
+  });
   it("rejects_invalid_avatar", async () => {
     const c = await signup();
     expect((await patch(c, { avatar: { skin: 9, hair: "short", shirt: 0 } })).status).toBe(400);

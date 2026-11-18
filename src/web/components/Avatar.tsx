@@ -1,5 +1,5 @@
 import { AVATAR_OPTIONS, DEFAULT_AVATAR, parseAvatar, type AvatarSpec } from "../../shared/avatar";
-import { Arm, Barbell, FaceFeatures, HairBack, HairFront, Head, Joint, Leg, PIVOT, Torso, INK } from "./avatar/parts";
+import { Arm, Barbell, Dummy, FaceFeatures, HairBack, HairFront, Head, Joint, Leg, PIVOT, Torso, INK } from "./avatar/parts";
 import { POSES, type Pose } from "./avatar/poses";
 import "./avatar/avatar.css";
 
@@ -12,9 +12,10 @@ type Props = { spec: AvatarSpec; size: number; pose?: Pose; className?: string }
 // 따라가므로, 원점을 0으로 두고 리그 위치는 안쪽 그룹의 transform으로 옮긴다.
 const STAND_BOX = "0 0 120 168";
 const LYING_BOX = "0 0 168 120";
-const LYING_RIG = "translate(36 -42) rotate(-90 60 100)";
 // 바벨 높이 = 자세표 gym의 손 위치 (어깨 y89, 팔꿈치 10, 아래팔 26, 위팔 100°)
 const BAR_Y = 61.3;
+// 주짓수 가드에서 더미 허리 위치 · 기울기 (누운 viewBox 좌표)
+const DUMMY_AT = "translate(122 74) rotate(-30) scale(1.35)";
 
 /**
  * 컷아웃 리그 캐릭터. 머리 · 몸통 · 팔(위팔+아래팔) · 다리가 각자 관절 축을 가진 그룹이고,
@@ -25,13 +26,13 @@ export function Avatar({ spec, size, pose = "idle", className }: Props) {
   const skin = AVATAR_OPTIONS.skin[s.skin];
   const shirt = AVATAR_OPTIONS.shirt[s.shirt];
   const p = POSES[pose];
-  const gi = !!p.gi;
+  const uniform = p.uniform ?? "tee";
   const lying = !!p.lying;
 
   const arms = (
     <>
-      <Arm side="L" a={p.armL} elb={p.elbL} fore={p.fore} skin={skin} shirt={shirt} gi={gi} />
-      <Arm side="R" a={p.armR} elb={p.elbR} fore={p.fore} skin={skin} shirt={shirt} gi={gi} />
+      <Arm side="L" a={p.armL} elb={p.elbL} fore={p.fore} skin={skin} shirt={shirt} uniform={uniform} />
+      <Arm side="R" a={p.armR} elb={p.elbR} fore={p.fore} skin={skin} shirt={shirt} uniform={uniform} />
     </>
   );
 
@@ -46,15 +47,16 @@ export function Avatar({ spec, size, pose = "idle", className }: Props) {
       viewBox={lying ? LYING_BOX : STAND_BOX}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <g transform={lying ? LYING_RIG : `translate(0 ${p.offsetY})`}>
+      {p.dummy && <Dummy transform={DUMMY_AT} />}
+      <g transform={p.lying ?? `translate(0 ${p.offsetY})`}>
         <g data-part="body">
-          <Leg side="L" a={p.legL} skin={skin} gi={gi} />
-          <Leg side="R" a={p.legR} skin={skin} gi={gi} />
+          <Leg side="L" a={p.legL} skin={skin} uniform={uniform} />
+          <Leg side="R" a={p.legR} skin={skin} uniform={uniform} />
           <Joint part="upper" at={PIVOT.hip} a={p.torso}>
             <Joint part="hairBack" at={PIVOT.neck} a={p.headTilt}>
               <HairBack hair={s.hair} />
             </Joint>
-            <Torso skin={skin} shirt={shirt} gi={gi} />
+            <Torso skin={skin} shirt={shirt} uniform={uniform} />
             {!p.armsFront && arms}
             <Joint part="head" at={PIVOT.neck} a={p.headTilt}>
               <Head skin={skin} />

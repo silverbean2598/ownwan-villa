@@ -18,7 +18,7 @@ describe("Avatar", () => {
   });
 
   it("every_pose_renders_for_every_hair", () => {
-    const poses: Pose[] = ["idle", "sleep", "gym", "running", "pilates", "climbing", "jiujitsu"];
+    const poses: Pose[] = ["idle", "sleep", "gym", "running", "pilates", "climbing", "jiujitsu", "taekwondo"];
     expect(Object.keys(POSES).sort()).toEqual([...poses].sort());
     for (const pose of poses)
       for (const hair of AVATAR_OPTIONS.hair) {
@@ -40,6 +40,21 @@ describe("Avatar", () => {
     const idle = renderToStaticMarkup(<Avatar spec={DEFAULT_AVATAR} size={40} />);
     expect(idle).toContain('data-part="tee"');
     expect(idle).not.toContain('data-part="gi"');
+  });
+
+  it("taekwondo_wears_v_neck_dobok_and_differs_from_jiujitsu", () => {
+    const tk = renderToStaticMarkup(<Avatar spec={DEFAULT_AVATAR} size={40} pose="taekwondo" />);
+    expect(tk).toContain('data-part="dobok"');
+    expect(tk).not.toContain('data-part="gi"');
+    expect(tk).not.toContain('data-part="tee"');
+    expect(tk).not.toContain('data-part="dummy"');
+  });
+
+  it("jiujitsu_is_closed_guard_with_dummy", () => {
+    const jj = renderToStaticMarkup(<Avatar spec={DEFAULT_AVATAR} size={40} pose="jiujitsu" />);
+    expect(jj).toContain('data-part="gi"');
+    expect(jj).toContain('data-part="dummy"');
+    expect(jj).not.toContain('data-part="dobok"');
   });
 
   it("shirt_fill_uses_selected_color", () => {
