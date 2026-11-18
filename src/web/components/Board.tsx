@@ -52,7 +52,7 @@ export function BoardItem({ item, renderPhotoActions }: ItemProps) {
           <img src={item.photoUrl} alt={`${m}월 ${d}일 오운완 인증 사진`} loading="lazy" />
         )}
         <figcaption>{date}</figcaption>
-        {!item.hidden && renderPhotoActions?.(item)}
+        {renderPhotoActions?.(item)}
       </figure>
     );
   }

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { usePhotoActions } from "./PhotoActions";
 import { Board, groupByDay, tiltFor, type BoardItemData } from "./Board";
 
 const photo = (id: string, n: number, extra: Partial<BoardItemData> = {}): BoardItemData => ({
@@ -53,14 +54,32 @@ describe("groupByDay", () => {
     const g = groupByDay([photo("a", 0), routine("r", 1), routine("s", 2)]);
     expect(g.map((x) => [x.heading, x.items.length])).toEqual([["11월 18일", 1], ["11월 17일", 2]]);
   });
-  it("photo_actions_render_only_on_visible_photos", () => {
+  it("photo_actions_render_on_hidden_photos_too_but_not_routines", () => {
     const html = renderToStaticMarkup(
       <Board
         items={[photo("a", 0), photo("h", 1, { hidden: true, photoUrl: undefined }), routine("r", 2)]}
         renderPhotoActions={(it) => <i className="act">{it.id}</i>}
       />,
     );
-    expect(html.split('class="act"').length - 1).toBe(1);
+    expect(html.split('class="act"').length - 1).toBe(2);
     expect(html).toContain(">a</i>");
+    expect(html).toContain(">h</i>");
+    expect(html).not.toContain("<img src=\"/api/photos/h");
+  });
+});
+
+describe("usePhotoActions menu", () => {
+  const menu = (opts: { ownerId: string; iAmVillaOwner: boolean; hidden: boolean }) => {
+    function T() {
+      const a = usePhotoActions({ ownerId: opts.ownerId, meId: "me", iAmVillaOwner: opts.iAmVillaOwner, onDone: () => {} });
+      return <>{a.render(photo("x", 0, { hidden: opts.hidden }))}</>;
+    }
+    return renderToStaticMarkup(<T />);
+  };
+  it("hidden_photo_offers_delete_only_to_owner_or_author", () => {
+    expect(menu({ ownerId: "o", iAmVillaOwner: true, hidden: true })).toContain("photo-menu-btn");
+    expect(menu({ ownerId: "me", iAmVillaOwner: false, hidden: true })).toContain("photo-menu-btn");
+    expect(menu({ ownerId: "o", iAmVillaOwner: false, hidden: true })).toBe("");
+    expect(menu({ ownerId: "o", iAmVillaOwner: false, hidden: false })).toContain("photo-menu-btn");
   });
 });

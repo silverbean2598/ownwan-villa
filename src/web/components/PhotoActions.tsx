@@ -42,7 +42,11 @@ export function usePhotoActions({ ownerId, meId, iAmVillaOwner, onDone }: Opts) 
   const mine = ownerId === meId;
   const canDelete = mine || iAmVillaOwner;
 
-  const render = (item: BoardItemData): ReactNode => (
+  const render = (item: BoardItemData): ReactNode => {
+    // 가려진 사진은 신고할 수 없고, 지울 수 있는 사람에게만 메뉴를 보여 준다
+    const canReport = !mine && !item.hidden;
+    if (!canReport && !canDelete) return null;
+    return (
     <div className="photo-menu">
       <button
         type="button"
@@ -58,7 +62,7 @@ export function usePhotoActions({ ownerId, meId, iAmVillaOwner, onDone }: Opts) 
       </button>
       {menu === item.id && (
         <div className="photo-menu-list" role="menu">
-          {!mine && (
+          {canReport && (
             <button
               type="button"
               role="menuitem"
@@ -89,7 +93,8 @@ export function usePhotoActions({ ownerId, meId, iAmVillaOwner, onDone }: Opts) 
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   async function confirm() {
     if (!pending) return;
