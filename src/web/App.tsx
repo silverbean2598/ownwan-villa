@@ -9,6 +9,8 @@ import { Onboard } from "./pages/Onboard";
 import { Villa } from "./pages/Villa";
 import { VillaNew } from "./pages/VillaNew";
 import { Certify } from "./pages/Certify";
+import { Room } from "./pages/Room";
+import { RoomBoard } from "./pages/RoomBoard";
 
 export function App() {
   return (
@@ -24,6 +26,8 @@ export function App() {
         <Route path="/onboard" element={<Onboard />} />
         <Route path="/villa" element={<Villa />} />
         <Route path="/certify" element={<Certify />} />
+        <Route path="/room/:userId" element={<Room />} />
+        <Route path="/room/:userId/board" element={<RoomBoard />} />
       </Routes>
     </BrowserRouter>
   );
