@@ -78,6 +78,7 @@ export function Villa() {
           {mine && !mine.certifiedToday && (
             <Link className="btn primary" to="/certify">오늘 오운완 인증하기</Link>
           )}
+          <Link className="btn ghost" to="/shop">가구 상점</Link>
           {inviteUrl && (
             <button type="button" className="btn ghost" onClick={copyInvite}>
               {copied === "ok" ? "복사했어요" : "초대 링크 복사"}

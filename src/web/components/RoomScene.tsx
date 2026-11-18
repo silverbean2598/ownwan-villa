@@ -1,10 +1,13 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { Avatar, POSES } from "./Avatar";
 import type { AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
-import { Box, Cork, Frame, GEOM, Moonbeam, PALETTE, Pendant, Window } from "./room/Box";
+import { Box, Cork, Frame, Moonbeam, PALETTE, Pendant, Window } from "./room/Box";
 import { Equipment } from "./room/Equipment";
 import { Chandelier, PenthouseDecor } from "./room/Penthouse";
+import { Furniture } from "./furniture";
+import { anchorTransform, sceneGeom, slotAnchors, type Anchor } from "./furniture/layout";
+import { isSlot } from "../../shared/catalog";
 
 type Props = {
   sport: Sport;
@@ -15,24 +18,23 @@ type Props = {
   variant?: "tile" | "detail";
   /** detail에서 왼쪽 벽에 붙일 게시판(HTML) */
   board?: ReactNode;
+  /** 놓은 가구 */
+  placements?: { slot: string; itemId: string }[];
 };
 
 // 아바타 svg 안에서 발바닥 높이 비율(서 있음 155/168). 누운 자세는 POSES[pose].floorAt
 const FEET = 155 / 168;
 
 /** 인형의 집 상자 방. 불이 켜지면 종목 자세로 운동하고, 꺼지면 달빛 아래 잠잔다. */
-export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "tile", board }: Props) {
+export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "tile", board, placements = [] }: Props) {
   const detail = variant === "detail";
-  const g = detail ? GEOM.detail : penthouse ? GEOM.phTile : GEOM.tile;
+  const { g, u, k: du } = sceneGeom(variant, penthouse);
   const c = penthouse ? (lit ? PALETTE.phLit : PALETTE.phUnlit) : lit ? PALETTE.lit : PALETTE.unlit;
-  const u = (g.by1 - g.by0) / 54;
   const sw = 1.1 * Math.max(1, u * 0.6);
   const bw = g.bx1 - g.bx0;
   const pose = lit ? sport : "sleep";
 
   // 캐릭터 크기와 발 위치
-  // 상세 화면은 상자가 크므로 캐릭터를 상대적으로 작게(뒷벽 높이의 약 0.7배)
-  const du = u * (detail ? 0.62 : 1); // 캐릭터 · 가구 배율
   const size = 42 * du;
   const fx = g.bx0 + bw * (penthouse ? (detail ? 0.34 : 0.42) : detail ? 0.45 : 0.5);
   const fy = g.by1 + (g.H - g.by1) * (detail ? 0.5 : 0.62);
@@ -49,11 +51,40 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
   const win = penthouse
     ? null
     : { x: g.bx0 + bw * 0.66, y: g.by0 + (g.by1 - g.by0) * 0.18, w: bw * 0.2, h: (g.by1 - g.by0) * 0.34 };
+  // 가구: 뒤(벽 · 안쪽 바닥)는 기구보다 먼저, 앞 바닥은 캐릭터 다음에 그린다
+  const anchors = slotAnchors(variant, penthouse);
+  const placed = placements
+    .filter((p) => isSlot(p.slot))
+    .map((p) => ({ ...anchors[p.slot as keyof typeof anchors], itemId: p.itemId }))
+    .sort((a, b) => a.y - b.y);
+  const fid = useId().replace(/:/g, "");
+  const furniture = (items: (Anchor & { itemId: string })[], filter: string) =>
+    items.length > 0 && (
+      <g filter={lit ? undefined : `url(#${filter})`}>
+        {items.map((p) => (
+          <g key={p.slot} data-slot={p.slot} transform={anchorTransform(p)}>
+            <Furniture itemId={p.itemId} />
+          </g>
+        ))}
+      </g>
+    );
+
   const lampX = penthouse ? g.bx0 + bw * 0.4 : g.bx0 + bw * 0.42;
 
   return (
     <div className={`scene ${variant} s-${sport}${penthouse ? " ph-scene" : ""}`}>
       <svg className="scene-bg" viewBox={`0 0 ${g.W} ${g.H}`} aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+        {!lit && placed.length > 0 && (
+          <defs>
+            {/* 꺼진 방의 가구는 어둡게. 뒤 가구는 위에 어둠막이 한 번 더 덮인다 */}
+            <filter id={`${fid}b`} colorInterpolationFilters="sRGB">
+              <feColorMatrix values="0.7 0 0 0 0  0 0.72 0 0 0.01  0 0 0.8 0 0.04  0 0 0 1 0" />
+            </filter>
+            <filter id={`${fid}f`} colorInterpolationFilters="sRGB">
+              <feColorMatrix values="0.504 0 0 0 0.018  0 0.518 0 0 0.036  0 0 0.576 0 0.093  0 0 0 1 0" />
+            </filter>
+          </defs>
+        )}
         <Box g={g} c={c} sw={sw} />
         {!detail && <Cork g={g} sw={sw * 0.8} ink={c.ink} lit={lit} />}
         {win && <Window {...win} lit={lit} sw={sw * 0.8} ink={c.ink} />}
@@ -63,6 +94,7 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
         ) : (
           <Pendant x={lampX} top={g.by0 - 4 * u} len={10 * u} u={u} lit={lit} sw={sw} ink={c.ink} floorY={g.by1 + 6 * u} />
         )}
+        {furniture(placed.filter((p) => !p.front), `${fid}b`)}
         <g transform={`translate(${ex} ${fy}) scale(${k})`}>
           <Equipment sport={sport} lit={lit} />
         </g>
@@ -79,6 +111,7 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
         <g transform={`translate(${avX} ${avY})`}>
           <Avatar spec={avatar} size={size} pose={pose} />
         </g>
+        {furniture(placed.filter((p) => p.front), `${fid}f`)}
         <Frame g={g} c={c} sw={sw} />
       </svg>
       {detail && <div className="wall-board">{board}</div>}

@@ -11,6 +11,7 @@ import { VillaNew } from "./pages/VillaNew";
 import { Certify } from "./pages/Certify";
 import { Room } from "./pages/Room";
 import { RoomBoard } from "./pages/RoomBoard";
+import { Shop } from "./pages/Shop";
 
 export function App() {
   return (
@@ -28,6 +29,7 @@ export function App() {
         <Route path="/certify" element={<Certify />} />
         <Route path="/room/:userId" element={<Room />} />
         <Route path="/room/:userId/board" element={<RoomBoard />} />
+        <Route path="/shop" element={<Shop />} />
       </Routes>
     </BrowserRouter>
   );

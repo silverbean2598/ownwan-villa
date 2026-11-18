@@ -5,6 +5,7 @@ import { recovery } from "./recovery/routes";
 import { villa } from "./villa/routes";
 import { profile } from "./profile/routes";
 import { cert } from "./cert/routes";
+import { shop } from "./shop/routes";
 import { settle } from "./cron/settle";
 import { now } from "./clock";
 import { kstDay } from "../shared/rules/day";
@@ -18,6 +19,7 @@ app.route("/", recovery);
 app.route("/", villa);
 app.route("/", profile);
 app.route("/", cert);
+app.route("/", shop);
 
 // 자정(KST) 정산: 방금 끝난 날을 정산한다
 async function scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {

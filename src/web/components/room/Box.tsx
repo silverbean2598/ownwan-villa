@@ -5,7 +5,7 @@ export const GEOM = {
   tile: { W: 150, H: 100, bx0: 30, bx1: 120, by0: 16, by1: 68 },
   phTile: { W: 240, H: 100, bx0: 36, bx1: 204, by0: 14, by1: 70 },
   // 방 상세: 게시판을 붙일 왼쪽 벽을 넓게
-  detail: { W: 300, H: 360, bx0: 120, bx1: 280, by0: 46, by1: 252 },
+  detail: { W: 300, H: 360, bx0: 120, bx1: 252, by0: 46, by1: 252 },
 } satisfies Record<string, Geom>;
 
 export type Palette = {

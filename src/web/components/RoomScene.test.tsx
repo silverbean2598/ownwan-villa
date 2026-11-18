@@ -4,6 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { RoomScene } from "./RoomScene";
 import { DEFAULT_AVATAR } from "../../shared/avatar";
 import { SPORTS } from "../../shared/sports";
+import { CATALOG } from "../../shared/catalog";
+import { FURNITURE_ART } from "./furniture";
 
 describe("RoomScene", () => {
   it("lit_room_shows_sport_pose_and_equipment", () => {
@@ -31,5 +33,29 @@ describe("RoomScene", () => {
     );
     expect(d).not.toContain('data-part="cork"');
     expect(d).toMatch(/class="wall-board"[^]*BOARD/);
+  });
+  it("every_catalog_item_has_a_drawing", () => {
+    for (const i of CATALOG) expect(FURNITURE_ART[i.id], i.id).toBeTypeOf("function");
+  });
+  it("draws_placed_furniture_in_tile_detail_and_penthouse", () => {
+    const placements = [
+      { slot: "wall1", itemId: "trophy-shelf" },
+      { slot: "wall2", itemId: "landscape-frame" },
+      { slot: "floor1", itemId: "plant" },
+      { slot: "floor3", itemId: "bench" },
+    ];
+    for (const props of [{}, { variant: "detail" as const }, { penthouse: true }]) {
+      const h = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} placements={placements} {...props} />);
+      for (const p of placements) expect(h).toContain(`data-item="${p.itemId}"`);
+      expect(h).not.toContain("feColorMatrix");
+    }
+  });
+  it("unlit_room_dims_furniture_and_ignores_bad_slots", () => {
+    const h = renderToStaticMarkup(
+      <RoomScene sport="gym" lit={false} avatar={DEFAULT_AVATAR} placements={[{ slot: "floor3", itemId: "rug" }, { slot: "roof", itemId: "plant" }]} />,
+    );
+    expect(h).toContain('data-item="rug"');
+    expect(h).not.toContain('data-item="plant"');
+    expect(h).toMatch(/filter="url\(#[^)]+f\)"/);
   });
 });

@@ -16,7 +16,7 @@ export function RoomTile({ member, isMe, isOwner, penthouse = false }: Props) {
       aria-label={label}
       onClick={() => nav(`/room/${member.userId}`)}
     >
-      <RoomScene sport={member.sport} lit={lit} avatar={member.avatar} penthouse={penthouse} />
+      <RoomScene sport={member.sport} lit={lit} avatar={member.avatar} penthouse={penthouse} placements={member.placements} />
       <span className="tag">
         <b>{member.nickname}</b>
         <span className="sport">{SPORT_LABEL[member.sport]}</span>
