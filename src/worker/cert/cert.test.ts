@@ -220,6 +220,20 @@ describe("board and photos", () => {
     expect((await board(a.cookie, m.id)).status).toBe(403);
   });
 
+  it("hidden_items_omit_content", async () => {
+    const a = await signup();
+    const r = await (await app.request("/api/certs/routine", json(a.cookie, { body: "비밀루틴" }), env)).json<any>();
+    const p = await (await upload(a.cookie, { dhash: hash(0) })).json<any>();
+    await env.DB.prepare("UPDATE certs SET hidden = 1 WHERE id IN (?, ?)").bind(r.certId, p.certId).run();
+    const res = await board(a.cookie, a.id);
+    const text = await res.text();
+    expect(text).not.toContain("비밀루틴");
+    expect(text).not.toContain("photoUrl");
+    const items = JSON.parse(text);
+    expect(items).toHaveLength(2);
+    expect(Object.keys(items[0]).sort()).toEqual(["createdAt", "day", "hidden", "id", "kind"]);
+  });
+
   it("hidden_photo_is_404", async () => {
     const a = await signup();
     const cert = await (await upload(a.cookie, { dhash: hash(0) })).json<any>();

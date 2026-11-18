@@ -16,18 +16,6 @@ export function dhashFromGray(gray: Uint8Array): string {
   return hex;
 }
 
-export function hamming(a: string, b: string): number {
-  let d = 0;
-  for (let i = 0; i < a.length; i++) {
-    let x = parseInt(a[i], 16) ^ parseInt(b[i], 16);
-    while (x) {
-      d += x & 1;
-      x >>= 1;
-    }
-  }
-  return d;
-}
-
 export async function dhashFromBlob(b: Blob): Promise<string> {
   const bmp = await createImageBitmap(b);
   const canvas = document.createElement("canvas");

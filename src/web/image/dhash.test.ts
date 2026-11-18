@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { dhashFromGray, hamming } from "./dhash";
+import { dhashFromGray } from "./dhash";
+import { hamming } from "../../shared/rules/dhash";
 import { stepQuality, compressImage, ImageDecodeError } from "./compress";
 
 const gray = () => Uint8Array.from({ length: 72 }, (_, i) => (i * 37) % 251);
@@ -15,10 +16,6 @@ describe("dhash", () => {
     const g2 = gray();
     g2[10] = (g2[10] + 100) % 256;
     expect(hamming(dhashFromGray(g), dhashFromGray(g2))).toBeLessThanOrEqual(2);
-  });
-  it("hamming counts bits", () => {
-    expect(hamming("0000000000000000", "ffffffffffffffff")).toBe(64);
-    expect(hamming("0000000000000000", "0000000000000007")).toBe(3);
   });
 });
 

@@ -3,24 +3,13 @@ import type { AppEnv, Env } from "../env";
 import { now } from "../clock";
 import { jsonError, requireUser } from "../http";
 import { kstDay } from "../../shared/rules/day";
+import { DUPLICATE_HAMMING, hamming } from "../../shared/rules/dhash";
 import { photoPoints, routinePoints } from "../../shared/rules/points";
 
 export const cert = new Hono<AppEnv>();
 
 const MAX_BYTES = 300 * 1024;
 const FORBIDDEN = "같은 빌라 입주민만 볼 수 있어요";
-
-function hamming(a: string, b: string): number {
-  let d = 0;
-  for (let i = 0; i < a.length; i++) {
-    let x = parseInt(a[i], 16) ^ parseInt(b[i], 16);
-    while (x) {
-      d += x & 1;
-      x >>= 1;
-    }
-  }
-  return d;
-}
 
 /** 본인이거나, 둘 다 같은 (해산되지 않은) 빌라의 현재 입주민 */
 async function canView(env: Env, viewerId: string, ownerId: string): Promise<boolean> {
@@ -66,7 +55,7 @@ cert.post("/api/certs/photo", requireUser, async (c) => {
   const prev = await c.env.DB.prepare("SELECT dhash FROM certs WHERE user_id = ? AND kind = 'photo' AND dhash IS NOT NULL")
     .bind(userId)
     .all<{ dhash: string }>();
-  const duplicate = prev.results.some((r) => hamming(r.dhash, dhash) <= 5) ? 1 : 0;
+  const duplicate = prev.results.some((r) => hamming(r.dhash, dhash) <= DUPLICATE_HAMMING) ? 1 : 0;
 
   const t = now();
   const day = kstDay(t);
@@ -126,7 +115,8 @@ cert.get("/api/users/:id/board", requireUser, async (c) => {
       day: r.day,
       hidden: !!r.hidden,
       createdAt: r.createdAt,
-      ...(r.kind === "routine" ? { body: r.body } : { photoUrl: `/api/photos/${r.id}` }),
+      // 가려진 글은 내용을 내보내지 않는다
+      ...(r.hidden ? {} : r.kind === "routine" ? { body: r.body } : { photoUrl: `/api/photos/${r.id}` }),
     })),
   );
 });
