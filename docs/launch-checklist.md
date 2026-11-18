@@ -4,7 +4,10 @@
 - Worker `ownwan-villa`, D1 `ownwan-villa` (id `b90c5080-894b-4ccb-9f75-0441d23cdb72`), 크론 `0 15 * * *` (매일 00:00 KST 정산).
 - 사진은 D1(`photo_blobs`)에 저장 (`PHOTO_STORAGE = "d1"`). R2는 아직 쓰지 않는다.
 - 배포: `npm run deploy` (`vite build && wrangler deploy`). 새 마이그레이션이 있으면 먼저 `npx wrangler d1 migrations apply ownwan-villa --remote`.
-- CI 배포: GitHub 저장소 Settings > Secrets and variables > Actions에 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`를 추가해야 main 푸시 때 자동 배포된다. 추가하기 전에는 Claude 세션에서 직접 배포한다. PR에서는 테스트만 돈다.
+- 배포는 GitHub Actions로 한다 (Claude 세션/샌드박스 프록시에서는 정적 파일 업로드가 막혀 로컬 배포가 되지 않는다).
+  1. GitHub 저장소 → Settings → Secrets and variables → Actions → New repository secret 으로 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` 두 개를 추가한다.
+  2. 저장소 Actions 탭 → "deploy" → Run workflow 로 수동 배포(브랜치 선택 가능). main 푸시 때도 자동 배포되고, PR에서는 테스트만 돈다.
+  3. 워크플로는 테스트 → 원격 D1 마이그레이션 → workers.dev 서브도메인 확인(없으면 `ownwan-villa` 등록) → 배포 순서로 돈다.
 
 ## 1. 휴대폰 2대 점검 스크립트
 1. 폰 A: 가입 → 복구 코드 확인(저장) → 빌라 만들기.
