@@ -103,9 +103,8 @@ recovery.post("/api/recover/request", async (c) => {
 });
 
 // 저장된 approver_id가 아니라 지금 기준의 승인자로 판단한다 (방장이 나가면 승인자가 바뀐다)
-recovery.get("/api/recover/pending", requireUser, async (c) => {
-  const me = c.get("userId");
-  const { results } = await c.env.DB.prepare(
+export async function pendingApprovals(env: Env, me: string) {
+  const { results } = await env.DB.prepare(
     `SELECT r.id, r.user_id AS userId, u.nickname, r.created_at AS createdAt FROM recovery_requests r
      JOIN users u ON u.id = r.user_id
      JOIN memberships m ON m.user_id = r.user_id AND m.left_at IS NULL
@@ -116,9 +115,11 @@ recovery.get("/api/recover/pending", requireUser, async (c) => {
     .bind(me, me)
     .all<{ id: string; userId: string; nickname: string; createdAt: number }>();
   const mine = [];
-  for (const r of results) if ((await approverFor(c.env, r.userId)) === me) mine.push({ id: r.id, nickname: r.nickname, createdAt: r.createdAt });
-  return c.json(mine);
-});
+  for (const r of results) if ((await approverFor(env, r.userId)) === me) mine.push({ id: r.id, nickname: r.nickname, createdAt: r.createdAt });
+  return mine;
+}
+
+recovery.get("/api/recover/pending", requireUser, async (c) => c.json(await pendingApprovals(c.env, c.get("userId"))));
 
 recovery.post("/api/recover/:id/approve", requireUser, async (c) => {
   const me = c.get("userId");

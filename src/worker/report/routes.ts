@@ -2,17 +2,13 @@ import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { jsonError, requireUser } from "../http";
 import { canView } from "../cert/routes";
+import { deletePhotoBlob } from "../storage";
 
 export const report = new Hono<AppEnv>();
 
 const HIDE_AT = 3;
 
 type CertRow = { id: string; user_id: string; kind: string; r2_key: string | null };
-
-/** 사진 파일 삭제. 사진 저장 위치가 바뀌면 여기만 고친다. */
-export async function deletePhotoBlob(env: Env, cert: { r2_key: string | null }): Promise<void> {
-  if (cert.r2_key) await env.PHOTOS.delete(cert.r2_key);
-}
 
 async function findCert(env: Env, id: string) {
   return env.DB.prepare("SELECT id, user_id, kind, r2_key FROM certs WHERE id = ?").bind(id).first<CertRow>();

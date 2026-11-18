@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { safeNext } from "../next";
 
@@ -71,7 +71,9 @@ export function Signup() {
         </label>
         <label className="check" htmlFor="agree">
           <input id="agree" type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-          이용약관과 개인정보 처리방침에 동의해요
+          <span>
+            <Link to="/terms" target="_blank">이용약관</Link>과 <Link to="/privacy" target="_blank">개인정보 처리방침</Link>에 동의해요
+          </span>
         </label>
         {errors.agree && <p className="error">{errors.agree}</p>}
         {errors.form && <p className="error">{errors.form}</p>}

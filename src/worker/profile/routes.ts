@@ -4,6 +4,12 @@ import { jsonError, requireUser } from "../http";
 import { SPORTS } from "../../shared/sports";
 import { isValidNickname } from "../../shared/nickname";
 import { parseAvatar } from "../../shared/avatar";
+import { getCookie, deleteCookie } from "hono/cookie";
+import { COOKIE } from "../auth/session";
+import { hashPassword, verifyPassword } from "../auth/password";
+import { hashToken } from "../recovery/codes";
+import { deletePhotoBlob } from "../storage";
+import { NotInVillaError, leaveVilla } from "../villa/service";
 
 export const profile = new Hono<AppEnv>();
 
@@ -35,5 +41,46 @@ profile.patch("/api/me", requireUser, async (c) => {
       .bind(...vals, c.get("userId"))
       .run();
   }
+  return c.json({ ok: true });
+});
+
+profile.post("/api/me/password", requireUser, async (c) => {
+  const b = await c.req.json().catch(() => null);
+  const current = typeof b?.current === "string" ? b.current : "";
+  const next = typeof b?.next === "string" ? b.next : "";
+  const userId = c.get("userId");
+  const u = await c.env.DB.prepare("SELECT password_hash FROM users WHERE id = ?").bind(userId).first<{ password_hash: string }>();
+  if (!u || !(await verifyPassword(current, u.password_hash))) return jsonError(c, 400, "지금 비밀번호가 맞지 않아요");
+  if (next.length < 8) return jsonError(c, 400, "비밀번호는 8자 이상이어야 해요");
+  const keep = await hashToken(getCookie(c, COOKIE) ?? "");
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(await hashPassword(next), userId),
+    c.env.DB.prepare("DELETE FROM sessions WHERE user_id = ? AND token_hash != ?").bind(userId, keep),
+  ]);
+  return c.json({ ok: true });
+});
+
+// 탈퇴: 사진 파일부터 지우고, 빌라에서 나간 뒤(방장 승계), 내 기록을 모두 지운다
+profile.delete("/api/me", requireUser, async (c) => {
+  const userId = c.get("userId");
+  const { results } = await c.env.DB.prepare("SELECT r2_key FROM certs WHERE user_id = ?").bind(userId).all<{ r2_key: string | null }>();
+  for (const cert of results) await deletePhotoBlob(c.env, cert);
+  try {
+    await leaveVilla(c.env, userId);
+  } catch (e) {
+    if (!(e instanceof NotInVillaError)) throw e;
+  }
+  const q = (sql: string) => c.env.DB.prepare(sql).bind(userId);
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM reports WHERE reporter_id = ? OR cert_id IN (SELECT id FROM certs WHERE user_id = ?)").bind(userId, userId),
+    q("DELETE FROM certs WHERE user_id = ?"),
+    q("DELETE FROM inventory WHERE user_id = ?"),
+    q("DELETE FROM placements WHERE user_id = ?"),
+    q("DELETE FROM sessions WHERE user_id = ?"),
+    q("DELETE FROM recovery_requests WHERE user_id = ?"),
+    q("DELETE FROM memberships WHERE user_id = ?"),
+    q("DELETE FROM users WHERE id = ?"),
+  ]);
+  deleteCookie(c, COOKIE, { path: "/", secure: true });
   return c.json({ ok: true });
 });

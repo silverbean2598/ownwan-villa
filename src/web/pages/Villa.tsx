@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
+import { Badge } from "../components/Badge";
 import { Building, CAPACITY, type Member } from "../components/Building";
 
 type VillaData = {
@@ -17,6 +18,7 @@ export function Villa() {
   const nav = useNavigate();
   const [state, setState] = useState<{ me: Me; villa: VillaData | null } | null>(null);
   const [error, setError] = useState("");
+  const [badge, setBadge] = useState(0);
   const [copied, setCopied] = useState<"" | "ok" | "manual">("");
   const linkRef = useRef<HTMLInputElement>(null);
 
@@ -28,6 +30,7 @@ export function Villa() {
         if (!me.sport) return nav("/onboard", { replace: true });
         const villa = await api<VillaData | null>("/api/villas/mine");
         if (alive) setState({ me, villa });
+        api<{ recoveryApprovals: number }>("/api/badges").then((b) => alive && setBadge(b.recoveryApprovals), () => {});
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) return nav("/login?next=/villa", { replace: true });
         if (alive) setError(e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
@@ -79,6 +82,9 @@ export function Villa() {
             <Link className="btn primary" to="/certify">오늘 오운완 인증하기</Link>
           )}
           <Link className="btn ghost" to="/shop">가구 상점</Link>
+          <Link className="btn ghost gear-link" to="/settings" aria-label={badge ? `설정, 알림 ${badge}건` : "설정"}>
+            설정<Badge count={badge} />
+          </Link>
           {inviteUrl && (
             <button type="button" className="btn ghost" onClick={copyInvite}>
               {copied === "ok" ? "복사했어요" : "초대 링크 복사"}

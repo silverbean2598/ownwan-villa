@@ -12,6 +12,9 @@ import { Certify } from "./pages/Certify";
 import { Room } from "./pages/Room";
 import { RoomBoard } from "./pages/RoomBoard";
 import { Shop } from "./pages/Shop";
+import { Settings } from "./pages/Settings";
+import { Terms } from "./pages/Terms";
+import { Privacy } from "./pages/Privacy";
 
 export function App() {
   return (
@@ -30,6 +33,9 @@ export function App() {
         <Route path="/room/:userId" element={<Room />} />
         <Route path="/room/:userId/board" element={<RoomBoard />} />
         <Route path="/shop" element={<Shop />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
       </Routes>
     </BrowserRouter>
   );

@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { SPORT_LABEL } from "../../shared/sports";
+import { displayStreak } from "../../shared/rules/streak";
 import { Board, type BoardItemData } from "../components/Board";
 import { usePhotoActions } from "../components/PhotoActions";
 import { RoomScene } from "../components/RoomScene";
@@ -157,7 +158,7 @@ export function Room() {
         <div className="stats">
           <span className="chip" aria-label="종목">{SPORT_LABEL[member.sport]}</span>
           <span className="chip">{penthouse ? "펜트하우스" : `${member.floor}층`}</span>
-          <span className="chip">연속 <b>{member.streak}</b>일</span>
+          <span className="chip">연속 <b>{displayStreak(member.streak, member.certifiedToday)}</b>일</span>
         </div>
         {isMe && !member.certifiedToday && (
           <Link className="btn primary" to="/certify">오늘 오운완 인증하기</Link>
