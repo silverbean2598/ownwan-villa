@@ -3,6 +3,45 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Avatar, POSES, type Pose } from "./Avatar";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR } from "../../shared/avatar";
+import { BUN, SW } from "./avatar/parts";
+
+// 2D 아핀 행렬 [a b c d e f] (SVG matrix 순서)
+type M = [number, number, number, number, number, number];
+const mul = (m: M, n: M): M => [
+  m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1],
+  m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3],
+  m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5],
+];
+const T = (x: number, y: number): M => [1, 0, 0, 1, x, y];
+const R = (deg: number, cx = 0, cy = 0): M => {
+  const r = (deg * Math.PI) / 180;
+  return mul(mul(T(cx, cy), [Math.cos(r), Math.sin(r), -Math.sin(r), Math.cos(r), 0, 0]), T(-cx, -cy));
+};
+/** transform 속성 문자열(translate · rotate · scale)을 행렬로 */
+function parseTransform(src: string): M {
+  let m: M = [1, 0, 0, 1, 0, 0];
+  for (const [, fn, args] of src.matchAll(/(\w+)\(([^)]*)\)/g)) {
+    const v = args.split(/[\s,]+/).filter(Boolean).map(parseFloat);
+    if (fn === "translate") m = mul(m, T(v[0], v[1] ?? 0));
+    else if (fn === "rotate") m = mul(m, R(v[0], v[1] ?? 0, v[2] ?? 0));
+    else if (fn === "scale") m = mul(m, [v[0], 0, 0, v[1] ?? v[0], 0, 0]);
+  }
+  return m;
+}
+/** 요소에서 svg 루트까지 transform 속성과 관절 style(rotate + transform-origin)을 합성 */
+function ctm(el: Element): M {
+  let m: M = [1, 0, 0, 1, 0, 0];
+  for (let e: Element | null = el; e && e.tagName.toLowerCase() !== "svg"; e = e.parentElement) {
+    let own: M = parseTransform(e.getAttribute("transform") ?? "");
+    const st = (e as SVGElement).style;
+    if (st?.transform) {
+      const [ox, oy] = st.transformOrigin.split(/\s+/).map(parseFloat);
+      own = mul(R(parseFloat(st.transform.match(/rotate\(([-\d.]+)deg\)/)![1]), ox, oy), own);
+    }
+    m = mul(own, m);
+  }
+  return m;
+}
 
 describe("Avatar", () => {
   it("idle_has_open_eyes_and_no_z", () => {
@@ -73,5 +112,28 @@ describe("Avatar", () => {
 
   it("gym_pose_holds_barbell", () => {
     expect(renderToStaticMarkup(<Avatar spec={DEFAULT_AVATAR} size={40} pose="gym" />)).toContain('data-part="barbell"');
+  });
+
+  it("bun_stays_inside_viewbox_and_on_head_in_every_pose", () => {
+    for (const pose of Object.keys(POSES) as Pose[]) {
+      const html = renderToStaticMarkup(<Avatar spec={{ ...DEFAULT_AVATAR, hair: "bun" }} size={120} pose={pose} />);
+      const svg = new DOMParser().parseFromString(html, "image/svg+xml").documentElement;
+      const [, , w, h] = svg.getAttribute("viewBox")!.split(" ").map(Number);
+      const circle = svg.querySelector('[data-part="bun"] circle')!;
+      expect(circle, pose).toBeTruthy();
+      // 외곽선이 있는 동그란 똥머리
+      expect(circle.getAttribute("stroke"), pose).toBeTruthy();
+      expect(Number(circle.getAttribute("cx"))).toBe(BUN.cx);
+      // 머리 그룹 안에 있어야 머리와 같이 움직인다
+      expect(circle.closest('[data-part="head"]'), pose).toBeTruthy();
+      const m = ctm(circle);
+      const x = m[0] * BUN.cx + m[2] * BUN.cy + m[4];
+      const y = m[1] * BUN.cx + m[3] * BUN.cy + m[5];
+      const r = BUN.r + SW / 2;
+      expect(x - r, `${pose} left`).toBeGreaterThanOrEqual(0);
+      expect(y - r, `${pose} top`).toBeGreaterThanOrEqual(0);
+      expect(x + r, `${pose} right`).toBeLessThanOrEqual(w);
+      expect(y + r, `${pose} bottom`).toBeLessThanOrEqual(h);
+    }
   });
 });

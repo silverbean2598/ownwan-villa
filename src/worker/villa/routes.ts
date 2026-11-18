@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { now } from "../clock";
 import { jsonError, requireUser } from "../http";
+import { sessionUserId } from "../auth/session";
 import { DEFAULT_AVATAR, parseAvatar } from "../../shared/avatar";
 import { kstDay } from "../../shared/rules/day";
 import { MAX_MEMBERS, NotInVillaError, leaveVilla, newInviteToken, recomputePenthouse } from "./service";
@@ -122,16 +123,32 @@ villa.post("/api/villas/:id/invite/rotate", requireUser, async (c) => {
   return c.json({ inviteToken });
 });
 
+/** 사용자의 지금 빌라 id (해체된 빌라 제외) */
+async function currentVillaId(env: AppEnv["Bindings"], userId: string): Promise<string | null> {
+  const row = await env.DB.prepare(
+    `SELECT m.villa_id AS id FROM memberships m JOIN villas v ON v.id = m.villa_id
+     WHERE m.user_id = ? AND m.left_at IS NULL AND v.dissolved_at IS NULL`,
+  )
+    .bind(userId)
+    .first<{ id: string }>();
+  return row?.id ?? null;
+}
+
 villa.get("/api/invite/:token", async (c) => {
   const row = await c.env.DB.prepare(
-    `SELECT v.name AS villaName,
+    `SELECT v.id, v.name AS villaName,
        (SELECT COUNT(*) FROM memberships m WHERE m.villa_id = v.id AND m.left_at IS NULL) AS memberCount
      FROM villas v WHERE v.invite_token = ? AND v.dissolved_at IS NULL`,
   )
     .bind(c.req.param("token"))
-    .first();
+    .first<{ id: string; villaName: string; memberCount: number }>();
   if (!row) return jsonError(c, 404, EXPIRED);
-  return c.json(row);
+  const { id, ...preview } = row;
+  // 로그인한 사람에게는 이미 이 빌라 입주민인지 / 다른 빌라에 사는지도 알려 준다
+  const userId = await sessionUserId(c);
+  if (!userId) return c.json(preview);
+  const mine = await currentVillaId(c.env, userId);
+  return c.json({ ...preview, alreadyMember: mine === id, inOtherVilla: mine !== null && mine !== id });
 });
 
 villa.post("/api/invite/:token/join", requireUser, async (c) => {
@@ -140,6 +157,10 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
     .bind(c.req.param("token"))
     .first<{ id: string }>();
   if (!v) return jsonError(c, 404, EXPIRED);
+  // 이미 이 빌라 입주민이면 아무것도 바꾸지 않고 성공 (온보딩 중 나갔다가 링크를 다시 연 경우)
+  const mine = await currentVillaId(c.env, userId);
+  if (mine === v.id) return c.json({ ok: true, alreadyMember: true });
+  if (mine) return jsonError(c, 409, IN_VILLA);
   const t = now();
   let changes = 0;
   try {

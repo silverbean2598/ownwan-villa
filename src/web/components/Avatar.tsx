@@ -14,8 +14,8 @@ const STAND_BOX = "0 0 120 168";
 const LYING_BOX = "0 0 168 120";
 // 바벨 높이 = 자세표 gym의 손 위치 (어깨 y89, 팔꿈치 10, 아래팔 26, 위팔 100°)
 const BAR_Y = 61.3;
-// 주짓수 가드에서 더미 허리 위치 · 기울기 (누운 viewBox 좌표)
-const DUMMY_AT = "translate(122 74) rotate(-30) scale(1.35)";
+// 주짓수 가드에서 더미 허리 위치 · 기울기 (누운 viewBox 좌표). 리그(poses.ts jiujitsu의 translate x)와 함께 옮긴다
+const DUMMY_AT = "translate(127 74) rotate(-30) scale(1.35)";
 
 /**
  * 컷아웃 리그 캐릭터. 머리 · 몸통 · 팔(위팔+아래팔) · 다리가 각자 관절 축을 가진 그룹이고,

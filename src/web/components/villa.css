@@ -7,7 +7,9 @@
 .villa-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .villa-actions .btn { width: auto; padding: 12px 16px; font-size: 15px; }
 .villa-actions .btn.primary { background: var(--accent); border-color: var(--accent); }
-.invite-fallback { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; }
+/* 초대 링크 대체 칸: 긴 링크가 칸 안에서 줄바꿈되도록 textarea */
+.invite-fallback { display: block; width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 10px; font: 14px/1.5 ui-monospace, monospace;
+  resize: none; overflow-wrap: anywhere; word-break: break-all; background: #fff; color: inherit; }
 
 .bldg { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 10px 0; overflow-x: auto; }
 .tower { position: relative; min-width: 300px; }

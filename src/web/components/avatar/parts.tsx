@@ -59,6 +59,14 @@ const BANGS =
   "C86 53 83 52 81 57 C80 52 78 50 76 49 C75 53 72 56 69 58 C68 53 66 50 64 48 C63 52 60 55 57 57 " +
   "C56 52 54 49 52 48 C51 52 48 54 45 56 C44 52 43 50 41 49 C40 54 37 57 35 61";
 
+// 올림머리 앞머리: 끝이 둥근 다발. 오른쪽 관자놀이(88,58) → 왼쪽 관자놀이(35,61)
+const SOFT_BANGS =
+  "C86 54 83 52 80 54 C79 50 75 47.5 71 48.5 C71 53 67 56 62.5 56.5 C63 51.5 59 48.5 55 49.5 " +
+  "C54 54 50 56.5 46 57 C46.5 52.5 43 50.5 40 52.5 C38.5 56 36.5 59 35 61";
+
+/** 올림머리 똥머리 원(머리 그룹 좌표). viewBox 위로 잘리지 않는지 테스트가 확인한다. */
+export const BUN = { cx: 60, cy: 18.5, r: 10 } as const;
+
 export function HairBack({ hair }: { hair: string }) {
   if (hair !== "long") return null;
   return (
@@ -90,13 +98,25 @@ export function HairFront({ hair }: { hair: string }) {
         </g>
       );
     case "bun":
+      // 올림머리: 정수리에 외곽선 있는 동그란 똥머리 + 몽글한 머리 뚜껑 + 둥근 앞머리 + 얼굴을 감싸는 짧은 옆머리(한 덩어리)
       return (
         <g>
-          <circle cx="60" cy="20" r="9.5" fill={HAIR} {...line} />
-          <path d="M54.5 20 C55 14 64 13.5 65.5 19 C66 23 60 24.5 58.5 21" fill="none" {...line} strokeWidth={1} opacity="0.7" />
-          <path d={"M29 63 C26 40 41 27 60 27 C79 27 94 40 91 63 C90 61 89 60 88 58 " + BANGS + " C33 61 31 62 29 63 Z"} fill={HAIR} {...line} />
-          <path d="M35 60 C31 66 31 73 33 79 C34 73 35 67 38 61 Z M85 60 C89 66 89 73 87 79 C86 73 85 67 82 61 Z" fill={HAIR} {...line} strokeWidth={1.1} />
-          <Highlights spots={[[42, 36, 5, 3, -25], [73, 33, 4, 2.6, 20], [59, 16, 2.4, 1.6, -10]]} />
+          <g data-part="bun">
+            <circle cx={BUN.cx} cy={BUN.cy} r={BUN.r} fill={HAIR} {...line} />
+            <path d="M51.5 20 C53 13 62 10.5 67.5 15.5 M53.5 24.5 C56 18.5 64 17 68.5 21.5" fill="none" stroke={HAIR_HI} strokeWidth={1.1} strokeLinecap="round" />
+          </g>
+          <path
+            d={
+              "M33.5 79 C31 74 29.5 68 30 63 C27.5 59 27.5 53 29.5 49 C28.5 41 33 34 39.5 32 C43 27.5 50 26 55 27.5 C58 26.5 62 26.5 65 27.5 " +
+              "C70 26 77 27.5 80.5 32 C87 34 91.5 41 90.5 49 C92.5 53 92.5 59 90 63 C90.5 68 89 74 86.5 79 C85.5 73 85.5 66 88 58 " +
+              SOFT_BANGS +
+              " C34.5 66 34.5 73 33.5 79 Z"
+            }
+            fill={HAIR}
+            {...line}
+          />
+          <path d="M60 30 C58 36 58 42 59 47 M72 31 C74 36 74 41 72 46 M47 32 C46 37 45 42 46 46" fill="none" {...line} strokeWidth={1} opacity="0.5" />
+          <Highlights spots={[[40, 37, 5, 3, -25], [73, 32, 4, 2.4, 20], [56, 13.5, 2.4, 1.5, -20]]} />
         </g>
       );
     case "buzz":

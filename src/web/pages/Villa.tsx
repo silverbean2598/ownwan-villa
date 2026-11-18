@@ -21,7 +21,7 @@ export function Villa() {
   const [error, setError] = useState("");
   const [badge, setBadge] = useState(0);
   const [copied, setCopied] = useState<"" | "ok" | "manual">("");
-  const linkRef = useRef<HTMLInputElement>(null);
+  const linkRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -91,7 +91,7 @@ export function Villa() {
           )}
         </div>
         {copied === "manual" && (
-          <input ref={linkRef} className="invite-fallback" readOnly value={inviteUrl} aria-label="초대 링크" onFocus={(e) => e.currentTarget.select()} />
+          <textarea ref={linkRef} className="invite-fallback" readOnly rows={2} value={inviteUrl} aria-label="초대 링크" onFocus={(e) => e.currentTarget.select()} />
         )}
       </header>
       <Building members={villa.members} penthouseUserId={villa.penthouseUserId} ownerId={villa.ownerId} meId={me.id} />

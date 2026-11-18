@@ -29,14 +29,20 @@ export async function endSession(c: Context<AppEnv>) {
   deleteCookie(c, COOKIE, { path: "/", secure: true });
 }
 
-export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
+/** 로그인했으면 사용자 id, 아니면 null (로그인 없이도 열리는 화면용) */
+export async function sessionUserId(c: Context<AppEnv>): Promise<string | null> {
   const token = getCookie(c, COOKIE);
   const row = token
     ? await c.env.DB.prepare("SELECT user_id FROM sessions WHERE token_hash = ? AND expires_at > ?")
         .bind(await hashToken(token), now())
         .first<{ user_id: string }>()
     : null;
-  if (!row) return jsonError(c, 401, "로그인이 필요해요");
-  c.set("userId", row.user_id);
+  return row?.user_id ?? null;
+}
+
+export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const userId = await sessionUserId(c);
+  if (!userId) return jsonError(c, 401, "로그인이 필요해요");
+  c.set("userId", userId);
   await next();
 };

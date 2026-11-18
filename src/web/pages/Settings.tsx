@@ -208,7 +208,7 @@ export function Settings() {
               초대 링크 새로 만들기
             </button>
           </div>
-          {inviteUrl && <input className="invite-fallback" readOnly value={inviteUrl} aria-label="초대 링크" onFocus={(e) => e.currentTarget.select()} />}
+          {inviteUrl && <textarea className="invite-fallback" readOnly rows={2} value={inviteUrl} aria-label="초대 링크" onFocus={(e) => e.currentTarget.select()} />}
         </Section>
       )}
 

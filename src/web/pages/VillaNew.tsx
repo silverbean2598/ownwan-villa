@@ -41,7 +41,7 @@ export function VillaNew() {
       <main className="page">
         <h1>빌라를 지었어요</h1>
         <p className="muted">친구에게 이 초대 링크를 보내 주세요.</p>
-        <div className="code" aria-label="초대 링크">{link}</div>
+        <div className="code link" aria-label="초대 링크">{link}</div>
         <div className="row">
           <button className="btn ghost" type="button" onClick={copy}>{copied ? "복사했어요" : "링크 복사"}</button>
         </div>

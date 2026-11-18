@@ -41,7 +41,7 @@ export const POSES: Record<Pose, PoseDef> = {
   pilates: { ...base, armL: 168, armR: -18, elbL: -125, elbR: 0, legL: 2, legR: -38, headTilt: 12, face: "happy", lying: LYING, floorAt: 0.7 },
   climbing: { ...base, armL: 132, armR: -70, elbL: 18, elbR: -70, legL: 30, legR: -6, offsetY: -2, face: "happy", fore: 15 },
   // 등을 대고 누워 더미 허리를 두 다리로 감고(클로즈드 가드) 두 손으로 깃을 잡는다
-  jiujitsu: { ...base, armL: -52, armR: -60, legL: -26, legR: -54, torso: 12, headTilt: -5, face: "happy", fore: 21, lying: "translate(28 -14) rotate(-90 60 100)", floorAt: 0.89, uniform: "gi", dummy: true },
+  jiujitsu: { ...base, armL: -52, armR: -60, legL: -26, legR: -54, torso: 12, headTilt: -5, face: "happy", fore: 21, lying: "translate(33 -14) rotate(-90 60 100)", floorAt: 0.89, uniform: "gi", dummy: true },
   // 겨루기 자세(주먹 가드)에서 앞차기
   taekwondo: { ...base, armL: 30, armR: -30, elbL: -140, elbR: 140, legL: 13, legR: -13, face: "smile", uniform: "dobok" },
 };

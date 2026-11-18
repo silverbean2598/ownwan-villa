@@ -126,6 +126,41 @@ describe("villa", () => {
     expect(other.id).toBeTruthy();
   });
 
+  it("rejoin_same_villa_is_idempotent_200", async () => {
+    const owner = await signup();
+    const { id, inviteToken } = await create(owner);
+    const b = await signup();
+    expect((await join(b, inviteToken)).status).toBe(200);
+    const before = await env.DB.prepare("SELECT id, floor, joined_at FROM memberships WHERE user_id = ? AND left_at IS NULL").bind(b.id).all();
+    const r = await join(b, inviteToken);
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ ok: true, alreadyMember: true });
+    const after = await env.DB.prepare("SELECT id, floor, joined_at FROM memberships WHERE user_id = ? AND left_at IS NULL").bind(b.id).all();
+    expect(after.results).toEqual(before.results);
+    expect(after.results).toHaveLength(1);
+    expect(await active(id)).toBe(2);
+    // 방장 본인이 자기 초대 링크를 다시 열어도 200
+    expect((await join(owner, inviteToken)).status).toBe(200);
+  });
+
+  it("rejoin_same_full_villa_is_still_200", async () => {
+    const owner = await signup();
+    const { inviteToken } = await create(owner);
+    for (let i = 0; i < 9; i++) await join(await signup(), inviteToken);
+    expect((await join(owner, inviteToken)).status).toBe(200);
+  });
+
+  it("invite_preview_tells_logged_in_member", async () => {
+    const a = await signup();
+    const { inviteToken } = await create(a);
+    const b = await signup();
+    await create(b, "다른빌라");
+    expect(await (await send("GET", `/api/invite/${inviteToken}`, undefined, a.cookie)).json()).toMatchObject({ alreadyMember: true, inOtherVilla: false });
+    expect(await (await send("GET", `/api/invite/${inviteToken}`, undefined, b.cookie)).json()).toMatchObject({ alreadyMember: false, inOtherVilla: true });
+    const anon = (await (await send("GET", `/api/invite/${inviteToken}`)).json()) as Record<string, unknown>;
+    expect(anon.alreadyMember).toBeUndefined();
+  });
+
   it("invite preview and rotate", async () => {
     const a = await signup();
     const { id, inviteToken } = await create(a, "미리보기");

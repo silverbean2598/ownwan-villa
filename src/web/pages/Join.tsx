@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 
-type Preview = { villaName: string; memberCount: number };
+// 로그인한 상태면 alreadyMember · inOtherVilla가 함께 온다
+type Preview = { villaName: string; memberCount: number; alreadyMember?: boolean; inOtherVilla?: boolean };
 
 export function Join() {
   const { token = "" } = useParams();
@@ -14,14 +15,18 @@ export function Join() {
   const next = encodeURIComponent(`/join/${token}`);
 
   useEffect(() => {
-    api<Preview>(`/api/invite/${token}`).then(setPreview, (e) =>
+    api<Preview>(`/api/invite/${token}`).then((p) => {
+      // 이미 이 빌라 입주민(온보딩 중에 나갔다가 다시 연 경우)이면 바로 빌라로. 운동 종목이 없으면 빌라 화면이 온보딩으로 보낸다
+      if (p.alreadyMember) return nav("/villa", { replace: true });
+      setPreview(p);
+    }, (e) =>
       setError(e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요"),
     );
     api("/api/me").then(
       () => setLoggedIn(true),
       () => setLoggedIn(false),
     );
-  }, [token]);
+  }, [token, nav]);
 
   async function join() {
     setBusy(true);
@@ -45,7 +50,16 @@ export function Join() {
         </p>
       )}
       {error && <p className="error" role="alert">{error}</p>}
-      {preview && loggedIn === true && (
+      {preview?.inOtherVilla && (
+        <>
+          <p className="muted">이미 다른 빌라에 살고 있어요. 옮기려면 설정에서 지금 빌라를 먼저 나가 주세요.</p>
+          <div className="row" style={{ flexDirection: "column" }}>
+            <Link className="btn" to="/villa" replace>내 빌라로</Link>
+            <Link className="btn ghost" to="/settings">설정</Link>
+          </div>
+        </>
+      )}
+      {preview && !preview.inOtherVilla && loggedIn === true && (
         <button className="btn" type="button" disabled={busy} onClick={join}>입주하기</button>
       )}
       {preview && loggedIn === false && (
