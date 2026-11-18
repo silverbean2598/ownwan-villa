@@ -8,6 +8,7 @@ import { Signup } from "./pages/Signup";
 import { Onboard } from "./pages/Onboard";
 import { VillaHome } from "./pages/VillaHome";
 import { VillaNew } from "./pages/VillaNew";
+import { Certify } from "./pages/Certify";
 
 export function App() {
   return (
@@ -22,6 +23,7 @@ export function App() {
         <Route path="/join/:token" element={<Join />} />
         <Route path="/onboard" element={<Onboard />} />
         <Route path="/villa" element={<VillaHome />} />
+        <Route path="/certify" element={<Certify />} />
       </Routes>
     </BrowserRouter>
   );

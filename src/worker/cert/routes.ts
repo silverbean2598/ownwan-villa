@@ -1,0 +1,149 @@
+import { Hono } from "hono";
+import type { AppEnv, Env } from "../env";
+import { now } from "../clock";
+import { jsonError, requireUser } from "../http";
+import { kstDay } from "../../shared/rules/day";
+import { photoPoints, routinePoints } from "../../shared/rules/points";
+
+export const cert = new Hono<AppEnv>();
+
+const MAX_BYTES = 300 * 1024;
+const FORBIDDEN = "같은 빌라 입주민만 볼 수 있어요";
+
+function hamming(a: string, b: string): number {
+  let d = 0;
+  for (let i = 0; i < a.length; i++) {
+    let x = parseInt(a[i], 16) ^ parseInt(b[i], 16);
+    while (x) {
+      d += x & 1;
+      x >>= 1;
+    }
+  }
+  return d;
+}
+
+/** 본인이거나, 둘 다 같은 (해산되지 않은) 빌라의 현재 입주민 */
+async function canView(env: Env, viewerId: string, ownerId: string): Promise<boolean> {
+  if (viewerId === ownerId) return true;
+  const row = await env.DB.prepare(
+    `SELECT 1 AS ok FROM memberships a
+     JOIN memberships b ON b.villa_id = a.villa_id AND b.left_at IS NULL
+     JOIN villas v ON v.id = a.villa_id AND v.dissolved_at IS NULL
+     WHERE a.user_id = ? AND a.left_at IS NULL AND b.user_id = ?`,
+  )
+    .bind(viewerId, ownerId)
+    .first();
+  return !!row;
+}
+
+// 사진 포인트: 그날 중복 아닌 사진 순번을 INSERT 안에서 세어 한 문장으로 결정한다 (경쟁 상태 방지)
+const PHOTO_INSERT = `
+INSERT INTO certs (id, user_id, day, kind, r2_key, dhash, points, duplicate, created_at)
+SELECT ?1, ?2, ?3, 'photo', ?4, ?5,
+  CASE WHEN ?6 = 1 THEN 0 ELSE
+    CASE (SELECT COUNT(*) FROM certs WHERE user_id = ?2 AND day = ?3 AND kind = 'photo' AND duplicate = 0)
+      WHEN 0 THEN ${photoPoints(1)} WHEN 1 THEN ${photoPoints(2)} WHEN 2 THEN ${photoPoints(3)} ELSE 0 END
+  END, ?6, ?7`;
+
+const ROUTINE_INSERT = `
+INSERT INTO certs (id, user_id, day, kind, body, points, duplicate, created_at)
+SELECT ?1, ?2, ?3, 'routine', ?4,
+  CASE WHEN EXISTS (SELECT 1 FROM certs WHERE user_id = ?2 AND day = ?3 AND kind = 'routine')
+    THEN ${routinePoints(true)} ELSE ${routinePoints(false)} END, 0, ?5`;
+
+const ADD_POINTS = "UPDATE users SET points = points + (SELECT points FROM certs WHERE id = ?1) WHERE id = ?2";
+
+cert.post("/api/certs/photo", requireUser, async (c) => {
+  const userId = c.get("userId");
+  const form = await c.req.formData().catch(() => null);
+  const file = form?.get("file");
+  const dhash = form?.get("dhash");
+  if (!form || !file || typeof file === "string") return jsonError(c, 400, "사진을 골라 주세요");
+  if (typeof dhash !== "string" || !/^[0-9a-f]{16}$/.test(dhash)) return jsonError(c, 400, "사진 정보가 올바르지 않아요");
+  if (file.type !== "image/jpeg") return jsonError(c, 415, "JPEG 사진만 올릴 수 있어요");
+  if (file.size > MAX_BYTES) return jsonError(c, 413, "사진이 너무 커요");
+
+  const prev = await c.env.DB.prepare("SELECT dhash FROM certs WHERE user_id = ? AND kind = 'photo' AND dhash IS NOT NULL")
+    .bind(userId)
+    .all<{ dhash: string }>();
+  const duplicate = prev.results.some((r) => hamming(r.dhash, dhash) <= 5) ? 1 : 0;
+
+  const t = now();
+  const day = kstDay(t);
+  const id = crypto.randomUUID();
+  const key = `photos/${userId}/${id}.jpg`;
+  await c.env.PHOTOS.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: "image/jpeg" } });
+  try {
+    await c.env.DB.batch([
+      c.env.DB.prepare(PHOTO_INSERT).bind(id, userId, day, key, dhash, duplicate, t),
+      c.env.DB.prepare(ADD_POINTS).bind(id, userId),
+    ]);
+  } catch (e) {
+    await c.env.PHOTOS.delete(key);
+    throw e;
+  }
+  const row = await c.env.DB.prepare("SELECT points FROM certs WHERE id = ?").bind(id).first<{ points: number }>();
+  const today = await c.env.DB.prepare(
+    "SELECT 1 AS ok FROM certs WHERE user_id = ? AND day = ? AND kind = 'photo' AND duplicate = 0 LIMIT 1",
+  )
+    .bind(userId, day)
+    .first();
+  return c.json({ certId: id, points: row!.points, duplicate: !!duplicate, certifiedToday: !!today });
+});
+
+cert.post("/api/certs/routine", requireUser, async (c) => {
+  const userId = c.get("userId");
+  const b = await c.req.json().catch(() => null);
+  const body = typeof b?.body === "string" ? b.body.trim() : "";
+  if (body.length < 1 || body.length > 1000) return jsonError(c, 400, "루틴은 1~1000자로 적어 주세요");
+  const t = now();
+  const id = crypto.randomUUID();
+  await c.env.DB.batch([
+    c.env.DB.prepare(ROUTINE_INSERT).bind(id, userId, kstDay(t), body, t),
+    c.env.DB.prepare(ADD_POINTS).bind(id, userId),
+  ]);
+  const row = await c.env.DB.prepare("SELECT points FROM certs WHERE id = ?").bind(id).first<{ points: number }>();
+  return c.json({ certId: id, points: row!.points });
+});
+
+cert.get("/api/users/:id/board", requireUser, async (c) => {
+  const ownerId = c.req.param("id");
+  if (!(await canView(c.env, c.get("userId"), ownerId))) return jsonError(c, 403, FORBIDDEN);
+  const before = Number(c.req.query("before"));
+  const lim = Number(c.req.query("limit"));
+  const limit = Number.isInteger(lim) && lim >= 1 ? Math.min(lim, 50) : 20;
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, kind, day, body, hidden, created_at AS createdAt FROM certs
+     WHERE user_id = ? AND duplicate = 0 AND created_at < ?
+     ORDER BY created_at DESC, rowid DESC LIMIT ?`,
+  )
+    .bind(ownerId, Number.isFinite(before) && c.req.query("before") ? before : Number.MAX_SAFE_INTEGER, limit)
+    .all<{ id: string; kind: string; day: string; body: string | null; hidden: number; createdAt: number }>();
+  return c.json(
+    results.map((r) => ({
+      id: r.id,
+      kind: r.kind,
+      day: r.day,
+      hidden: !!r.hidden,
+      createdAt: r.createdAt,
+      ...(r.kind === "routine" ? { body: r.body } : { photoUrl: `/api/photos/${r.id}` }),
+    })),
+  );
+});
+
+cert.get("/api/photos/:certId", requireUser, async (c) => {
+  const row = await c.env.DB.prepare("SELECT user_id, r2_key, hidden FROM certs WHERE id = ? AND kind = 'photo'")
+    .bind(c.req.param("certId"))
+    .first<{ user_id: string; r2_key: string | null; hidden: number }>();
+  if (!row || !row.r2_key) return jsonError(c, 404, "사진을 찾을 수 없어요");
+  if (!(await canView(c.env, c.get("userId"), row.user_id))) return jsonError(c, 403, FORBIDDEN);
+  if (row.hidden) return jsonError(c, 404, "사진을 찾을 수 없어요");
+  const obj = await c.env.PHOTOS.get(row.r2_key);
+  if (!obj) return jsonError(c, 404, "사진을 찾을 수 없어요");
+  return new Response(obj.body, {
+    headers: {
+      "content-type": obj.httpMetadata?.contentType ?? "image/jpeg",
+      "cache-control": "private, max-age=3600",
+    },
+  });
+});
