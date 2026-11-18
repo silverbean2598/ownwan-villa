@@ -3,6 +3,7 @@ import type { AppEnv } from "../env";
 import { now } from "../clock";
 import { jsonError } from "../http";
 import { hashToken, newRecoveryCode } from "../recovery/codes";
+import { DEFAULT_AVATAR, parseAvatar } from "../../shared/avatar";
 import { hashPassword, verifyPassword } from "./password";
 import { createSession, endSession, requireUser, setSessionCookie } from "./session";
 
@@ -93,5 +94,9 @@ auth.get("/api/me", requireUser, async (c) => {
     .bind(c.get("userId"))
     .first<{ avatar: string } & Record<string, unknown>>();
   if (!u) return jsonError(c, 401, "로그인이 필요해요");
-  return c.json({ ...u, avatar: JSON.parse(u.avatar) });
+  let stored: unknown = null;
+  try {
+    stored = JSON.parse(u.avatar);
+  } catch {}
+  return c.json({ ...u, avatar: parseAvatar(stored) ?? DEFAULT_AVATAR });
 });
