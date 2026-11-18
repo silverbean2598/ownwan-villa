@@ -1,0 +1,69 @@
+.villa-page { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; --lit:#FFF3CF; --litGlow:#FFE08A; --dark:#2A3040; --darkInk:#8A93A6; --gold:#C9A227; --accent:#2F5BEA; --muted:#6B7280; }
+.villa-head { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.villa-head h1 { margin: 0; font-size: 26px; }
+.stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { display: inline-flex; gap: 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; color: var(--muted); }
+.chip b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.villa-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.villa-actions .btn { width: auto; padding: 12px 16px; font-size: 15px; }
+.villa-actions .btn.primary { background: var(--accent); border-color: var(--accent); }
+.invite-fallback { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; }
+
+.bldg { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 10px 0; overflow-x: auto; }
+.tower { position: relative; min-width: 300px; }
+.roof { height: 10px; background: var(--ink); border-radius: 4px 4px 0 0; margin: 0 -6px; }
+.ph { background: linear-gradient(180deg,#FBF7EA,#fff); border: 2px solid var(--gold); border-bottom: none; border-radius: 10px 10px 0 0; padding: 8px; display: flex; gap: 8px; align-items: stretch; }
+.ph-label { writing-mode: vertical-rl; font-weight: 700; color: var(--gold); font-size: 12px; letter-spacing: 2px; display: flex; align-items: center; }
+.ph .room { flex: 1; max-width: 170px; margin: 0 auto; }
+.floor { display: grid; grid-template-columns: 30px repeat(3, minmax(0, 1fr)); gap: 6px; padding: 6px; border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); border-top: 1px solid var(--line); }
+.fl { font-weight: 700; font-size: 14px; color: var(--muted); display: flex; align-items: center; justify-content: center; }
+.gap { border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); border-top: 1px dashed var(--line); padding: 6px 8px; color: var(--muted); font-size: 12px; text-align: center; background: repeating-linear-gradient(90deg, transparent 0 22px, #F1F3F6 22px 24px); }
+.entry { height: 44px; position: relative; border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); border-top: 1px solid var(--line); }
+.door { position: absolute; left: 50%; bottom: 0; width: 40px; height: 32px; transform: translateX(-50%); background: var(--ink); border-radius: 4px 4px 0 0; }
+.ground { height: 14px; background: #D9DDE3; margin: 0 -10px; border-top: 2px solid var(--ink); }
+
+.room { position: relative; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden; cursor: pointer; border: 2px solid transparent; background: var(--dark); padding: 0; text-align: left; font: inherit; color: inherit; min-width: 0; transition: transform .15s; }
+.room:hover { transform: translateY(-2px); }
+.room:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.room.on { background: var(--lit); box-shadow: inset 0 0 24px var(--litGlow); }
+.room.me { border-color: var(--accent); }
+.room.empty { background: #fff; border: 2px dashed var(--line); align-items: center; justify-content: center; color: var(--muted); font-size: 12px; min-height: 100px; cursor: default; }
+.room.empty:hover { transform: none; }
+.wall { min-height: 100px; border-radius: 8px; background: repeating-linear-gradient(0deg, #F3F4F7 0 12px, #ECEEF2 12px 13px); }
+.tag { display: flex; align-items: center; gap: 4px; padding: 3px 6px 5px; font-size: 12px; color: var(--darkInk); min-width: 0; }
+.on .tag { color: var(--ink); }
+.tag b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badges { position: absolute; top: 4px; right: 4px; display: flex; gap: 3px; }
+.badges em { font-style: normal; font-size: 10px; padding: 0 5px; border-radius: 999px; line-height: 16px; }
+.me-badge { background: var(--accent); color: #fff; }
+.owner-badge { background: var(--gold); color: #fff; }
+
+.scene { position: relative; width: 100%; aspect-ratio: 150 / 96; }
+.scene-bg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.figpos { position: absolute; bottom: 4%; left: 32%; width: 36%; }
+.fig { transform-origin: 50% 100%; transform-box: fill-box; }
+.fig svg { display: block; width: 100%; height: auto; }
+.s-climbing .figpos { left: 22%; }
+.s-jiujitsu .figpos { left: 24%; }
+.s-pilates .figpos { left: 12%; bottom: 6%; width: 30%; }
+.s-pilates .fig { transform: rotate(-90deg); transform-origin: 50% 72%; }
+.s-running .figpos { left: 30%; bottom: 10%; }
+.room.off .figpos { left: 46%; bottom: 6%; width: 32%; }
+.room.off .fig { transform: none; }
+.room.off .fig text { transform-box: fill-box; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .on .a-press { animation: press 1.1s ease-in-out infinite; }
+  .on.room .s-gym .fig { animation: press 1.1s ease-in-out infinite; }
+  .on .s-running .fig { animation: hop .4s ease-in-out infinite alternate; }
+  .on .belt { animation: belt .4s linear infinite; }
+  .on .a-pil .leg { animation: raise 1.6s ease-in-out infinite; transform-origin: 0 50%; transform-box: fill-box; }
+  .on .s-climbing .fig { animation: climb 2.2s ease-in-out infinite; }
+  .on .s-jiujitsu .fig { animation: jj 1.2s ease-in-out infinite; }
+}
+@keyframes press { 50% { transform: translateY(5px); } }
+@keyframes hop { to { transform: translateY(-4px); } }
+@keyframes belt { to { stroke-dashoffset: -8; } }
+@keyframes raise { 50% { transform: rotate(-55deg); } }
+@keyframes climb { 50% { transform: translateY(-14px); } }
+@keyframes jj { 50% { transform: rotate(-14deg); } }
