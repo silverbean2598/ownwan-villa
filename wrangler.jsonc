@@ -12,8 +12,7 @@
     {
       "binding": "DB",
       "database_name": "ownwan-villa",
-      // 배포 전 `wrangler d1 create ownwan-villa`로 받은 ID로 교체
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "b90c5080-894b-4ccb-9f75-0441d23cdb72",
       "migrations_dir": "migrations"
     }
   ],
