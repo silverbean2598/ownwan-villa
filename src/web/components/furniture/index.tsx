@@ -21,6 +21,10 @@ import {
   Sandbag,
   ShoeShelf,
 } from "./sports";
+import {
+  Aquarium, Beanbag, Blender, Bookshelf, CatBed, CherryVase, DogBed, Fan, GamingChair, GoldStatue, HeartNeon, Heater, JackOLantern,
+  JumpRopeHook, KettlebellSet, MiniFridge, PullupBar, RowingMachine, ShakerStand, SpinBike, StretchFrame, StringLights, XmasTree, YogaSet,
+} from "./extra";
 
 // 가구 그림. 바닥 가구는 바닥에 닿는 가운데가 (0,0), 벽 가구는 가운데가 (0,0).
 export const FURNITURE_ART: Record<string, ComponentType> = {
@@ -49,6 +53,31 @@ export const FURNITURE_ART: Record<string, ComponentType> = {
   sandbag: Sandbag,
   "kick-paddle-stand": KickPaddleStand,
   "board-frame": BoardFrame,
+  // 꾸미기 확장
+  "shaker-stand": ShakerStand,
+  blender: Blender,
+  "mini-fridge": MiniFridge,
+  "yoga-set": YogaSet,
+  "kettlebell-set": KettlebellSet,
+  "jump-rope-hook": JumpRopeHook,
+  "pullup-bar": PullupBar,
+  "rowing-machine": RowingMachine,
+  "spin-bike": SpinBike,
+  "stretch-frame": StretchFrame,
+  "heart-neon": HeartNeon,
+  bookshelf: Bookshelf,
+  "gaming-chair": GamingChair,
+  beanbag: Beanbag,
+  aquarium: Aquarium,
+  "cat-bed": CatBed,
+  "dog-bed": DogBed,
+  "xmas-tree": XmasTree,
+  "jack-o-lantern": JackOLantern,
+  "cherry-vase": CherryVase,
+  fan: Fan,
+  heater: Heater,
+  "string-lights": StringLights,
+  "gold-statue": GoldStatue,
 };
 
 /** svg 안에 넣는 가구 그림(<g>). 모르는 id는 그리지 않는다. */
@@ -72,6 +101,11 @@ const ICON_BOX: Record<string, string> = {
   "shoe-shelf": LOW,
   "crash-pad": LOW,
   plant: LOW,
+  "kettlebell-set": LOW,
+  "cat-bed": LOW,
+  "dog-bed": LOW,
+  beanbag: "-26 -40 52 44",
+  "rowing-machine": "-32 -42 64 46",
 };
 
 /** 상점 · 배치 목록용 단독 그림 */

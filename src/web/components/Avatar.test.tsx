@@ -2,7 +2,8 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Avatar, POSES, type Pose } from "./Avatar";
-import { AVATAR_OPTIONS, DEFAULT_AVATAR } from "../../shared/avatar";
+import { AVATAR_OPTIONS, DEFAULT_AVATAR, type AvatarSpec } from "../../shared/avatar";
+import { OUTFITS } from "../../shared/catalog";
 import { BUN, SW } from "./avatar/parts";
 
 // 2D 아핀 행렬 [a b c d e f] (SVG matrix 순서)
@@ -136,4 +137,64 @@ describe("Avatar", () => {
       expect(y + r, `${pose} bottom`).toBeLessThanOrEqual(h);
     }
   });
+
+  // ---------- 꾸미기 확장 ----------
+  const parse = (spec: AvatarSpec, pose: Pose = "idle") =>
+    new DOMParser().parseFromString(renderToStaticMarkup(<Avatar spec={spec} size={120} pose={pose} />), "image/svg+xml").documentElement;
+  const ACC_SETS = [["headband", "glasses", "earphones", "towel", "wristbands"], ["cap", "glasses"], ["cap", "towel", "wristbands"]];
+
+  it("every_pose_x_outfit_x_accessories_renders_with_zero_origin_viewbox", () => {
+    for (const pose of Object.keys(POSES) as Pose[])
+      for (const outfit of [undefined, ...OUTFITS.map((o) => o.id)])
+        for (const acc of ACC_SETS) {
+          const svg = parse({ ...DEFAULT_AVATAR, hair: "ponytail", outfit, acc }, pose);
+          expect(svg.getAttribute("viewBox"), `${pose} ${outfit}`).toMatch(/^0 0 /);
+          const gi = POSES[pose].uniform;
+          expect(svg.getAttribute("data-outfit"), `${pose} ${outfit}`).toBe(gi ?? outfit ?? "tee");
+        }
+  });
+
+  it("outfits_are_drawn_in_body_parts_and_tinted_with_shirt_color", () => {
+    for (const { id } of OUTFITS) {
+      const svg = parse({ ...DEFAULT_AVATAR, shirt: 2, outfit: id });
+      const top = svg.querySelector(`[data-part="outfit-${id}"] [data-part="top"]`)!;
+      expect(top, id).toBeTruthy();
+      expect(top.getAttribute("fill")).toBe(AVATAR_OPTIONS.shirt[2]);
+      expect(top.closest('[data-part="torso"]')).toBeTruthy();
+      expect(svg.querySelector('[data-part="tee"]'), id).toBeNull();
+    }
+  });
+
+  it("jiujitsu_and_taekwondo_keep_their_uniform_over_bought_outfit", () => {
+    expect(parse({ ...DEFAULT_AVATAR, outfit: "hoodie" }, "jiujitsu").querySelector('[data-part="gi"]')).toBeTruthy();
+    expect(parse({ ...DEFAULT_AVATAR, outfit: "hoodie" }, "taekwondo").querySelector('[data-part="dobok"]')).toBeTruthy();
+    expect(parse({ ...DEFAULT_AVATAR, outfit: "hoodie" }, "taekwondo").querySelector('[data-part="outfit-hoodie"]')).toBeNull();
+  });
+
+  it("accessories_follow_their_joint_in_every_pose", () => {
+    const where: [string, string][] = [
+      ["headband", "head"], ["glasses", "head"], ["earphones", "upper"], ["towel", "upper"],
+    ];
+    for (const pose of Object.keys(POSES) as Pose[]) {
+      const svg = parse({ ...DEFAULT_AVATAR, acc: ["headband", "glasses", "earphones", "towel", "wristbands"] }, pose);
+      for (const [part, joint] of where) expect(svg.querySelector(`[data-part="${part}"]`)?.closest(`[data-part="${joint}"]`), `${pose} ${part}`).toBeTruthy();
+      // 손목 밴드는 양쪽 아래팔 그룹 안에서 손과 같이 움직인다
+      const bands = [...svg.querySelectorAll('[data-part="wristband"]')];
+      expect(bands.map((b) => b.closest('[data-part^="fore"]')?.getAttribute("data-part")).sort(), pose).toEqual(["foreL", "foreR"]);
+    }
+  });
+
+  it("cap_hides_under_beanie_and_glasses_hide_for_sunglasses", () => {
+    expect(parse({ ...DEFAULT_AVATAR, acc: ["cap"] }).querySelector('[data-part="cap"]')).toBeTruthy();
+    expect(parse({ ...DEFAULT_AVATAR, hair: "beanie", acc: ["cap"] }).querySelector('[data-part="cap"]')).toBeNull();
+    expect(parse({ ...DEFAULT_AVATAR, hair: "beanie", acc: ["cap"] }).querySelector('[data-part="beanie"]')).toBeTruthy();
+    const cool = new DOMParser().parseFromString(renderToStaticMarkup(<Avatar spec={{ ...DEFAULT_AVATAR, acc: ["glasses"] }} size={40} face="cool" />), "image/svg+xml");
+    expect(cool.querySelector('[data-part="glasses"]')).toBeNull();
+  });
+
+  it("beanie_takes_shirt_color", () => {
+    const svg = parse({ ...DEFAULT_AVATAR, hair: "beanie", shirt: 0 });
+    expect(svg.querySelector('[data-part="beanie"] path')!.getAttribute("fill")).toBe(AVATAR_OPTIONS.shirt[0]);
+  });
 });
+

@@ -1,5 +1,7 @@
 import { AVATAR_OPTIONS, DEFAULT_AVATAR, parseAvatar, type AvatarSpec } from "../../shared/avatar";
-import { Arm, Barbell, Dummy, FaceFeatures, FaceOverHair, HairBack, HairFront, Head, Joint, Leg, PIVOT, Torso, INK } from "./avatar/parts";
+import { Arm, Barbell, Dummy, FaceFeatures, FaceOverHair, Head, Joint, Leg, PIVOT, Torso, INK, type Uniform } from "./avatar/parts";
+import { HairBack, HairFront } from "./avatar/hair";
+import { Earphones, Glasses, Headwear, Towel, isOutfit } from "./avatar/wear";
 import { POSES, type Face, type Pose, type PoseDef } from "./avatar/poses";
 import "./avatar/avatar.css";
 
@@ -37,13 +39,19 @@ export function Avatar({ spec, size, pose = "idle", className, face, joints, lab
   const skin = AVATAR_OPTIONS.skin[s.skin];
   const shirt = AVATAR_OPTIONS.shirt[s.shirt];
   const p: PoseDef = { ...POSES[pose], ...joints, ...(face ? { face } : {}) };
-  const uniform = p.uniform ?? "tee";
+  // 주짓수 · 태권도 자세는 산 옷 대신 도복을 입는다
+  const uniform: Uniform = p.uniform ?? (isOutfit(s.outfit) ? s.outfit : "tee");
   const lying = !!p.lying;
+  const acc = new Set(s.acc ?? []);
+  // 비니는 머리 자리를 차지하므로 모자 · 헤어밴드를 숨긴다. 선글라스 표정엔 안경을 숨긴다
+  const headAcc = s.hair === "beanie" ? null : (s.acc ?? []).find((a) => a === "cap" || a === "headband");
+  const glasses = acc.has("glasses") && p.face !== "cool";
+  const wristband = acc.has("wristbands");
 
   const arms = (
     <>
-      <Arm side="L" a={p.armL} elb={p.elbL} fore={p.fore} skin={skin} shirt={shirt} uniform={uniform} />
-      <Arm side="R" a={p.armR} elb={p.elbR} fore={p.fore} skin={skin} shirt={shirt} uniform={uniform} />
+      <Arm side="L" a={p.armL} elb={p.elbL} fore={p.fore} skin={skin} shirt={shirt} uniform={uniform} wristband={wristband} />
+      <Arm side="R" a={p.armR} elb={p.elbR} fore={p.fore} skin={skin} shirt={shirt} uniform={uniform} wristband={wristband} />
     </>
   );
 
@@ -51,6 +59,7 @@ export function Avatar({ spec, size, pose = "idle", className, face, joints, lab
     <svg
       className={`av pose-${pose}${className ? ` ${className}` : ""}`}
       data-hair={s.hair}
+      data-outfit={uniform}
       role="img"
       aria-label={label}
       width={lying ? size * 1.4 : size}
@@ -68,12 +77,16 @@ export function Avatar({ spec, size, pose = "idle", className, face, joints, lab
               <HairBack hair={s.hair} />
             </Joint>
             <Torso skin={skin} shirt={shirt} uniform={uniform} />
+            {acc.has("earphones") && <Earphones />}
             {!p.armsFront && arms}
+            {acc.has("towel") && <Towel />}
             <Joint part="head" at={PIVOT.neck} a={p.headTilt}>
               <Head skin={skin} />
               <FaceFeatures face={p.face} skin={skin} />
-              <HairFront hair={s.hair} />
+              <HairFront hair={s.hair} shirt={shirt} />
+              {headAcc && <Headwear id={headAcc} />}
               <FaceOverHair face={p.face} />
+              {glasses && <Glasses />}
             </Joint>
             {pose === "gym" && <Barbell y={BAR_Y} />}
             {p.armsFront && arms}
