@@ -30,7 +30,8 @@ export function parseAvatar(x: unknown): AvatarSpec | null {
   if (!inRange(skin, AVATAR_OPTIONS.skin.length) || !inRange(shirt, AVATAR_OPTIONS.shirt.length)) return null;
   if (typeof hair !== "string" || !(AVATAR_OPTIONS.hair as readonly string[]).includes(hair)) return null;
   const out: AvatarSpec = { skin: skin as number, hair, shirt: shirt as number };
-  if (outfit !== undefined) {
+  // null · 빠짐 = 기본 옷
+  if (outfit !== undefined && outfit !== null) {
     if (!findOutfit(outfit)) return null;
     out.outfit = outfit as string;
   }

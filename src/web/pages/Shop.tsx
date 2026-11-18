@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
-import { ACCESSORIES, CATALOG, EXTRA_FURNITURE, OUTFITS, type Item, type ShopItem } from "../../shared/catalog";
+import { ACCESSORIES, BASE_FURNITURE, EXTRA_FURNITURE, OUTFITS, type Item, type ShopItem } from "../../shared/catalog";
 import { DEFAULT_AVATAR, type AvatarSpec } from "../../shared/avatar";
 import { SPORTS, SPORT_LABEL, type Sport } from "../../shared/sports";
 import { FurnitureIcon } from "../components/furniture";
@@ -21,9 +21,9 @@ export type ShopTab = (typeof SHOP_TABS)[number]["id"];
 
 /** 내 종목 + 공용을 먼저, 그다음 다른 종목 (1차 가구 25종) */
 export function shopSections(sport: Sport | null): { title: string; items: Item[] }[] {
-  const mine = CATALOG.filter((i) => i.sport === sport || i.sport === "common");
+  const mine = BASE_FURNITURE.filter((i) => i.sport === sport || i.sport === "common");
   const first = { title: sport ? `${SPORT_LABEL[sport]} · 공용` : "공용", items: mine };
-  const others = SPORTS.filter((s) => s !== sport).map((s) => ({ title: SPORT_LABEL[s], items: CATALOG.filter((i) => i.sport === s) }));
+  const others = SPORTS.filter((s) => s !== sport).map((s) => ({ title: SPORT_LABEL[s], items: BASE_FURNITURE.filter((i) => i.sport === s) }));
   return [first, ...others];
 }
 

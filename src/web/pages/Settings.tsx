@@ -67,7 +67,6 @@ export function Settings() {
         setNickname(m.nickname);
         setSport(m.sport);
         setAvatar(m.avatar);
-        setOwned((await api<{ owned: string[] }>("/api/shop")).owned);
         setVilla(v);
         setVillaName(v?.name ?? "");
         if (v) await loadPending();
@@ -77,6 +76,11 @@ export function Settings() {
       }
     })();
   }, [nav]);
+
+  // 가진 옷 · 소품은 따로 불러온다: 실패해도 설정 화면(비밀번호 · 빌라 나가기 등)은 그대로 쓴다
+  useEffect(() => {
+    api<{ owned: string[] }>("/api/shop").then((s) => setOwned(s.owned), () => {});
+  }, []);
 
   // 상점의 [꾸미러 가기](/settings#avatar)로 오면 캐릭터 꾸미기로 내려간다
   useEffect(() => {

@@ -103,6 +103,18 @@ describe("PATCH /api/me 옷 · 소품", () => {
     await buy(c, "headband");
     await buy(c, "cap");
     expect((await patch(c, { avatar: { ...base, acc: ["headband", "cap"] } })).status).toBe(400);
+    expect((await patch(c, { avatar: { ...base, acc: ["cap", "cap"] } })).status).toBe(400);
+    expect((await me(c)).avatar).toEqual(DEFAULT_AVATAR);
+  });
+  it("outfit_null_or_omitted_means_default", async () => {
+    const c = await signup();
+    await give(c, 500);
+    await buy(c, "hoodie");
+    expect((await patch(c, { avatar: { ...base, outfit: "hoodie" } })).status).toBe(200);
+    expect((await patch(c, { avatar: { ...base, outfit: null } })).status).toBe(200);
+    expect((await me(c)).avatar).toEqual(base);
+    expect((await patch(c, { avatar: base })).status).toBe(200);
+    expect((await me(c)).avatar).toEqual(base);
   });
   it("old_stored_avatar_still_reads", async () => {
     const c = await signup();

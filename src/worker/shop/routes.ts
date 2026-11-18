@@ -36,7 +36,7 @@ shop.post("/api/shop/buy", requireUser, async (c) => {
   const userId = c.get("userId");
   const b = await c.req.json().catch(() => null);
   const item = findShopItem(b?.itemId);
-  if (!item) return jsonError(c, 400, "없는 가구예요");
+  if (!item) return jsonError(c, 400, "없는 물건이에요");
   const ph = isPenthouseOnly(item);
   // 한 트랜잭션: 포인트가 충분하고 아직 없고 (펜트하우스 전용이면 지금 펜트하우스 주인일 때만) 차감하고, 차감했을 때만 넣는다
   const [charge] = await c.env.DB.batch([
@@ -69,7 +69,7 @@ shop.put("/api/placements", requireUser, async (c) => {
     return c.json({ ok: true });
   }
   const item = findItem(b.itemId);
-  if (!item) return jsonError(c, 400, findShopItem(b.itemId) ? "방에 놓을 수 없는 물건이에요" : "없는 가구예요");
+  if (!item) return jsonError(c, 400, findShopItem(b.itemId) ? "방에 놓을 수 없는 물건이에요" : "없는 물건이에요");
   if (item.slotType !== slotType(b.slot)) {
     return jsonError(c, 400, item.slotType === "wall" ? "벽에 거는 가구예요" : "바닥에 놓는 가구예요");
   }

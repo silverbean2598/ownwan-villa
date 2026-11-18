@@ -33,8 +33,8 @@ export type ShopItem = Item | OutfitItem | AccessoryItem;
 
 const f = (id: string, name: string, sport: Sport | "common", slotType: SlotType, price: number): Item => ({ id, name, kind: "furniture", sport, slotType, price });
 
-/** 1차 가구 25종: 공용 7 + 종목마다 3 */
-export const CATALOG: Item[] = [
+/** 1차 가구 25종: 공용 7 + 종목마다 3 (종목별 상점 묶음용). 가구 전체는 FURNITURE */
+export const BASE_FURNITURE: Item[] = [
   f("plant", "화분", "common", "floor", 80),
   f("rug", "러그", "common", "floor", 100),
   f("floor-lamp", "스탠드 조명", "common", "floor", 120),
@@ -96,8 +96,8 @@ export const EXTRA_FURNITURE: Item[] = [
   { ...x("gold-statue", "황금 조각상", "펜트하우스 전용", "floor", 300), penthouseOnly: true },
 ];
 
-/** 방에 놓을 수 있는 가구 전체 */
-export const FURNITURE: Item[] = [...CATALOG, ...EXTRA_FURNITURE];
+/** 방에 놓을 수 있는 가구 전체 (1차 25종 + 확장 24종). 가구 목록이 필요한 곳은 BASE_FURNITURE 가 아니라 이걸 쓴다 */
+export const FURNITURE: Item[] = [...BASE_FURNITURE, ...EXTRA_FURNITURE];
 
 /** 옷(100~150P). 안 산 기본 옷은 반팔 티 + 반바지. 옷 색(shirt)이 윗옷 색이 된다 */
 export const OUTFITS: OutfitItem[] = [

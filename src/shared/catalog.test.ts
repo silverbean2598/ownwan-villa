@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCESSORIES, CATALOG, EXTRA_FURNITURE, FURNITURE, OUTFITS, SHOP_ITEMS, findItem, findShopItem } from "./catalog";
+import { ACCESSORIES, BASE_FURNITURE, EXTRA_FURNITURE, FURNITURE, OUTFITS, SHOP_ITEMS, findItem, findShopItem } from "./catalog";
 
 const range = (ids: string[], lo: number, hi: number) => {
   for (const id of ids) {
@@ -15,7 +15,7 @@ describe("catalog (꾸미기 확장)", () => {
     expect(SHOP_ITEMS).toHaveLength(25 + 24 + 6 + 6);
   });
   it("kinds", () => {
-    expect(FURNITURE).toEqual([...CATALOG, ...EXTRA_FURNITURE]);
+    expect(FURNITURE).toEqual([...BASE_FURNITURE, ...EXTRA_FURNITURE]);
     for (const i of FURNITURE) expect(i.kind, i.id).toBe("furniture");
     for (const i of OUTFITS) expect(i.kind, i.id).toBe("outfit");
     for (const i of ACCESSORIES) expect(i.kind, i.id).toBe("accessory");

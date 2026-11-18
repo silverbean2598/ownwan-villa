@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { RoomScene } from "./RoomScene";
 import { DEFAULT_AVATAR } from "../../shared/avatar";
 import { SPORTS } from "../../shared/sports";
-import { CATALOG, EXTRA_FURNITURE } from "../../shared/catalog";
+import { BASE_FURNITURE, EXTRA_FURNITURE } from "../../shared/catalog";
 import { FURNITURE_ART } from "./furniture";
 
 describe("RoomScene", () => {
@@ -35,7 +35,7 @@ describe("RoomScene", () => {
     expect(d).toMatch(/class="wall-board"[^]*BOARD/);
   });
   it("every_catalog_item_has_a_drawing", () => {
-    for (const i of CATALOG) expect(FURNITURE_ART[i.id], i.id).toBeTypeOf("function");
+    for (const i of BASE_FURNITURE) expect(FURNITURE_ART[i.id], i.id).toBeTypeOf("function");
   });
   it("every_new_furniture_item_has_a_drawing_and_draws_in_its_slot", () => {
     for (const i of EXTRA_FURNITURE) {

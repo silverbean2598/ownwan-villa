@@ -37,6 +37,8 @@ describe("parseAvatar", () => {
     });
     // 빈 목록은 저장하지 않는다
     expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, acc: [] })).toEqual({ skin: 0, hair: "short", shirt: 0 });
+    // null 옷 = 기본 옷
+    expect(JSON.stringify(parseAvatar({ skin: 0, hair: "short", shirt: 0, outfit: null }))).toBe('{"skin":0,"hair":"short","shirt":0}');
   });
   it("rejects_unknown_outfit_or_accessory", () => {
     expect(parseAvatar({ skin: 0, hair: "short", shirt: 0, outfit: "tuxedo" })).toBeNull();

@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { app } from "../index";
-import { CATALOG, SHOP_ITEMS, findItem } from "../../shared/catalog";
+import { BASE_FURNITURE, SHOP_ITEMS, findItem } from "../../shared/catalog";
 import { SPORTS } from "../../shared/sports";
 
 let n = 0;
@@ -29,14 +29,14 @@ const shop = async (cookie: string) => (await app.request("/api/shop", { headers
 
 describe("catalog", () => {
   it("temporary_catalog_has_25_items_with_unique_ids", () => {
-    expect(CATALOG).toHaveLength(25);
-    expect(new Set(CATALOG.map((i) => i.id)).size).toBe(25);
-    for (const i of CATALOG) {
+    expect(BASE_FURNITURE).toHaveLength(25);
+    expect(new Set(BASE_FURNITURE.map((i) => i.id)).size).toBe(25);
+    for (const i of BASE_FURNITURE) {
       expect(i.price).toBeGreaterThanOrEqual(60);
       expect(i.price).toBeLessThanOrEqual(200);
     }
-    for (const s of SPORTS) expect(CATALOG.filter((i) => i.sport === s).length).toBe(3);
-    expect(CATALOG.filter((i) => i.sport === "common")).toHaveLength(7);
+    for (const s of SPORTS) expect(BASE_FURNITURE.filter((i) => i.sport === s).length).toBe(3);
+    expect(BASE_FURNITURE.filter((i) => i.sport === "common")).toHaveLength(7);
   });
 });
 
@@ -212,6 +212,53 @@ describe("꾸미기 확장: 가구 · 옷 · 소품", () => {
     // 펜트하우스가 바뀌면 살 수 있다
     await env.DB.prepare("UPDATE villas SET penthouse_user_id = ? WHERE id = ?").bind(u.id, vid).run();
     expect((await buy(u.cookie, "gold-statue")).status).toBe(200);
+  });
+  it("gold_statue_rejected_after_leaving_the_villa", async () => {
+    const u = await signup(1000);
+    await makeVilla(u.cookie);
+    await env.DB.prepare("UPDATE memberships SET left_at = 1 WHERE user_id = ?").bind(u.id).run();
+    expect((await buy(u.cookie, "gold-statue")).status).toBe(403);
+    expect((await shop(u.cookie)).points).toBe(1000);
+  });
+  it("gold_statue_rejected_in_dissolved_villa", async () => {
+    const u = await signup(1000);
+    await makeVilla(u.cookie);
+    await env.DB.prepare("UPDATE villas SET dissolved_at = 1 WHERE id = ?").bind(await villaOf(u.id)).run();
+    expect((await buy(u.cookie, "gold-statue")).status).toBe(403);
+    expect((await shop(u.cookie)).points).toBe(1000);
+  });
+  it("gold_statue_rejected_for_former_holder_after_penthouse_changed", async () => {
+    const u = await signup(1000);
+    await makeVilla(u.cookie);
+    const other = await signup(0);
+    const vid = await villaOf(u.id);
+    await env.DB.prepare("INSERT INTO memberships (id, user_id, villa_id, floor, floor_reached_at, joined_at) VALUES (?, ?, ?, 1, 0, 0)")
+      .bind(crypto.randomUUID(), other.id, vid)
+      .run();
+    await env.DB.prepare("UPDATE villas SET penthouse_user_id = ? WHERE id = ?").bind(other.id, vid).run();
+    const res = await buy(u.cookie, "gold-statue");
+    expect(res.status).toBe(403);
+    expect((await shop(u.cookie)).points).toBe(1000);
+  });
+  it("buying_an_outfit_twice_is_409_and_charges_once", async () => {
+    const u = await signup(1000);
+    expect((await buy(u.cookie, "hoodie")).status).toBe(200);
+    const again = await buy(u.cookie, "hoodie");
+    expect(again.status).toBe(409);
+    expect((await again.json<any>()).error).toBe("이미 갖고 있는 옷이에요");
+    expect((await shop(u.cookie)).points).toBe(1000 - findItemPrice("hoodie"));
+  });
+  it("concurrent_outfit_buys_charge_once", async () => {
+    const u = await signup(1000);
+    const rs = await Promise.all([buy(u.cookie, "rashguard"), buy(u.cookie, "rashguard"), buy(u.cookie, "rashguard")]);
+    expect(rs.map((r) => r.status).sort()).toEqual([200, 409, 409]);
+    const s = await shop(u.cookie);
+    expect(s.owned).toEqual(["rashguard"]);
+    expect(s.points).toBe(1000 - findItemPrice("rashguard"));
+  });
+  it("unknown_item_message_is_generic", async () => {
+    const u = await signup(300);
+    expect((await (await buy(u.cookie, "sofa")).json<any>()).error).toBe("없는 물건이에요");
   });
   it("gold_statue_short_points_is_still_400_for_holder", async () => {
     const u = await signup(299);
