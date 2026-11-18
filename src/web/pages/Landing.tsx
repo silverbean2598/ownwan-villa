@@ -34,8 +34,8 @@ export function LandingView({ me }: { me: Me }) {
           <h1>오운완빌라</h1>
           <p className="lp-tagline">친구들과 한 빌라에 살면서<br />매일 오운완해요</p>
         </div>
-        <HeroVilla />
         <div className="lp-cta">{cta}</div>
+        <HeroVilla />
       </section>
 
       <section className="lp-how" aria-labelledby="lp-how-title">

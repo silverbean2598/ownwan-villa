@@ -19,6 +19,11 @@ describe("Landing", () => {
     expect(h).toContain('href="/login"');
     expect(h).not.toContain("내 빌라로");
   });
+  it("cta_comes_before_villa_illustration", () => {
+    const h = render(null);
+    expect(h.indexOf("lp-cta")).toBeGreaterThan(h.indexOf("lp-tagline"));
+    expect(h.indexOf("lp-cta")).toBeLessThan(h.indexOf("lp-villa"));
+  });
   it("logged_in_with_villa_goes_to_villa", () => {
     const h = render({ villaId: "v1" });
     expect(h).toContain('href="/villa"');
