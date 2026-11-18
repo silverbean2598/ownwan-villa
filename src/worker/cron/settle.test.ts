@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import worker from "../index";
 import { setNow } from "../clock";
-import { settle } from "./settle";
+import { applySettlement, settle } from "./settle";
 
 const DAY = "2026-11-18";
 let n = 0;
@@ -76,6 +76,17 @@ describe("settle", () => {
     const rs = await Promise.all([settle(env, DAY), settle(env, DAY)]);
     expect(rs.filter((r) => r.settled)).toHaveLength(1);
     expect(await getUser(a)).toEqual({ streak: 3, missRun: 0 });
+  });
+
+  it("guard_blocks_writes_when_day_already_claimed", async () => {
+    const v = await villa();
+    const a = await user(6, 0);
+    await member(a, v, 1, 100);
+    await cert(a);
+    await env.DB.prepare("INSERT INTO settings VALUES('last_settled_day', ?)").bind(`${DAY}:other-token`).run();
+    expect(await applySettlement(env, DAY)).toBe(false);
+    expect(await getUser(a)).toEqual({ streak: 6, missRun: 0 });
+    expect(await getM(a)).toEqual({ floor: 1, at: 100 });
   });
 
   it("floor_up_sets_floor_reached_at", async () => {

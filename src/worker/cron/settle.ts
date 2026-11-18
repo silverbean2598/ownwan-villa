@@ -16,7 +16,20 @@ type Row = {
 export async function settle(env: Env, day: string): Promise<{ settled: boolean }> {
   const last = await env.DB.prepare("SELECT value FROM settings WHERE key = 'last_settled_day'").first<{ value: string }>();
   if (last && last.value.slice(0, 10) >= day) return { settled: false };
+  if (!(await applySettlement(env, day))) return { settled: false };
 
+  const t = now();
+  const { results: villas } = await env.DB.prepare(
+    `SELECT DISTINCT v.id FROM villas v JOIN memberships m ON m.villa_id = v.id
+     WHERE v.dissolved_at IS NULL AND m.left_at IS NULL`,
+  ).all<{ id: string }>();
+  for (const v of villas) await recomputePenthouse(env, v.id);
+  await env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(t).run();
+  return { settled: true };
+}
+
+/** 사전 확인 없이 하루치 변경을 한 batch로 쓴다. 날짜를 선점(claim)한 경우에만 true. (테스트용으로 export) */
+export async function applySettlement(env: Env, day: string): Promise<boolean> {
   const { results } = await env.DB.prepare(
     `SELECT u.id, u.streak, u.miss_run AS missRun, m.id AS membershipId, m.floor,
             EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ?1 AND c.kind = 'photo' AND c.duplicate = 0) AS certified
@@ -53,13 +66,5 @@ export async function settle(env: Env, day: string): Promise<{ settled: boolean 
   await env.DB.batch(stmts);
 
   const won = await env.DB.prepare("SELECT value FROM settings WHERE key = 'last_settled_day'").first<{ value: string }>();
-  if (won?.value !== token) return { settled: false };
-
-  const { results: villas } = await env.DB.prepare(
-    `SELECT DISTINCT v.id FROM villas v JOIN memberships m ON m.villa_id = v.id
-     WHERE v.dissolved_at IS NULL AND m.left_at IS NULL`,
-  ).all<{ id: string }>();
-  for (const v of villas) await recomputePenthouse(env, v.id);
-  await env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(t).run();
-  return { settled: true };
+  return won?.value === token;
 }
