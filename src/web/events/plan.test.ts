@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eventCopy, objParticle, planEvents, shouldNightRemind, type AppEvent } from "./plan";
+import { eventCopy, objParticle, planEvents, subjParticle, shouldNightRemind, type AppEvent } from "./plan";
 
 const NOW = Date.parse("2026-11-18T12:00:00+09:00");
 const ev = (id: string, type: string, payload: Record<string, unknown> = {}, createdAt = NOW - 60_000): AppEvent => ({ id, type, payload, createdAt });
@@ -24,6 +24,32 @@ describe("objParticle (을/를)", () => {
     expect(objParticle("덤벨 2")).toBe("를");
     expect(objParticle("TRX")).toBe("을(를)");
     expect(objParticle("")).toBe("을(를)");
+  });
+});
+
+describe("subjParticle (이/가)", () => {
+  it("picks_by_final_consonant", () => {
+    expect(subjParticle("땀빌라")).toBe("가");
+    expect(subjParticle("운동집")).toBe("이");
+    expect(subjParticle("빌라 3")).toBe("이");
+    expect(subjParticle("빌라 2")).toBe("가");
+    expect(subjParticle("Gym")).toBe("이(가)");
+  });
+});
+
+describe("방장 관리 알림", () => {
+  it("copy", () => {
+    expect(eventCopy(ev("1", "kicked", { villaName: "땀빌라" }))).toBe("땀빌라에서 나가게 됐어요");
+    expect(eventCopy(ev("1", "owner_in"))).toBe("방장이 됐어요");
+    expect(eventCopy(ev("1", "owner_changed", { nickname: "비비" }))).toBe("비비 님이 새 방장이 됐어요");
+    expect(eventCopy(ev("1", "dissolved", { villaName: "땀빌라" }))).toBe("땀빌라가 해체됐어요");
+    expect(eventCopy(ev("1", "dissolved", { villaName: "운동집" }))).toBe("운동집이 해체됐어요");
+    expect(eventCopy(ev("1", "dissolved", { villaName: "Gym" }))).toBe("Gym이(가) 해체됐어요");
+  });
+  it("cards_and_toasts", () => {
+    const p = planEvents([ev("a", "kicked"), ev("b", "owner_in"), ev("c", "owner_changed"), ev("d", "dissolved")], NOW);
+    expect(p.cards.map((e) => e.id)).toEqual(["a", "b", "d"]);
+    expect(p.toasts.map((e) => e.id)).toEqual(["c"]);
   });
 });
 

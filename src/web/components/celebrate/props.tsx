@@ -191,3 +191,35 @@ export function Bubbles({ x, y }: { x: number; y: number }) {
 export function Shadow({ x, y, rx = 30, className }: { x: number; y: number; rx?: number; className?: string }) {
   return <ellipse className={className} style={{ transformOrigin: `${x}px ${y}px` }} cx={x} cy={y} rx={rx} ry="4.5" fill="#000" opacity="0.08" />;
 }
+
+/** 방장 열쇠 (방장이 됐어요). (x, y) = 고리 가운데, rot 기울기 */
+export function Key({ x, y, rot = 0 }: { x: number; y: number; rot?: number }) {
+  return (
+    <g data-part="key" transform={`translate(${x} ${y}) rotate(${rot})`}>
+      <circle cx="0" cy="0" r="8" fill={GOLD} {...line} strokeWidth={1.3} />
+      <circle cx="0" cy="0" r="3" fill="#fff" {...line} strokeWidth={1.1} />
+      <path d="M7 -2 H28 V2 H25 V7 H21 V2 H18 V6 H14 V2 H7 Z" fill={GOLD} {...line} strokeWidth={1.2} />
+      <path d="M-4 -5 a5 5 0 0 1 4 -1.5" stroke={GOLD_HI} strokeWidth="1.4" fill="none" strokeLinecap="round" />
+    </g>
+  );
+}
+
+/** 불 꺼진 작은 빌라 (해체 · 떠남). (x, y) = 바닥 가운데 */
+export function MiniVilla({ x, y, w = 56, floors = 3 }: { x: number; y: number; w?: number; floors?: number }) {
+  const fh = 18;
+  const h = fh * floors + 8;
+  const l = x - w / 2;
+  const t = y - h;
+  const wins = [];
+  for (let f = 0; f < floors; f++) for (const c of [0, 1]) {
+    wins.push(<rect key={`${f}-${c}`} x={l + 9 + c * (w / 2)} y={t + 10 + f * fh} width={w / 2 - 18} height={9} rx="1.5" fill="#E6E2E0" stroke="#B9B1AF" strokeWidth="1" />);
+  }
+  return (
+    <g data-part="mini-villa">
+      <path d={`M${l - 4} ${t + 2} L${x} ${t - 12} L${l + w + 4} ${t + 2} Z`} fill="#D9D3D1" stroke="#B9B1AF" strokeWidth="1.2" strokeLinejoin="round" />
+      <rect x={l} y={t} width={w} height={h} rx="2" fill="#F3F1F0" stroke="#B9B1AF" strokeWidth="1.2" />
+      {wins}
+      <rect x={x - 6} y={y - 12} width="12" height="12" rx="1.5" fill="#D9D3D1" stroke="#B9B1AF" strokeWidth="1" />
+    </g>
+  );
+}

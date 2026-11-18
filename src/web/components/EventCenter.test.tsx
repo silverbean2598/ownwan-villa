@@ -179,6 +179,16 @@ describe("celebration art", () => {
     has("penthouse_out", 'data-face="shocked"', 'data-part="crown"');
     has("floor_down", 'data-face="sad"', 'data-part="stairs"', 'data-part="box"');
     has("welcome", 'data-face="shy"');
+    has("kicked", 'data-face="sad"', 'data-part="box"', 'data-part="mini-villa"');
+    has("owner_in", 'data-face="proud"', 'data-part="key"');
+    has("dissolved", 'data-face="sad"', 'data-part="mini-villa"');
+  });
+
+  it("owner_changed_shows_the_new_owner_with_a_key", () => {
+    const friend = { skin: 3, hair: "long", shirt: 6 };
+    const h = renderToStaticMarkup(<ToastArt type="owner_changed" spec={SPEC} friend={friend} />);
+    expect(h).toContain('data-hair="long"');
+    expect(h).toContain('data-part="key"');
   });
 
   it("friend_joined_shows_the_friends_avatar", () => {

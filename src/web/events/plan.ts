@@ -4,9 +4,9 @@ import { kstDay } from "../../shared/rules/day";
 export type AppEvent = { id: string; type: string; payload: Record<string, unknown>; createdAt: number };
 
 /** 전체 화면 카드 (그림 + 한 줄 + [좋아요]) */
-export const CARD_TYPES = ["streak7", "floor_up", "penthouse_in", "penthouse_out", "floor_down", "welcome"] as const;
+export const CARD_TYPES = ["streak7", "floor_up", "penthouse_in", "penthouse_out", "floor_down", "welcome", "kicked", "owner_in", "dissolved"] as const;
 /** 위쪽 토스트 (3초 뒤 사라짐) */
-export const TOAST_TYPES = ["certified", "streak6", "bought", "friend_joined", "night_reminder"] as const;
+export const TOAST_TYPES = ["certified", "streak6", "bought", "friend_joined", "owner_changed", "night_reminder"] as const;
 export type CardType = (typeof CARD_TYPES)[number];
 export type ToastType = (typeof TOAST_TYPES)[number];
 
@@ -16,16 +16,28 @@ export const isToast = (t: string): t is ToastType => (TOAST_TYPES as readonly s
 // 숫자를 한국어로 읽을 때 받침이 있는지 (영 일 이 삼 사 오 육 칠 팔 구)
 const DIGIT_HAS_FINAL = [true, true, false, true, false, false, true, true, true, false];
 
-/** 목적격 조사: 받침 있으면 "을", 없으면 "를". 끝 글자를 읽을 수 없으면 "을(를)" */
-export function objParticle(word: string): "을" | "를" | "을(를)" {
+/** 끝 글자에 받침이 있는지. 끝 글자를 읽을 수 없으면 null */
+function hasFinal(word: string): boolean | null {
   // 끝의 따옴표 · 괄호 묶음 · 공백은 건너뛴다 ("짐볼(대)" → 짐볼)
   const w = word.replace(/\([^)]*\)\s*$/, "").replace(/["'”’」』)\]\s.!?]+$/u, "");
   const ch = w.at(-1);
-  if (!ch) return "을(를)";
+  if (!ch) return null;
   const code = ch.charCodeAt(0);
-  if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 === 0 ? "를" : "을";
-  if (/[0-9]/.test(ch)) return DIGIT_HAS_FINAL[Number(ch)] ? "을" : "를";
-  return "을(를)";
+  if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 !== 0;
+  if (/[0-9]/.test(ch)) return DIGIT_HAS_FINAL[Number(ch)];
+  return null;
+}
+
+/** 목적격 조사: 받침 있으면 "을", 없으면 "를". 끝 글자를 읽을 수 없으면 "을(를)" */
+export function objParticle(word: string): "을" | "를" | "을(를)" {
+  const f = hasFinal(word);
+  return f === null ? "을(를)" : f ? "을" : "를";
+}
+
+/** 주격 조사: 받침 있으면 "이", 없으면 "가". 끝 글자를 읽을 수 없으면 "이(가)" */
+export function subjParticle(word: string): "이" | "가" | "이(가)" {
+  const f = hasFinal(word);
+  return f === null ? "이(가)" : f ? "이" : "가";
 }
 
 const str = (v: unknown, fallback = "") => (typeof v === "string" ? v : typeof v === "number" ? String(v) : fallback);
@@ -59,6 +71,16 @@ export function eventCopy(e: AppEvent): string {
       return `${str(p.nickname, "새 이웃")} 님이 입주했어요`;
     case "night_reminder":
       return "오늘 아직 불이 꺼져 있어요";
+    case "kicked":
+      return `${str(p.villaName, "빌라")}에서 나가게 됐어요`;
+    case "owner_in":
+      return "방장이 됐어요";
+    case "owner_changed":
+      return `${str(p.nickname, "이웃")} 님이 새 방장이 됐어요`;
+    case "dissolved": {
+      const name = str(p.villaName, "빌라");
+      return `${name}${subjParticle(name)} 해체됐어요`;
+    }
     default:
       return "";
   }

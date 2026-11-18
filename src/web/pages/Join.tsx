@@ -12,6 +12,8 @@ export function Join() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [error, setError] = useState("");
+  // 방장이 내보낸 빌라(403)면 입주 버튼 대신 다른 곳으로 가는 버튼
+  const [banned, setBanned] = useState(false);
   const [busy, setBusy] = useState(false);
   const next = encodeURIComponent(`/join/${token}`);
 
@@ -20,9 +22,10 @@ export function Join() {
       // 이미 이 빌라 입주민(온보딩 중에 나갔다가 다시 연 경우)이면 바로 빌라로. 운동 종목이 없으면 빌라 화면이 온보딩으로 보낸다
       if (p.alreadyMember) return nav("/villa", { replace: true });
       setPreview(p);
-    }, (e) =>
-      setError(e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요"),
-    );
+    }, (e) => {
+      setBanned(e instanceof ApiError && e.status === 403);
+      setError(e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
+    });
     api("/api/me").then(
       () => setLoggedIn(true),
       () => setLoggedIn(false),
@@ -36,6 +39,10 @@ export function Join() {
       await api(`/api/invite/${token}/join`, { method: "POST" });
       nav("/villa", { replace: true });
     } catch (e) {
+      if (e instanceof ApiError && e.status === 403) {
+        setBanned(true);
+        setPreview(null);
+      }
       setError(e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
     } finally {
       setBusy(false);
@@ -51,6 +58,12 @@ export function Join() {
         </p>
       )}
       {error && <p className="error" role="alert">{error}</p>}
+      {banned && (
+        <div className="row" style={{ flexDirection: "column" }}>
+          <Link className="btn" to="/villa" replace>내 빌라로</Link>
+          <Link className="btn ghost" to="/" replace>첫 화면</Link>
+        </div>
+      )}
       {preview?.inOtherVilla && (
         <>
           <p className="muted">이미 다른 빌라에 살고 있어요. 옮기려면 설정에서 지금 빌라를 먼저 나가 주세요.</p>

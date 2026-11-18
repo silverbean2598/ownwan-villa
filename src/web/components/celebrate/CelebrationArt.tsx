@@ -4,7 +4,7 @@ import { Avatar, type Face } from "../Avatar";
 import { INK, handAt } from "../avatar/parts";
 import type { CardType, ToastType } from "../../events/plan";
 import {
-  Box, Bubbles, Burst, ClapLines, Confetti, Crown, Heart, Moon, Plant, PlusOne, Shadow, Sparkle, Stairs, Trophy, UpArrow,
+  Box, Bubbles, Burst, ClapLines, Confetti, Crown, Heart, Key, MiniVilla, Moon, Plant, PlusOne, Shadow, Sparkle, Stairs, Trophy, UpArrow,
 } from "./props";
 
 type AvatarProps = Parameters<typeof Avatar>[0];
@@ -134,6 +134,53 @@ export function CardArt({ type, spec }: { type: CardType; spec: AvatarSpec }) {
       );
       break;
     }
+    case "kicked": {
+      // 상자를 안고 힘없이 빌라를 등지고 걸어 나온다
+      const X = 74, Y = 24;
+      body = (
+        <>
+          <MiniVilla x={44} y={176} w={52} />
+          <Shadow x={134} y={181} rx={34} />
+          <Figure x={X} y={Y} spec={s} face="sad" joints={{ armL: 20, elbL: -80, armR: -20, elbR: 80, legL: 6, legR: -8 }} />
+          <Box x={134} y={130} w={42} h={34} />
+          <Fist at={[113, 140]} skin={skin} />
+          <Fist at={[151, 140]} skin={skin} />
+          <Bubbles x={196} y={58} />
+        </>
+      );
+      break;
+    }
+    case "owner_in": {
+      // 방장 열쇠를 번쩍 들고 뿌듯한 얼굴
+      const X = 60, Y = 24;
+      const hand = add(handAt("R", -128, 0), X, Y);
+      body = (
+        <>
+          <Shadow x={120} y={181} />
+          <Figure x={X} y={Y} spec={s} face="proud" joints={{ armR: -128, elbR: 0, armL: 22 }} />
+          <Key x={hand[0] + 2} y={hand[1] - 12} rot={-60} />
+          <Fist at={hand} skin={skin} />
+          <Sparkle cx={196} cy={40} r={7} />
+          <Sparkle cx={214} cy={66} r={4} />
+          <Sparkle cx={40} cy={60} r={5} />
+        </>
+      );
+      break;
+    }
+    case "dissolved": {
+      // 불 꺼진 빌라 앞에서 아쉽게 손 흔들며 작별
+      body = (
+        <>
+          <MiniVilla x={186} y={178} w={60} />
+          <Shadow x={96} y={181} />
+          <g className="cel-wave">
+            <Figure x={36} y={24} spec={s} face="sad" joints={{ armR: -150, elbR: 25, armL: 10 }} />
+          </g>
+          <Heart x={150} y={70} s={0.8} color="#E6E2E0" />
+        </>
+      );
+      break;
+    }
   }
   return (
     <svg className={`cel-art cel-${type}`} viewBox="0 0 240 200" width="100%" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -152,7 +199,7 @@ function Head({ spec, face, joints, children, box = "14 4 92 92" }: { spec: Avat
   );
 }
 
-/** 토스트 왼쪽 그림. friend = 새로 들어온 이웃 캐릭터(없으면 기본) */
+/** 토스트 왼쪽 그림. friend = 새로 들어온 이웃 · 새 방장 캐릭터(없으면 기본) */
 export function ToastArt({ type, spec, friend }: { type: ToastType; spec: AvatarSpec; friend?: AvatarSpec | null }) {
   switch (type) {
     case "certified":
@@ -178,6 +225,19 @@ export function ToastArt({ type, spec, friend }: { type: ToastType; spec: Avatar
           <Moon x={96} y={18} r={7} />
         </Head>
       );
+    case "owner_changed": {
+      // 나는 박수, 새 방장은 열쇠를 든다
+      const f = parseAvatar(friend) ?? DEFAULT_AVATAR;
+      return (
+        <svg className="toast-art wide" viewBox="16 18 152 104" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+          <Avatar size={120} spec={spec} face="happy" joints={{ armR: -125, armL: 8 }} />
+          <g transform="translate(68 0)">
+            <Avatar size={120} spec={f} face="proud" joints={{ armL: 8, armR: -8 }} />
+          </g>
+          <Key x={150} y={34} rot={-45} />
+        </svg>
+      );
+    }
     case "friend_joined": {
       const f = parseAvatar(friend) ?? DEFAULT_AVATAR;
       return (

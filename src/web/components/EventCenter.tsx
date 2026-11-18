@@ -166,7 +166,7 @@ function Toast({ event, spec, onShown, onDone }: { event: AppEvent; spec: Avatar
     // 보여 줄 때 한 번만
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const friend = event.type === "friend_joined" ? parseAvatar(event.payload.avatar) : null;
+  const friend = event.type === "friend_joined" || event.type === "owner_changed" ? parseAvatar(event.payload.avatar) : null;
   return (
     <div className="toast" role="status" onClick={() => onDone(event.id)}>
       <ToastArt type={event.type as ToastType} spec={spec} friend={friend} />

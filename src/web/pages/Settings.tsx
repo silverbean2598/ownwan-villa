@@ -4,11 +4,13 @@ import { api, ApiError } from "../api";
 import { Badge } from "../components/Badge";
 import { AvatarEditor } from "../components/AvatarEditor";
 import { SportCards } from "../components/SportCards";
+import { MemberManage, type Member } from "../components/MemberManage";
+import { pokeEvents } from "../events/poke";
 import { DEFAULT_AVATAR, type AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
 
 type Me = { id: string; username: string; nickname: string; sport: Sport | null; avatar: AvatarSpec };
-type VillaInfo = { id: string; name: string; ownerId: string; inviteToken?: string } | null;
+type VillaInfo = { id: string; name: string; ownerId: string; inviteToken?: string; members: Member[] } | null;
 type Pending = { id: string; nickname: string }[];
 type Note = { ok?: string; err?: string };
 
@@ -56,6 +58,14 @@ export function Settings() {
   }
   async function loadPending() {
     setPending(await api<Pending>("/api/recover/pending"));
+  }
+  /** 방장 넘기기 · 내보내기 뒤: 빌라 정보(방장 · 입주민 · 초대 링크)를 다시 불러온다 */
+  async function reloadVilla() {
+    const v = await api<VillaInfo>("/api/villas/mine");
+    setVilla(v);
+    setVillaName(v?.name ?? "");
+    pokeEvents();
+    if (v) await loadPending().catch(() => {});
   }
 
   useEffect(() => {
@@ -221,6 +231,19 @@ export function Settings() {
           </div>
           {inviteUrl && <textarea className="invite-fallback" readOnly rows={2} value={inviteUrl} aria-label="초대 링크" onFocus={(e) => e.currentTarget.select()} />}
         </Section>
+      )}
+
+      {villa && isOwner && (
+        <MemberManage
+          villa={villa}
+          meId={me.id}
+          onChanged={reloadVilla}
+          onDissolved={() => {
+            pokeEvents();
+            nav("/villa", { replace: true });
+          }}
+          onAuthLost={() => nav("/login?next=/settings", { replace: true })}
+        />
       )}
 
       {villa && (
