@@ -66,14 +66,19 @@ export function eventCopy(e: AppEvent): string {
 
 /**
  * 받아 온 이벤트를 카드 · 토스트로 나눈다 (순서 유지).
+ * 48시간보다 오래된 이벤트는 보여 주지 않는다(오랜만에 들어온 사람에게 지난 카드가 쏟아지지 않게).
  * 펜트하우스는 마지막 변경만 보여 준다(오래 안 들어온 사이 여러 번 뺏고 뺏겼을 때). 나머지와 모르는 종류는 drop → 바로 본 것으로.
  */
-export function planEvents(list: AppEvent[]): { cards: AppEvent[]; toasts: AppEvent[]; drop: string[] } {
+export const STALE_MS = 48 * 3600_000;
+
+export function planEvents(all: AppEvent[], nowMs: number): { cards: AppEvent[]; toasts: AppEvent[]; drop: string[] } {
+  const stale = all.filter((e) => nowMs - e.createdAt > STALE_MS);
+  const list = all.filter((e) => nowMs - e.createdAt <= STALE_MS);
   const isPenthouse = (t: string) => t === "penthouse_in" || t === "penthouse_out";
   const lastPenthouse = [...list].reverse().find((e) => isPenthouse(e.type))?.id;
   const cards: AppEvent[] = [];
   const toasts: AppEvent[] = [];
-  const drop: string[] = [];
+  const drop: string[] = stale.map((e) => e.id);
   for (const e of list) {
     if (isPenthouse(e.type) && e.id !== lastPenthouse) drop.push(e.id);
     else if (isCard(e.type)) cards.push(e);

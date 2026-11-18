@@ -101,7 +101,7 @@ cert.post("/api/certs/photo", requireUser, async (c) => {
 });
 
 /**
- * 사진 인증 뒤 알림: 그날 첫 인증(certified), 연속 6일째(streak6), 7의 배수(빌라에 살면 floor_up 하나, 아니면 streak7).
+ * 사진 인증 뒤 알림: 그날 첫 인증(certified), 연속 6일째(streak6, 빌라에 살 때만), 7의 배수(빌라에 살면 floor_up 하나, 아니면 streak7).
  * 키를 날짜로 고정해 하루 한 번만 남는다 (같은 날 두 번째 사진 · 지웠다 다시 올린 사진에는 다시 생기지 않는다).
  */
 async function certEvents(env: Env, userId: string, day: string, points: number, duplicate: boolean, certifiedToday: boolean): Promise<NewEvent[]> {
@@ -125,7 +125,8 @@ async function certEvents(env: Env, userId: string, day: string, points: number,
         ? { userId, type: "floor_up", payload: { floor: displayFloor(u.floor, u.streak, true), streak }, key }
         : { userId, type: "streak7", payload: { streak }, key },
     );
-  } else if (streak % 7 === 6) {
+  } else if (streak % 7 === 6 && u.floor !== null) {
+    // "내일 인증하면 한 층 올라가요": 빌라가 없으면 오를 층이 없으므로 보내지 않는다
     evs.push({ userId, type: "streak6", payload: { streak }, key });
   }
   return evs;

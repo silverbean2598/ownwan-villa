@@ -12,7 +12,7 @@ import { AVATAR_OPTIONS } from "../../shared/avatar";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 type Ev = { id: string; type: string; payload: Record<string, unknown>; createdAt: number };
-const ev = (id: string, type: string, payload: Record<string, unknown> = {}): Ev => ({ id, type, payload, createdAt: 0 });
+const ev = (id: string, type: string, payload: Record<string, unknown> = {}): Ev => ({ id, type, payload, createdAt: Date.parse("2026-11-18T11:00:00+09:00") });
 const SPEC = { skin: 2, hair: "bun", shirt: 0 };
 
 let root: Root;
@@ -121,6 +121,13 @@ describe("EventCenter", () => {
     });
     await click(host.querySelector(".cel-card button"));
     expect(dialog()).toBeNull();
+  });
+
+  it("stale_events_are_marked_seen_without_showing", async () => {
+    mockApi([{ ...ev("old", "floor_down", { floor: 2 }), createdAt: Date.parse("2026-11-10T12:00:00+09:00") }]);
+    await mount();
+    expect(dialog()).toBeNull();
+    expect(seen).toEqual([["old"]]);
   });
 
   it("nothing_when_logged_out", async () => {

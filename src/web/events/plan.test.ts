@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { eventCopy, objParticle, planEvents, shouldNightRemind, type AppEvent } from "./plan";
 
-const ev = (id: string, type: string, payload: Record<string, unknown> = {}): AppEvent => ({ id, type, payload, createdAt: 0 });
+const NOW = Date.parse("2026-11-18T12:00:00+09:00");
+const ev = (id: string, type: string, payload: Record<string, unknown> = {}, createdAt = NOW - 60_000): AppEvent => ({ id, type, payload, createdAt });
 
 describe("objParticle (을/를)", () => {
   it("picks_by_final_consonant", () => {
@@ -47,19 +48,30 @@ describe("eventCopy", () => {
 });
 
 describe("planEvents", () => {
+  it("drops_events_older_than_48_hours_without_showing_them", () => {
+    const H = 3600_000;
+    const p = planEvents(
+      [ev("old", "floor_down", { floor: 2 }, NOW - 49 * H), ev("oldToast", "certified", {}, NOW - 7 * 24 * H), ev("edge", "welcome", {}, NOW - 48 * H), ev("new", "bought")],
+      NOW,
+    );
+    expect(p.cards.map((e) => e.id)).toEqual(["edge"]);
+    expect(p.toasts.map((e) => e.id)).toEqual(["new"]);
+    expect(p.drop.sort()).toEqual(["old", "oldToast"]);
+  });
+
   it("splits_cards_and_toasts_in_order", () => {
-    const p = planEvents([ev("a", "welcome"), ev("b", "certified"), ev("c", "floor_up"), ev("d", "bought")]);
+    const p = planEvents([ev("a", "welcome"), ev("b", "certified"), ev("c", "floor_up"), ev("d", "bought")], NOW);
     expect(p.cards.map((e) => e.id)).toEqual(["a", "c"]);
     expect(p.toasts.map((e) => e.id)).toEqual(["b", "d"]);
     expect(p.drop).toEqual([]);
   });
   it("keeps_only_the_latest_penthouse_change", () => {
-    const p = planEvents([ev("a", "penthouse_in"), ev("b", "penthouse_out"), ev("c", "penthouse_in")]);
+    const p = planEvents([ev("a", "penthouse_in"), ev("b", "penthouse_out"), ev("c", "penthouse_in")], NOW);
     expect(p.cards.map((e) => e.id)).toEqual(["c"]);
     expect(p.drop.sort()).toEqual(["a", "b"]);
   });
   it("drops_unknown_types", () => {
-    const p = planEvents([ev("a", "mystery")]);
+    const p = planEvents([ev("a", "mystery")], NOW);
     expect(p.cards).toEqual([]);
     expect(p.toasts).toEqual([]);
     expect(p.drop).toEqual(["a"]);

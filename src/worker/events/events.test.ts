@@ -114,9 +114,19 @@ describe("cert events", () => {
     expect(await events(u)).toEqual([]);
   });
 
+  it("no_streak6_without_villa_since_there_is_no_floor_to_climb", async () => {
+    setNow(() => T0);
+    const u = await signup();
+    await setStreak(u, 5);
+    await upload(u);
+    expect((await events(u)).map((e) => e.type)).toEqual(["certified"]);
+  });
+
   it("streak6_once_when_today_makes_six", async () => {
     setNow(() => T0);
     const u = await signup();
+    await createVilla(u);
+    await clear(u);
     await setStreak(u, 5);
     await upload(u);
     await upload(u);

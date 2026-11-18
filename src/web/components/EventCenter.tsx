@@ -65,7 +65,7 @@ export function EventCenter({ now = Date.now }: { now?: () => number }) {
         if (checkNight && shouldNightRemind(now(), !!me.certifiedToday, readNightDay())) {
           fresh.push({ id: `night:${kstDay(now())}`, type: "night_reminder", payload: {}, createdAt: now() });
         }
-        const plan = planEvents(fresh.filter((e) => !known.current.has(e.id)));
+        const plan = planEvents(fresh.filter((e) => !known.current.has(e.id)), now());
         fresh.forEach((e) => known.current.add(e.id));
         if (plan.drop.length) markSeen(plan.drop);
         if (plan.cards.length) setCards((c) => [...c, ...plan.cards]);
