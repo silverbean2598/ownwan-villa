@@ -10,7 +10,7 @@ import { PASSWORD_LENGTH_MSG, hashPassword, isValidPasswordLength, verifyPasswor
 import { hashToken } from "../recovery/codes";
 import { LOCKED_MSG, isLocked, recordFailure, resetFailures } from "../auth/lockout";
 import { deletePhotoBlobs } from "../storage";
-import { NotInVillaError, leaveVilla } from "../villa/service";
+import { leaveAllVillas } from "../villa/service";
 import { cheerCleanupForUser } from "../cheer/routes";
 
 export const profile = new Hono<AppEnv>();
@@ -78,20 +78,18 @@ profile.post("/api/me/password", requireUser, async (c) => {
   return c.json({ ok: true });
 });
 
-// 탈퇴: 사진 파일부터 지우고, 빌라에서 나간 뒤(방장 승계), 내 기록을 모두 지운다
+// 탈퇴: 사진 파일부터 지우고, 사는 빌라 모두에서 나간 뒤(방장 승계), 내 기록을 모두 지운다
 profile.delete("/api/me", requireUser, async (c) => {
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare("SELECT id, r2_key FROM certs WHERE user_id = ?").bind(userId).all<{ id: string; r2_key: string | null }>();
   await deletePhotoBlobs(c.env, results);
-  try {
-    await leaveVilla(c.env, userId);
-  } catch (e) {
-    if (!(e instanceof NotInVillaError)) throw e;
-  }
+  // 사는 빌라 모두에서 나간다 (빌라마다 방장 승계 · 해체)
+  await leaveAllVillas(c.env, userId);
   const q = (sql: string) => c.env.DB.prepare(sql).bind(userId);
   await c.env.DB.batch([
     c.env.DB.prepare("DELETE FROM reports WHERE reporter_id = ? OR cert_id IN (SELECT id FROM certs WHERE user_id = ?)").bind(userId, userId),
     ...cheerCleanupForUser(c.env, userId),
+    q("DELETE FROM cert_villas WHERE cert_id IN (SELECT id FROM certs WHERE user_id = ?)"),
     q("DELETE FROM certs WHERE user_id = ?"),
     q("DELETE FROM inventory WHERE user_id = ?"),
     q("DELETE FROM placements WHERE user_id = ?"),

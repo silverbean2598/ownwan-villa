@@ -3,17 +3,14 @@ import { now } from "../clock";
 import { settleDay } from "../../shared/rules/floor";
 import { nextDay } from "../../shared/rules/day";
 import { recomputePenthouse } from "../villa/service";
-import { CERTIFIED_PHOTO } from "../cert/certified";
+import { CERTIFIED_PHOTO, certifiedInVilla } from "../cert/certified";
 import { logEvents, type NewEvent } from "../events/log";
+import { tagVilla } from "../villa/membership";
 
-type Row = {
-  id: string;
-  streak: number;
-  missRun: number;
-  membershipId: string | null;
-  floor: number | null;
-  certified: number;
-};
+/** 사용자 한 명: 어느 빌라든(또는 빌라 없이) 사진 인증한 날로 센 연속 기록 */
+type UserRow = { id: string; streak: number; missRun: number; certified: number };
+/** 입주 기록 하나: 그 빌라에 올린 날로 센 연속 기록 · 쉰 날 · 층 */
+type MemberRow = { id: string; userId: string; villaId: string; streak: number; missRun: number; floor: number; certified: number };
 
 /** day(KST, YYYY-MM-DD)를 정산한다. 이미 정산된 날이면 아무것도 하지 않는다. 동시에 호출돼도 한 번만 반영된다. */
 export async function settle(env: Env, day: string): Promise<{ settled: boolean }> {
@@ -59,22 +56,29 @@ function dayEndMs(day: string): number {
   return Date.parse(`${nextDay(day)}T00:00:00+09:00`);
 }
 
-/** 사전 확인 없이 하루치 변경을 한 batch로 쓴다. 날짜를 선점(claim)한 경우에만 true. (테스트용으로 export) */
+/**
+ * 사전 확인 없이 하루치 변경을 한 batch로 쓴다. 날짜를 선점(claim)한 경우에만 true. (테스트용으로 export)
+ * - 사용자: 그날 어느 빌라든(빌라 없이도) 사진 인증이 있으면 인증한 날 → users.streak · miss_run (프로필 · 사용자 축하용)
+ * - 입주 기록: 그날 그 빌라에 올린 사진 인증이 있으면 인증한 날 → memberships.streak · miss_run · floor (빌라마다 따로)
+ */
 export async function applySettlement(env: Env, day: string): Promise<boolean> {
-  const { results } = await env.DB.prepare(
-    `SELECT u.id, u.streak, u.miss_run AS missRun, m.id AS membershipId, m.floor,
-            EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ?1 AND ${CERTIFIED_PHOTO}) AS certified
-     FROM users u
-     LEFT JOIN (
-       SELECT m.id, m.user_id, m.floor FROM memberships m
-       JOIN villas v ON v.id = m.villa_id
-       WHERE m.left_at IS NULL AND v.dissolved_at IS NULL
-     ) m ON m.user_id = u.id
-     -- 그날이 끝난 뒤 가입한 사람은 그날 정산 대상이 아니다 (밀린 날을 몰아서 정산할 때)
-     WHERE u.created_at < ?2`,
-  )
-    .bind(day, dayEndMs(day))
-    .all<Row>();
+  const end = dayEndMs(day);
+  const [usersRes, membersRes] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT u.id, u.streak, u.miss_run AS missRun,
+              EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ?1 AND ${CERTIFIED_PHOTO}) AS certified
+       FROM users u
+       -- 그날이 끝난 뒤 가입한 사람은 그날 정산 대상이 아니다 (밀린 날을 몰아서 정산할 때)
+       WHERE u.created_at < ?2`,
+    ).bind(day, end),
+    env.DB.prepare(
+      `SELECT m.id, m.user_id AS userId, m.villa_id AS villaId, m.streak, m.miss_run AS missRun, m.floor,
+              ${certifiedInVilla("m.user_id", "?1", "m.villa_id")} AS certified
+       FROM memberships m JOIN villas v ON v.id = m.villa_id
+       -- 그날이 끝난 뒤 입주한 빌라는 그날 정산 대상이 아니다
+       WHERE m.left_at IS NULL AND v.dissolved_at IS NULL AND m.joined_at < ?2`,
+    ).bind(day, end),
+  ]);
 
   const t = now();
   const token = `${day}:${crypto.randomUUID()}`;
@@ -85,25 +89,34 @@ export async function applySettlement(env: Env, day: string): Promise<boolean> {
        ON CONFLICT(key) DO UPDATE SET value = excluded.value WHERE substr(settings.value, 1, 10) < ?`,
     ).bind(token, day),
   ];
-  const downs: NewEvent[] = [];
-  for (const r of results) {
-    const { next, floorChanged } = settleDay({ streak: r.streak, missRun: r.missRun, floor: r.floor }, !!r.certified);
+  for (const r of usersRes.results as UserRow[]) {
+    const { next } = settleDay({ streak: r.streak, missRun: r.missRun, floor: null }, !!r.certified);
     stmts.push(
       env.DB.prepare(`UPDATE users SET streak = ?, miss_run = ? WHERE id = ? AND ${guard}`).bind(next.streak, next.missRun, r.id, token),
     );
-    if (floorChanged && r.membershipId) {
-      stmts.push(
-        env.DB.prepare(`UPDATE memberships SET floor = ?, floor_reached_at = ? WHERE id = ? AND ${guard}`).bind(next.floor, t, r.membershipId, token),
-      );
-      if (floorChanged === "down") {
-        downs.push({ userId: r.id, type: "floor_down", payload: { floor: next.floor }, key: `floor_down:${r.membershipId}:${day}` });
-      }
+  }
+  const downs: { villaId: string; ev: NewEvent }[] = [];
+  for (const r of membersRes.results as MemberRow[]) {
+    const { next, floorChanged } = settleDay({ streak: r.streak, missRun: r.missRun, floor: r.floor }, !!r.certified);
+    stmts.push(
+      env.DB.prepare(
+        `UPDATE memberships SET streak = ?1, miss_run = ?2, floor = ?3,
+           floor_reached_at = CASE WHEN ?4 THEN ?5 ELSE floor_reached_at END
+         WHERE id = ?6 AND ${guard.replace("?", "?7")}`,
+      ).bind(next.streak, next.missRun, next.floor, floorChanged ? 1 : 0, t, r.id, token),
+    );
+    if (floorChanged === "down") {
+      downs.push({ villaId: r.villaId, ev: { userId: r.userId, type: "floor_down", payload: { floor: next.floor }, key: `floor_down:${r.id}:${day}` } });
     }
   }
   await env.DB.batch(stmts);
 
   const won = await env.DB.prepare("SELECT value FROM settings WHERE key = 'last_settled_day'").first<{ value: string }>();
   // 이 날짜를 선점해 실제로 층을 내린 경우에만 알린다
-  if (won?.value === token) await logEvents(env, downs);
+  if (won?.value === token) {
+    const evs: NewEvent[] = [];
+    for (const d of downs) evs.push(...(await tagVilla(env, d.villaId, [d.ev])));
+    await logEvents(env, evs);
+  }
   return won?.value === token;
 }

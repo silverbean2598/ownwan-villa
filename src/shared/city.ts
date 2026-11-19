@@ -13,9 +13,13 @@ export type CityVilla = {
 };
 
 /** 내 빌라: 지도에 있는지(public), 내가 방장인지 */
-export type CityMine = { villaId: string; public: boolean; isOwner: boolean };
+export type CityMine = { villaId: string; name: string; public: boolean; isOwner: boolean };
 
-export type CityResponse = { mine: CityMine | null; villas: CityVilla[] };
+/**
+ * myVillas: 내가 사는 빌라 모두 (입주한 순서). 지도에서 모두 "우리 빌라"로 표시한다.
+ * mine: 예전 화면(배포 전에 열어 둔 탭)용, myVillas 의 첫 번째
+ */
+export type CityResponse = { mine: CityMine | null; myVillas: CityMine[]; villas: CityVilla[] };
 
 /** 지도에 한 번에 보내는 빌라 수 (자리 번호 순) */
 export const CITY_LIMIT = 200;

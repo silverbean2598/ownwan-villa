@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { now } from "../clock";
 import { jsonError, requireUser } from "../http";
-import { CERTIFIED_PHOTO } from "../cert/certified";
+import { certifiedInVilla } from "../cert/certified";
+import { myActive } from "../villa/membership";
 import { kstDay } from "../../shared/rules/day";
 import { displayFloor } from "../../shared/rules/streak";
 import { CITY_LIMIT, type CityMine, type CityResponse, type CityVilla } from "../../shared/city";
@@ -28,10 +29,9 @@ city.get("/api/city", requireUser, async (c) => {
   // 한 번에 묻는다: 내 빌라 · 지도 빌라 · 지도 빌라 입주민의 (층, 연속 기록, 오늘 인증) 만
   const [mineRes, villasRes, membersRes] = await c.env.DB.batch([
     c.env.DB.prepare(
-      `SELECT v.id AS villaId, v.public, v.owner_id = ? AS isOwner
-       FROM memberships m JOIN villas v ON v.id = m.villa_id
-       WHERE m.user_id = ? AND m.left_at IS NULL AND v.dissolved_at IS NULL`,
-    ).bind(userId, userId),
+      `SELECT v.id AS villaId, v.name, v.public, v.owner_id = ?1 AS isOwner
+       FROM ${myActive("?1")} ORDER BY m.joined_at ASC, m.rowid ASC`,
+    ).bind(userId),
     c.env.DB.prepare(
       `SELECT v.id, v.name, v.map_slot AS slot,
          (SELECT u.nickname FROM users u JOIN memberships pm ON pm.user_id = u.id
@@ -39,9 +39,9 @@ city.get("/api/city", requireUser, async (c) => {
        FROM villas v WHERE v.id IN (${SHOWN}) ORDER BY v.map_slot`,
     ),
     c.env.DB.prepare(
-      `SELECT m.villa_id AS villaId, m.floor, u.streak,
-         EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ? AND ${CERTIFIED_PHOTO}) AS lit
-       FROM memberships m JOIN users u ON u.id = m.user_id
+      // 빌라마다: 그 빌라에 오늘 올린 사진 인증이 있는 입주민만 불이 켜지고, 층도 그 빌라 기준
+      `SELECT m.villa_id AS villaId, m.floor, m.streak, ${certifiedInVilla("m.user_id", "?1", "m.villa_id")} AS lit
+       FROM memberships m
        WHERE m.left_at IS NULL AND m.villa_id IN (${SHOWN})`,
     ).bind(today),
   ]);
@@ -57,9 +57,13 @@ city.get("/api/city", requireUser, async (c) => {
   const villas: CityVilla[] = (villasRes.results as { id: string; name: string; slot: number; penthouseNickname: string | null }[]).map(
     (v) => ({ ...v, ...(agg.get(v.id) ?? { memberCount: 0, litCount: 0, topFloor: 1 }) }),
   );
-  const m = mineRes.results[0] as { villaId: string; public: number; isOwner: number } | undefined;
-  const mine: CityMine | null = m ? { villaId: m.villaId, public: !!m.public, isOwner: !!m.isOwner } : null;
-  return c.json({ mine, villas } satisfies CityResponse);
+  const myVillas: CityMine[] = (mineRes.results as { villaId: string; name: string; public: number; isOwner: number }[]).map((m) => ({
+    villaId: m.villaId,
+    name: m.name,
+    public: !!m.public,
+    isOwner: !!m.isOwner,
+  }));
+  return c.json({ mine: myVillas[0] ?? null, myVillas, villas } satisfies CityResponse);
 });
 
 /** 방장이 도시 지도 공개를 켜고 끈다. 켤 때 자리가 없으면 비어 있는 가장 작은 자리를 받는다 (끌 때는 자리를 지킨다) */

@@ -12,7 +12,8 @@ export default defineConfig({
           cloudflareTest({
             wrangler: { configPath: "./wrangler.jsonc" },
             // 운영 설정은 R2 없이 D1 저장. 테스트는 R2 백엔드를 기본으로 쓰고 storage.test.ts 가 둘 다 확인한다
-            miniflare: { r2Buckets: ["PHOTOS"], bindings: { TEST_MIGRATIONS: migrations, PHOTO_STORAGE: "r2" } },
+            // MIGTEST: 0010 이전 모양의 데이터에 마이그레이션을 적용해 보는 빈 D1 (migration.test.ts)
+            miniflare: { r2Buckets: ["PHOTOS"], d1Databases: ["MIGTEST"], bindings: { TEST_MIGRATIONS: migrations, PHOTO_STORAGE: "r2" } },
           }),
         ],
         test: {

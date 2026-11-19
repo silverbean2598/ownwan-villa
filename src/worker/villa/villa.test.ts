@@ -63,10 +63,14 @@ describe("villa", () => {
       expect(r.status).toBe(400);
       expect(((await r.json()) as any).error).toBe("빌라 이름은 1~20자로 지어 주세요");
     }
+    // [확정 — 기획자 결정, 2026-11-19] 빌라는 3곳까지: 만든 빌라도 센다
     await create(u);
-    const r = await send("POST", "/api/villas", { name: "또" }, u.cookie);
+    expect((await send("POST", "/api/villas", { name: "둘째" }, u.cookie)).status).toBe(201);
+    expect((await send("POST", "/api/villas", { name: "셋째" }, u.cookie)).status).toBe(201);
+    const r = await send("POST", "/api/villas", { name: "넷째" }, u.cookie);
     expect(r.status).toBe(409);
-    expect(((await r.json()) as any).error).toBe("지금 빌라를 먼저 나가야 해요");
+    expect(((await r.json()) as any).error).toBe("빌라는 3곳까지 살 수 있어요. 한 곳을 나가면 들어올 수 있어요");
+    expect((await env.DB.prepare("SELECT COUNT(*) AS c FROM villas WHERE owner_id = ?").bind(u.id).first<{ c: number }>())!.c).toBe(3);
   });
 
   it("mine returns default avatar for unparseable stored avatar", async () => {
@@ -104,6 +108,7 @@ describe("villa", () => {
     setNow(() => t0);
     const day = kstDay(t0);
     await env.DB.prepare("UPDATE users SET streak = 6, created_at = 0 WHERE id = ?").bind(u.id).run();
+    await env.DB.prepare("UPDATE memberships SET streak = 6, joined_at = 0 WHERE user_id = ? AND left_at IS NULL").bind(u.id).run();
     const me = async () => ((await (await send("GET", "/api/villas/mine", undefined, u.cookie)).json()) as any).members[0];
     expect(await me()).toMatchObject({ floor: 1, floorUpToday: false });
     await env.DB.prepare("INSERT INTO certs (id, user_id, day, kind, points, duplicate, created_at) VALUES (?, ?, ?, 'photo', 20, 0, ?)").bind(crypto.randomUUID(), u.id, day, t0).run();
@@ -136,14 +141,16 @@ describe("villa", () => {
     expect(await active(id)).toBe(20);
   });
 
-  it("join rejects when already in a villa", async () => {
+  it("join_adds_membership_while_living_in_another_villa", async () => {
     const a = await signup();
-    const { inviteToken } = await create(a);
+    const { id, inviteToken } = await create(a);
     const b = await signup();
     const other = await create(b);
     const r = await join(b, inviteToken);
-    expect(r.status).toBe(409);
-    expect(other.id).toBeTruthy();
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ ok: true, villaId: id });
+    expect(await active(id)).toBe(2);
+    expect(await active(other.id)).toBe(1);
   });
 
   it("rejoin_same_villa_is_idempotent_200", async () => {
@@ -175,8 +182,8 @@ describe("villa", () => {
     const { inviteToken } = await create(a);
     const b = await signup();
     await create(b, "다른빌라");
-    expect(await (await send("GET", `/api/invite/${inviteToken}`, undefined, a.cookie)).json()).toMatchObject({ alreadyMember: true, inOtherVilla: false });
-    expect(await (await send("GET", `/api/invite/${inviteToken}`, undefined, b.cookie)).json()).toMatchObject({ alreadyMember: false, inOtherVilla: true });
+    expect(await (await send("GET", `/api/invite/${inviteToken}`, undefined, a.cookie)).json()).toMatchObject({ alreadyMember: true, myVillaCount: 1, atLimit: false });
+    expect(await (await send("GET", `/api/invite/${inviteToken}`, undefined, b.cookie)).json()).toMatchObject({ alreadyMember: false, myVillaCount: 1, atLimit: false, inOtherVilla: false });
     const anon = (await (await send("GET", `/api/invite/${inviteToken}`)).json()) as Record<string, unknown>;
     expect(anon.alreadyMember).toBeUndefined();
   });
@@ -308,6 +315,7 @@ describe("villa", () => {
     await join(b, inviteToken);
     expect((await villaRow(id))!.penthouse_user_id).toBe(owner.id);
     await env.DB.prepare("UPDATE users SET streak = 9 WHERE id = ?").bind(b.id).run();
+    await env.DB.prepare("UPDATE memberships SET streak = 9 WHERE user_id = ? AND left_at IS NULL").bind(b.id).run();
     await env.DB.prepare("UPDATE memberships SET floor = 1 WHERE user_id = ?").bind(owner.id).run();
     const c = await signup();
     await join(c, inviteToken);

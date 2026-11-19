@@ -1,11 +1,12 @@
 import type { Env } from "../env";
 import { VILLA_CAPACITY } from "../../shared/villa";
 import { now } from "../clock";
-import { CERTIFIED_PHOTO } from "../cert/certified";
+import { certifiedInVilla, firstCertInVilla } from "../cert/certified";
 import { kstDay } from "../../shared/rules/day";
 import { displayFloor, displayStreak } from "../../shared/rules/streak";
 import { pickPenthouse } from "../../shared/rules/penthouse";
 import { logEvents } from "../events/log";
+import { myVillaIds, tagVilla } from "./membership";
 
 export const MAX_MEMBERS = VILLA_CAPACITY;
 
@@ -14,23 +15,27 @@ export function newInviteToken(): string {
   return btoa(String.fromCharCode(...raw)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
+/**
+ * 한 빌라의 1등을 다시 계산한다. 층 · 연속 기록은 이 빌라 입주 기록의 값(이 빌라에 올린 날로 센다)이고,
+ * 오늘 이 빌라에 올린 사진이 있으면 그것까지 친다.
+ */
 export async function recomputePenthouse(env: Env, villaId: string): Promise<string | null> {
   const prev = await env.DB.prepare("SELECT penthouse_user_id AS id FROM villas WHERE id = ?").bind(villaId).first<{ id: string | null }>();
   const { results } = await env.DB.prepare(
-    `SELECT m.user_id AS userId, u.nickname, m.floor, u.streak, m.floor_reached_at AS floorReachedAt,
-       EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ? AND ${CERTIFIED_PHOTO}) AS certifiedToday,
-       (SELECT MIN(c.created_at) FROM certs c WHERE c.user_id = u.id AND c.day = ? AND ${CERTIFIED_PHOTO}) AS firstCertAt
+    `SELECT m.user_id AS userId, u.nickname, m.floor, m.streak, m.floor_reached_at AS floorReachedAt,
+       ${certifiedInVilla("m.user_id", "?1", "m.villa_id")} AS certifiedToday,
+       ${firstCertInVilla("m.user_id", "?1", "m.villa_id")} AS firstCertAt
      FROM memberships m JOIN users u ON u.id = m.user_id
-     WHERE m.villa_id = ? AND m.left_at IS NULL`,
+     WHERE m.villa_id = ?2 AND m.left_at IS NULL`,
   )
-    .bind(kstDay(now()), kstDay(now()), villaId)
+    .bind(kstDay(now()), villaId)
     .all<{ userId: string; nickname: string; floor: number; streak: number; floorReachedAt: number; certifiedToday: number; firstCertAt: number | null }>();
   // 오늘 인증까지 친 연속 기록과 층(7일째면 바로 +1)으로 비교한다. 저장된 층은 자정 정산 때만 바뀐다
   const id = pickPenthouse(
     results.map((r) => {
       const cert = !!r.certifiedToday;
       const floor = displayFloor(r.floor, r.streak, cert);
-      // 오늘 올라간 층은 첫 사진 인증 시각에 도달한 것으로 본다
+      // 오늘 올라간 층은 이 빌라에 첫 사진 인증이 올라간 시각에 도달한 것으로 본다
       const floorReachedAt = floor > r.floor && r.firstCertAt !== null ? r.firstCertAt : r.floorReachedAt;
       return { userId: r.userId, floor, streak: displayStreak(r.streak, cert), floorReachedAt };
     }),
@@ -42,26 +47,23 @@ export async function recomputePenthouse(env: Env, villaId: string): Promise<str
   if (res.meta.changes === 1 && id) {
     const prevId = prev?.id ?? null;
     const holder = results.find((r) => r.userId === id)!;
-    await logEvents(env, [
-      { userId: id, type: "penthouse_in" },
-      // 빌라를 나간 전 1등에게는 알리지 않는다
-      ...(prevId && prevId !== id && results.some((r) => r.userId === prevId)
-        ? [{ userId: prevId, type: "penthouse_out" as const, payload: { nickname: holder.nickname, userId: id } }]
-        : []),
-    ]);
+    await logEvents(
+      env,
+      await tagVilla(env, villaId, [
+        { userId: id, type: "penthouse_in" },
+        // 빌라를 나간 전 1등에게는 알리지 않는다
+        ...(prevId && prevId !== id && results.some((r) => r.userId === prevId)
+          ? [{ userId: prevId, type: "penthouse_out" as const, payload: { nickname: holder.nickname, userId: id } }]
+          : []),
+      ]),
+    );
   }
   return id;
 }
 
-/** 지금 사는(해체되지 않은) 빌라의 1등을 다시 계산한다. 빌라가 없으면 건너뛴다 */
+/** 이 사람이 사는(해체되지 않은) 빌라 모두의 1등을 다시 계산한다. 빌라가 없으면 건너뛴다 */
 export async function recomputeUserPenthouse(env: Env, userId: string): Promise<void> {
-  const v = await env.DB.prepare(
-    `SELECT m.villa_id AS villaId FROM memberships m JOIN villas v ON v.id = m.villa_id
-     WHERE m.user_id = ? AND m.left_at IS NULL AND v.dissolved_at IS NULL`,
-  )
-    .bind(userId)
-    .first<{ villaId: string }>();
-  if (v) await recomputePenthouse(env, v.villaId);
+  for (const id of await myVillaIds(env, userId)) await recomputePenthouse(env, id);
 }
 
 /** 지금 사는 입주민 (나가기 · 승계 · 해체 판단에 쓴다) */
@@ -90,15 +92,27 @@ function leaveStatements(env: Env, villaId: string, userId: string, t: number, g
   ];
 }
 
-export async function leaveVilla(env: Env, userId: string): Promise<void> {
-  const m = await env.DB.prepare(
-    "SELECT villa_id AS villaId FROM memberships WHERE user_id = ? AND left_at IS NULL",
-  )
-    .bind(userId)
-    .first<{ villaId: string }>();
+/** 한 빌라에서 나간다. 다른 빌라에는 아무 영향이 없다 */
+export async function leaveVilla(env: Env, userId: string, villaId: string): Promise<void> {
+  const m = await env.DB.prepare("SELECT 1 AS x FROM memberships WHERE user_id = ? AND villa_id = ? AND left_at IS NULL")
+    .bind(userId, villaId)
+    .first();
   if (!m) throw new NotInVillaError();
-  await env.DB.batch(leaveStatements(env, m.villaId, userId, now()));
-  await recomputePenthouse(env, m.villaId);
+  const [res] = await env.DB.batch(leaveStatements(env, villaId, userId, now()));
+  // 그 사이 내보내졌거나 다른 요청으로 이미 나갔다
+  if (res.meta.changes !== 1) throw new NotInVillaError();
+  await recomputePenthouse(env, villaId);
+}
+
+/** 사는 빌라 모두에서 나간다 (탈퇴) */
+export async function leaveAllVillas(env: Env, userId: string): Promise<void> {
+  const { results } = await env.DB.prepare("SELECT villa_id AS id FROM memberships WHERE user_id = ? AND left_at IS NULL")
+    .bind(userId)
+    .all<{ id: string }>();
+  for (const r of results) {
+    await env.DB.batch(leaveStatements(env, r.id, userId, now()));
+    await recomputePenthouse(env, r.id);
+  }
 }
 
 export class NotInVillaError extends Error {}
@@ -161,14 +175,17 @@ export async function transferOwner(env: Env, villaId: string, ownerId: string, 
   try {
     avatar = JSON.parse(u?.avatar ?? "null");
   } catch {}
-  await logEvents(env, [
-    { userId: targetId, type: "owner_in" },
-    ...(others.results as { userId: string }[]).map((o) => ({
-      userId: o.userId,
-      type: "owner_changed" as const,
-      payload: { nickname: u?.nickname ?? "", userId: targetId, avatar },
-    })),
-  ]);
+  await logEvents(
+    env,
+    await tagVilla(env, villaId, [
+      { userId: targetId, type: "owner_in" },
+      ...(others.results as { userId: string }[]).map((o) => ({
+        userId: o.userId,
+        type: "owner_changed" as const,
+        payload: { nickname: u?.nickname ?? "", userId: targetId, avatar },
+      })),
+    ]),
+  );
 }
 
 /**

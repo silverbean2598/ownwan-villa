@@ -39,7 +39,12 @@ function upload(u: U, dhash = HASHES[h++ % HASHES.length]) {
 async function createVilla(u: U, name = "우리빌라") {
   return (await (await send("POST", "/api/villas", u.cookie, { name })).json()) as { id: string; inviteToken: string };
 }
-const setStreak = (u: U, streak: number) => env.DB.prepare("UPDATE users SET streak = ? WHERE id = ?").bind(streak, u.id).run();
+// 사용자 연속 기록과 지금 사는 빌라의 연속 기록을 함께 (빌라 1곳에만 살던 기존 데이터와 같은 모양)
+const setStreak = (u: U, streak: number) =>
+  env.DB.batch([
+    env.DB.prepare("UPDATE users SET streak = ? WHERE id = ?").bind(streak, u.id),
+    env.DB.prepare("UPDATE memberships SET streak = ? WHERE user_id = ? AND left_at IS NULL").bind(streak, u.id),
+  ]);
 type Ev = { id: string; type: string; payload: Record<string, unknown>; createdAt: number };
 const events = async (u: U) => (await (await send("GET", "/api/events", u.cookie)).json()) as Ev[];
 const ofType = async (u: U, type: string) => (await events(u)).filter((e) => e.type === type);
@@ -132,7 +137,7 @@ describe("cert events", () => {
     await upload(u);
     const got = await ofType(u, "streak6");
     expect(got).toHaveLength(1);
-    expect(got[0].payload).toEqual({ streak: 6 });
+    expect(got[0].payload).toMatchObject({ streak: 6, villaName: "우리빌라", multi: false });
     expect(await ofType(u, "streak7")).toEqual([]);
   });
 
@@ -158,7 +163,7 @@ describe("cert events", () => {
     await upload(u);
     const up = await ofType(u, "floor_up");
     expect(up).toHaveLength(1);
-    expect(up[0].payload).toEqual({ floor: 2, streak: 7 });
+    expect(up[0].payload).toMatchObject({ floor: 2, streak: 7, villaName: "우리빌라", multi: false });
     expect(await ofType(u, "streak7")).toEqual([]);
     expect(await ofType(u, "streak6")).toEqual([]);
   });
@@ -236,7 +241,7 @@ describe("villa join events", () => {
     await createVilla(a, "땀빌라");
     const got = await ofType(a, "welcome");
     expect(got).toHaveLength(1);
-    expect(got[0].payload).toEqual({ villaName: "땀빌라" });
+    expect(got[0].payload).toMatchObject({ villaName: "땀빌라", multi: false });
   });
 
   it("join_welcomes_joiner_and_tells_every_other_member_once", async () => {
@@ -252,7 +257,7 @@ describe("villa join events", () => {
     await send("POST", `/api/invite/${v.inviteToken}/join`, c.cookie);
     const w = await ofType(c, "welcome");
     expect(w).toHaveLength(1);
-    expect(w[0].payload).toEqual({ villaName: "땀빌라" });
+    expect(w[0].payload).toMatchObject({ villaName: "땀빌라", multi: false });
     expect(await ofType(c, "friend_joined")).toEqual([]);
     for (const u of [a, b]) {
       const f = await ofType(u, "friend_joined");
@@ -268,14 +273,14 @@ describe("settle events", () => {
     const u = await signup();
     await createVilla(u);
     await clear(u);
-    await env.DB.prepare("UPDATE memberships SET floor = 3 WHERE user_id = ?").bind(u.id).run();
+    await env.DB.prepare("UPDATE memberships SET floor = 3, joined_at = 0 WHERE user_id = ?").bind(u.id).run();
     const day = "2026-11-17";
     await env.DB.prepare("DELETE FROM settings WHERE key = 'last_settled_day'").run();
     await settle(env, day);
     await settle(env, day);
     const got = (await ofType(u, "floor_down"));
     expect(got).toHaveLength(1);
-    expect(got[0].payload).toEqual({ floor: 2 });
+    expect(got[0].payload).toMatchObject({ floor: 2, villaName: "우리빌라", multi: false });
   });
 });
 

@@ -86,7 +86,7 @@ auth.get("/api/me", requireUser, async (c) => {
   const u = await c.env.DB.prepare(
     `SELECT u.id, u.username, u.nickname, u.sport, u.avatar, u.points, u.streak,
        (SELECT m.villa_id FROM memberships m JOIN villas v ON v.id = m.villa_id
-         WHERE m.user_id = u.id AND m.left_at IS NULL AND v.dissolved_at IS NULL) AS villaId,
+         WHERE m.user_id = u.id AND m.left_at IS NULL AND v.dissolved_at IS NULL ORDER BY m.joined_at ASC, m.rowid ASC LIMIT 1) AS villaId,
        EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ? AND ${CERTIFIED_PHOTO}) AS certifiedToday
      FROM users u WHERE u.id = ?`,
   )

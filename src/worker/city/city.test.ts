@@ -63,11 +63,11 @@ describe("GET /api/city", () => {
   it("private_villas_hidden_until_owner_turns_public_and_hidden_again_when_off", async () => {
     const a = await villaWith(0, "비밀빌라");
     expect(find(await cityOf(a.owner), a.id)).toBeUndefined();
-    expect((await cityOf(a.owner)).mine).toEqual({ villaId: a.id, public: false, isOwner: true });
+    expect((await cityOf(a.owner)).mine).toEqual({ villaId: a.id, name: "비밀빌라", public: false, isOwner: true });
     expect((await setPublic(a.owner, a.id, true)).status).toBe(200);
     const on = await cityOf(a.owner);
     expect(find(on, a.id)?.name).toBe("비밀빌라");
-    expect(on.mine).toEqual({ villaId: a.id, public: true, isOwner: true });
+    expect(on.mine).toEqual({ villaId: a.id, name: "비밀빌라", public: true, isOwner: true });
     await setPublic(a.owner, a.id, false);
     expect(find(await cityOf(a.owner), a.id)).toBeUndefined();
   });
@@ -113,6 +113,7 @@ describe("GET /api/city", () => {
     await env.DB.prepare("UPDATE memberships SET floor = 4 WHERE user_id = ? AND left_at IS NULL").bind(b.id).run();
     // 6일 연속 + 오늘 인증 = 7일째 → 바로 5층
     await env.DB.prepare("UPDATE users SET streak = 6 WHERE id = ?").bind(b.id).run();
+    await env.DB.prepare("UPDATE memberships SET streak = 6 WHERE user_id = ? AND left_at IS NULL").bind(b.id).run();
     await setPublic(a.owner, a.id, true);
     expect(find(await cityOf(a.owner), a.id)!.topFloor).toBe(4);
     await photo(b);
@@ -141,7 +142,7 @@ describe("GET /api/city", () => {
   it("non_owner_mine_shows_not_owner", async () => {
     const a = await villaWith(1, "입주민시점");
     const r = await cityOf(a.others[0]);
-    expect(r.mine).toEqual({ villaId: a.id, public: false, isOwner: false });
+    expect(r.mine).toEqual({ villaId: a.id, name: "입주민시점", public: false, isOwner: false });
   });
 });
 

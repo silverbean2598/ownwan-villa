@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { now } from "../clock";
 import { jsonError, requireUser } from "../http";
-import { canView, isVillaOwnerOf } from "../cert/routes";
+import { canViewCert, isModeratorOf } from "../cert/routes";
 import { logEvents } from "../events/log";
 import { safeAvatar } from "../villa/routes";
 import { kstDay } from "../../shared/rules/day";
@@ -28,7 +28,7 @@ async function findCert(env: Env, viewerId: string, certId: string): Promise<Fou
     .first<CertRef>();
   const fail = (status: number, message: string): Found => ({ error: { status, message } });
   if (!cert) return fail(404, NOT_FOUND);
-  if (!(await canView(env, viewerId, cert.ownerId))) return fail(403, "같은 빌라 입주민만 응원할 수 있어요");
+  if (!(await canViewCert(env, viewerId, { id: cert.id, user_id: cert.ownerId }))) return fail(403, "같은 빌라 입주민만 응원할 수 있어요");
   if (cert.hidden) return fail(404, NOT_FOUND);
   return { cert };
 }
@@ -78,7 +78,7 @@ cheer.get("/api/certs/:id/comments", requireUser, async (c) => {
   )
     .bind(cert.id)
     .all<CommentRow>();
-  const moderator = cert.ownerId === userId || (await isVillaOwnerOf(c.env, userId, cert.ownerId));
+  const moderator = cert.ownerId === userId || (await isModeratorOf(c.env, userId, { id: cert.id, user_id: cert.ownerId }));
   return c.json(results.map((r) => toComment(r, moderator || r.userId === userId)));
 });
 
@@ -120,12 +120,12 @@ cheer.post("/api/certs/:id/comments", requireUser, async (c) => {
 cheer.delete("/api/comments/:id", requireUser, async (c) => {
   const userId = c.get("userId");
   const row = await c.env.DB.prepare(
-    "SELECT m.id, m.user_id AS authorId, t.user_id AS ownerId FROM comments m JOIN certs t ON t.id = m.cert_id WHERE m.id = ?",
+    "SELECT m.id, m.user_id AS authorId, t.user_id AS ownerId, t.id AS certId FROM comments m JOIN certs t ON t.id = m.cert_id WHERE m.id = ?",
   )
     .bind(c.req.param("id"))
-    .first<{ id: string; authorId: string; ownerId: string }>();
+    .first<{ id: string; authorId: string; ownerId: string; certId: string }>();
   if (!row) return jsonError(c, 404, "댓글을 찾을 수 없어요");
-  const allowed = row.authorId === userId || row.ownerId === userId || (await isVillaOwnerOf(c.env, userId, row.ownerId));
+  const allowed = row.authorId === userId || row.ownerId === userId || (await isModeratorOf(c.env, userId, { id: row.certId, user_id: row.ownerId }));
   if (!allowed) return jsonError(c, 403, "지울 수 있는 권한이 없어요");
   await c.env.DB.batch([
     c.env.DB.prepare(`DELETE FROM events WHERE id IN (SELECT ${COMMENT_EVENT} FROM comments WHERE id = ?)`).bind(row.id),

@@ -303,7 +303,7 @@ describe("approve and complete", () => {
     setNow(() => t0 + 2 * DAY);
     const res = await post("/api/recover/complete", { username: member.username, ticket, newPassword: "newpassword1" });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "빌라를 옮겨서 요청이 취소됐어요. 다시 요청해 주세요" });
+    expect(await res.json()).toEqual({ error: "확인해 준 빌라에서 나가서 요청이 취소됐어요. 다시 요청해 주세요" });
     expect(await status(member.id)).toEqual(["cancelled"]);
   });
 
@@ -316,7 +316,7 @@ describe("approve and complete", () => {
     setNow(() => t0 + 2 * DAY);
     const res = await post("/api/recover/complete", { username: member.username, ticket, newPassword: "newpassword1" });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "빌라를 옮겨서 요청이 취소됐어요. 다시 요청해 주세요" });
+    expect(await res.json()).toEqual({ error: "확인해 준 빌라에서 나가서 요청이 취소됐어요. 다시 요청해 주세요" });
     expect(await status(member.id)).toEqual(["cancelled"]);
   });
 });
