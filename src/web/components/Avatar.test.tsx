@@ -5,6 +5,8 @@ import { Avatar, POSES, type Pose } from "./Avatar";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR, type AvatarSpec } from "../../shared/avatar";
 import { OUTFITS } from "../../shared/catalog";
 import { BUN, SW, handAt } from "./avatar/parts";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 // 2D 아핀 행렬 [a b c d e f] (SVG matrix 순서)
 type M = [number, number, number, number, number, number];
@@ -221,5 +223,20 @@ describe("Avatar", () => {
     const [ink, fill] = [...arm.children];
     expect(ink.querySelector("rect")!.getAttribute("stroke-width")).toBe("3.2");
     expect(fill.querySelector("rect")!.getAttribute("stroke")).toBeNull();
+  });
+
+  it("character_keeps_moving_gently_under_reduced_motion", () => {
+    const avatarCss = readFileSync(path.join(__dirname, "avatar/avatar.css"), "utf8");
+    // 동작 줄이기 설정에서도 캐릭터 움직임을 끄지 않는다: no-preference 안에 가두지 않고, reduce에서 배율만 줄인다
+    expect(avatarCss).not.toContain("prefers-reduced-motion: no-preference");
+    const reduce = avatarCss.match(/@media \(prefers-reduced-motion: reduce\)\s*\{([^}]*\{[^}]*\})\s*\}/)![1];
+    expect(reduce).toMatch(/--k:\s*0\.5/);
+    expect(reduce).toMatch(/--t:\s*1\.6/);
+    expect(reduce).toMatch(/--j:\s*0/);
+    expect(reduce).not.toMatch(/animation/);
+    // 흔들림 · 시간 · 통통 뛰기가 모두 배율을 거친다
+    for (const m of avatarCss.matchAll(/--d:\s*([^;]+);/g)) expect(m[1]).toContain("var(--k)");
+    for (const m of avatarCss.matchAll(/animation:\s*av-[\w-]+\s+([^\s]+(?:\s[^\s]+)*?)\s+ease/g)) expect(m[1]).toContain("var(--t)");
+    expect(avatarCss).toMatch(/@keyframes av-hop \{[^}]*var\(--j\)/);
   });
 });
