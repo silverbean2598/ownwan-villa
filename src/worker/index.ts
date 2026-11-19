@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv, Env } from "./env";
 import { auth } from "./auth/routes";
+import { kakao } from "./auth/kakao";
 import { recovery } from "./recovery/routes";
 import { villa } from "./villa/routes";
 import { profile } from "./profile/routes";
@@ -20,6 +21,7 @@ export const app = new Hono<AppEnv>();
 app.get("/api/health", (c) => c.json({ ok: true }));
 
 app.route("/", auth);
+app.route("/", kakao);
 app.route("/", recovery);
 app.route("/", villa);
 app.route("/", profile);
