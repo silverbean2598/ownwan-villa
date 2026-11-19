@@ -6,6 +6,7 @@ import { PASSWORD_LENGTH_MSG, hashPassword, isValidPasswordLength } from "../aut
 import { normalizeUsername } from "../auth/username";
 import { createSession, setSessionCookie } from "../auth/session";
 import { hashToken, newRecoveryCode } from "./codes";
+import { KAKAO_ONLY_MSG, isPasswordless } from "../auth/identity";
 
 export const recovery = new Hono<AppEnv>();
 
@@ -60,9 +61,10 @@ recovery.post("/api/recover/code", async (c) => {
   const username = normalizeUsername(b?.username);
   const code = typeof b?.code === "string" ? b.code : "";
   const newPassword = typeof b?.newPassword === "string" ? b.newPassword : "";
-  const user = await c.env.DB.prepare("SELECT id, recovery_hash FROM users WHERE username = ?")
+  const user = await c.env.DB.prepare("SELECT id, recovery_hash, password_hash FROM users WHERE username = ?")
     .bind(username)
-    .first<{ id: string; recovery_hash: string }>();
+    .first<{ id: string; recovery_hash: string; password_hash: string }>();
+  if (user && isPasswordless(user.password_hash)) return jsonError(c, 400, KAKAO_ONLY_MSG);
   if (!user || !code || user.recovery_hash !== (await hashToken(code))) return jsonError(c, 400, BAD_CODE);
   if (!isValidPasswordLength(newPassword)) return jsonError(c, 400, PASSWORD_LENGTH_MSG);
   return c.json({ recoveryCode: await resetAccess(c, c.env, user.id, newPassword) });
@@ -71,6 +73,8 @@ recovery.post("/api/recover/code", async (c) => {
 recovery.post("/api/recovery-code/reissue", requireUser, async (c) => {
   const recoveryCode = newRecoveryCode();
   const userId = c.get("userId");
+  const u = await c.env.DB.prepare("SELECT password_hash FROM users WHERE id = ?").bind(userId).first<{ password_hash: string }>();
+  if (isPasswordless(u?.password_hash)) return jsonError(c, 400, "카카오로 가입한 계정은 복구 코드가 없어요. 카카오로 로그인하면 돼요");
   await c.env.DB.batch([
     c.env.DB.prepare("UPDATE users SET recovery_hash = ? WHERE id = ?").bind(await hashToken(recoveryCode), userId),
     c.env.DB.prepare(CANCEL_OPEN).bind(userId),
@@ -81,8 +85,9 @@ recovery.post("/api/recovery-code/reissue", requireUser, async (c) => {
 recovery.post("/api/recover/request", async (c) => {
   const b = await c.req.json().catch(() => null);
   const username = normalizeUsername(b?.username);
-  const user = await c.env.DB.prepare("SELECT id FROM users WHERE username = ?").bind(username).first<{ id: string }>();
+  const user = await c.env.DB.prepare("SELECT id, password_hash FROM users WHERE username = ?").bind(username).first<{ id: string; password_hash: string }>();
   if (!user) return jsonError(c, 400, "아이디를 확인해 주세요");
+  if (isPasswordless(user.password_hash)) return jsonError(c, 400, KAKAO_ONLY_MSG);
   const inVilla = await c.env.DB.prepare("SELECT 1 AS x FROM memberships WHERE user_id = ? AND left_at IS NULL")
     .bind(user.id)
     .first();
@@ -155,13 +160,15 @@ recovery.post("/api/recover/complete", async (c) => {
   const newPassword = typeof b?.newPassword === "string" ? b.newPassword : "";
   const req = ticket
     ? await c.env.DB.prepare(
-        `SELECT r.id, r.user_id, r.approved_at, r.villa_id FROM recovery_requests r JOIN users u ON u.id = r.user_id
+        `SELECT r.id, r.user_id, r.approved_at, r.villa_id, u.password_hash FROM recovery_requests r JOIN users u ON u.id = r.user_id
          WHERE u.username = ? AND r.ticket_hash = ? AND r.status = 'approved'`,
       )
         .bind(username, await hashToken(ticket))
-        .first<{ id: string; user_id: string; approved_at: number; villa_id: string | null }>()
+        .first<{ id: string; user_id: string; approved_at: number; villa_id: string | null; password_hash: string }>()
     : null;
   if (!req) return jsonError(c, 400, BAD_TICKET);
+  // 카카오 전용 계정은 복구로 비밀번호 계정이 되지 않는다
+  if (isPasswordless(req.password_hash)) return jsonError(c, 400, KAKAO_ONLY_MSG);
   if (!isValidPasswordLength(newPassword)) return jsonError(c, 400, PASSWORD_LENGTH_MSG);
   // 승인받을 때와 같은 (해산되지 않은) 빌라에 지금도 살아야 한다
   const stillIn = await c.env.DB.prepare(

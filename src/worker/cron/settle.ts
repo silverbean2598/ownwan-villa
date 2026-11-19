@@ -6,6 +6,7 @@ import { recomputePenthouse } from "../villa/service";
 import { CERTIFIED_PHOTO, certifiedInVilla } from "../cert/certified";
 import { logEvents, type NewEvent } from "../events/log";
 import { tagVilla } from "../villa/membership";
+import { purgeExpiredKakao } from "../auth/kakao";
 
 /** 사용자 한 명: 어느 빌라든(또는 빌라 없이) 사진 인증한 날로 센 연속 기록 */
 type UserRow = { id: string; streak: number; missRun: number; certified: number };
@@ -47,6 +48,12 @@ export async function settleThrough(env: Env, target: string): Promise<string[]>
       console.error(`settle ${day} failed (target ${target}, settled so far: ${done.join(",") || "none"})`, e);
       throw e;
     }
+  }
+  // 카카오 로그인의 만료된 state · 가입 대기 행 정리 (정산할 날이 없어도 매일). 실패해도 정산 결과는 그대로 둔다
+  try {
+    await purgeExpiredKakao(env);
+  } catch (e) {
+    console.warn("kakao purge failed", e);
   }
   return done;
 }

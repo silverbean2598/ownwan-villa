@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { Badge } from "../components/Badge";
 import { AvatarEditor } from "../components/AvatarEditor";
@@ -9,6 +9,7 @@ import { pokeEvents } from "../events/poke";
 import { VillaSwitcher } from "../components/VillaSwitcher";
 import { loadMyVillas, pickVilla, writeCurrentVilla } from "../villa/current";
 import type { MyVilla } from "../../shared/villa";
+import { KakaoSection, type KakaoStatus } from "../components/kakao/KakaoSection";
 import { DEFAULT_AVATAR, type AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
 
@@ -50,6 +51,10 @@ export function Settings() {
   const [confirm, setConfirm] = useState<"" | "leave" | "delete">("");
   const [typed, setTyped] = useState("");
   const [busyCity, setBusyCity] = useState(false);
+  // 카카오 연결 상태 (따로 불러온다: 실패해도 나머지 설정은 그대로 쓴다)
+  const [kakao, setKakao] = useState<KakaoStatus | null>(null);
+  const kakaoNotice = useSearchParams()[0].get("kakao");
+  const passwordless = kakao?.hasPassword === false;
 
   const note = (k: string, n: Note) => setNotes((p) => ({ ...p, [k]: n }));
   async function run(k: string, ok: string, fn: () => Promise<unknown>) {
@@ -105,6 +110,10 @@ export function Settings() {
     api<{ owned: string[] }>("/api/shop").then((s) => setOwned(s.owned), () => {});
   }, []);
 
+  useEffect(() => {
+    api<KakaoStatus>("/api/auth/kakao/status").then(setKakao, () => {});
+  }, []);
+
   // 상점의 [꾸미러 가기](/settings#avatar)로 오면 캐릭터 꾸미기로 내려간다
   useEffect(() => {
     if (me && location.hash === "#avatar") document.getElementById("avatar")?.scrollIntoView();
@@ -144,7 +153,7 @@ export function Settings() {
       )}
 
       <Section title="내 정보" note={notes.nick}>
-        <p className="muted">아이디 {me.username}</p>
+        <p className="muted">{passwordless ? "카카오로 로그인해요" : `아이디 ${me.username}`}</p>
         <div className="field">
           <label htmlFor="nickname">닉네임</label>
           <input id="nickname" type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} />
@@ -164,6 +173,10 @@ export function Settings() {
         <button className="btn" type="button" onClick={() => run("avatar", "저장했어요", () => patch({ avatar }))}>저장</button>
       </Section>
 
+      {kakao && <KakaoSection status={kakao} notice={kakaoNotice} onChanged={setKakao} />}
+
+      {/* 카카오로만 가입한 계정은 비밀번호 · 복구 코드가 없다 */}
+      {!passwordless && <>
       <Section title="비밀번호 변경" note={notes.pw}>
         <div className="field">
           <label htmlFor="pw-current">지금 비밀번호</label>
@@ -220,6 +233,7 @@ export function Settings() {
           </button>
         )}
       </Section>
+      </>}
 
       {villas.length > 1 && villa && (
         <section className="settings-section" aria-label="빌라 고르기">
@@ -354,16 +368,16 @@ export function Settings() {
       <Section title="탈퇴" note={notes.delete}>
         {confirm === "delete" ? (
           <div role="alertdialog" aria-label="탈퇴 확인">
-            <p>탈퇴하면 계정, 인증 사진, 루틴이 바로 삭제되고 되돌릴 수 없어요. 계속하려면 아이디 <b>{me.username}</b>를 입력해 주세요.</p>
+            <p>탈퇴하면 계정, 인증 사진, 루틴이 바로 삭제되고 되돌릴 수 없어요. 계속하려면 {passwordless ? "닉네임" : "아이디"} <b>{passwordless ? me.nickname : me.username}</b>를 입력해 주세요.</p>
             <div className="field">
-              <label htmlFor="confirm-username">아이디 확인</label>
+              <label htmlFor="confirm-username">{passwordless ? "닉네임 확인" : "아이디 확인"}</label>
               <input id="confirm-username" type="text" autoCapitalize="none" autoCorrect="off" value={typed} onChange={(e) => setTyped(e.target.value)} />
             </div>
             <div className="row">
               <button
                 className="btn danger"
                 type="button"
-                disabled={typed !== me.username}
+                disabled={typed !== (passwordless ? me.nickname : me.username)}
                 onClick={() => run("delete", "", async () => {
                   await api("/api/me", { method: "DELETE" });
                   nav("/", { replace: true });

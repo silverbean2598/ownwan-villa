@@ -7,6 +7,7 @@ import { isValidNickname } from "../../shared/nickname";
 import { DEFAULT_AVATAR, parseAvatar } from "../../shared/avatar";
 import { PASSWORD_LENGTH_MSG, hashPassword, isValidPasswordLength, needsRehash, verifyPassword } from "./password";
 import { normalizeUsername } from "./username";
+import { KAKAO_ONLY_MSG, isPasswordless } from "./identity";
 import { LOCKED_MSG, isLocked, recordFailure, resetFailures } from "./lockout";
 import { createSession, endSession, requireUser, setSessionCookie } from "./session";
 import { CERTIFIED_PHOTO } from "../cert/certified";
@@ -53,6 +54,8 @@ auth.post("/api/login", async (c) => {
     .bind(username)
     .first<{ id: string; password_hash: string; failed_logins: number; locked_until: number | null }>();
   if (!user) return jsonError(c, 401, BAD_LOGIN);
+  // 카카오로만 가입한 계정: 비밀번호 로그인은 절대 성공하지 않는다 (실패 횟수도 세지 않는다)
+  if (isPasswordless(user.password_hash)) return jsonError(c, 401, KAKAO_ONLY_MSG);
 
   if (isLocked(user)) return jsonError(c, 423, LOCKED_MSG);
 

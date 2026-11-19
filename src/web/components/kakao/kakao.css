@@ -1,0 +1,9 @@
+/* 카카오 로그인 버튼: 카카오 디자인 가이드 (배경 #FEE500, 심볼 #000, 글자 85% 검정, 모서리 12px) */
+.btn.kakao {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: #fee500; border-color: #fee500; color: rgba(0, 0, 0, 0.85); font-weight: 600;
+}
+.btn.kakao svg { flex: none; }
+.settings-section .btn.kakao { display: inline-flex; }
+.or-line { display: flex; align-items: center; gap: 10px; color: #9a9a9a; font-size: 13px; margin: 20px 0; }
+.or-line::before, .or-line::after { content: ""; flex: 1; height: 1px; background: var(--line); }

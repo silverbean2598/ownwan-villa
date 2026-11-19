@@ -8,6 +8,7 @@ import { getCookie, deleteCookie } from "hono/cookie";
 import { COOKIE } from "../auth/session";
 import { PASSWORD_LENGTH_MSG, hashPassword, isValidPasswordLength, verifyPassword } from "../auth/password";
 import { hashToken } from "../recovery/codes";
+import { KAKAO_ONLY_MSG, isPasswordless } from "../auth/identity";
 import { LOCKED_MSG, isLocked, recordFailure, resetFailures } from "../auth/lockout";
 import { deletePhotoBlobs } from "../storage";
 import { leaveAllVillas } from "../villa/service";
@@ -63,6 +64,7 @@ profile.post("/api/me/password", requireUser, async (c) => {
   const userId = c.get("userId");
   const u = await c.env.DB.prepare("SELECT password_hash, locked_until FROM users WHERE id = ?").bind(userId).first<{ password_hash: string; locked_until: number | null }>();
   if (!u) return jsonError(c, 401, "로그인이 필요해요");
+  if (isPasswordless(u.password_hash)) return jsonError(c, 400, KAKAO_ONLY_MSG);
   if (isLocked(u)) return jsonError(c, 423, LOCKED_MSG);
   if (!(await verifyPassword(current, u.password_hash))) {
     await recordFailure(c.env, userId);
@@ -94,6 +96,7 @@ profile.delete("/api/me", requireUser, async (c) => {
     q("DELETE FROM inventory WHERE user_id = ?"),
     q("DELETE FROM placements WHERE user_id = ?"),
     q("DELETE FROM sessions WHERE user_id = ?"),
+    q("DELETE FROM user_identities WHERE user_id = ?"),
     q("DELETE FROM recovery_requests WHERE user_id = ?"),
     q("DELETE FROM events WHERE user_id = ?"),
     q("DELETE FROM villa_bans WHERE user_id = ?"),

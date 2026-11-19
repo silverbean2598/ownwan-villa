@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
+import { KakaoButton } from "../components/kakao/KakaoButton";
 import { HeroVilla } from "../components/landing/HeroVilla";
 import { FurnitureArt, LightUpArt, PenthouseArt } from "../components/landing/StepArt";
 import "../components/landing/landing.css";
@@ -23,6 +24,7 @@ export function LandingView({ me }: { me: Me }) {
   ) : (
     <>
       <Link className="btn" to="/signup">가입하고 입주하기</Link>
+      <KakaoButton />
       <Link className="btn ghost" to="/login">로그인</Link>
     </>
   );
