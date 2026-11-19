@@ -4,7 +4,8 @@ import { api, ApiError } from "../api";
 import { CityMap } from "../components/city/CityMap";
 import { colsFor } from "../components/city/layout";
 import { VILLA_CAPACITY } from "../../shared/villa";
-import type { CityResponse, CityVilla } from "../../shared/city";
+import type { CityMine, CityResponse, CityVilla } from "../../shared/city";
+import { topicParticle } from "../events/plan";
 
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
 const width = () => (typeof window === "undefined" ? 390 : Math.min(window.innerWidth, 1100));
@@ -85,16 +86,18 @@ export function City() {
   if (error) return <main className="page"><p className="error" role="alert">{error}</p></main>;
   if (!data) return <main className="page"><p className="muted">도시를 불러오는 중이에요</p></main>;
 
-  const { mine, villas } = data;
+  const { villas } = data;
+  // 내가 사는 빌라 모두 (예전 서버 응답이면 mine 하나)
+  const mineAll: CityMine[] = data.myVillas ?? (data.mine ? [data.mine] : []);
+  const mineIds = mineAll.map((m) => m.villaId);
   const sel = villas.find((v) => v.id === selected) ?? null;
-  const onMap = !!mine && villas.some((v) => v.id === mine.villaId);
+  const hidden = mineAll.filter((m) => !m.public);
 
-  async function publish() {
-    if (!mine) return;
+  async function publish(villaId: string) {
     setBusy(true);
     setHintErr("");
     try {
-      await api(`/api/villas/${mine.villaId}/public`, { method: "PUT", body: JSON.stringify({ public: true }) });
+      await api(`/api/villas/${villaId}/public`, { method: "PUT", body: JSON.stringify({ public: true }) });
       scrolled.current = false;
       await load();
     } catch (e) {
@@ -115,27 +118,42 @@ export function City() {
         </p>
       </header>
 
-      {!mine && <div className="city-hint">빌라에 입주하면 우리 빌라도 지도에 올릴 수 있어요.</div>}
-      {mine && !mine.public && mine.isOwner && (
+      {mineAll.length === 0 && <div className="city-hint">빌라에 입주하면 우리 빌라도 지도에 올릴 수 있어요.</div>}
+      {mineAll.length === 1 && hidden.length === 1 && hidden[0].isOwner && (
         <div className="city-hint" role="status">
           <span>우리 빌라는 아직 지도에 없어요. 공개하면 다른 빌라도 구경할 수 있어요.</span>
-          <button type="button" className="btn" disabled={busy} onClick={publish}>지도에 공개하기</button>
+          <button type="button" className="btn" disabled={busy} onClick={() => publish(hidden[0].villaId)}>지도에 공개하기</button>
         </div>
       )}
-      {mine && !mine.public && !mine.isOwner && <div className="city-hint" role="status">방장이 공개하면 지도에 나와요.</div>}
+      {mineAll.length === 1 && hidden.length === 1 && !hidden[0].isOwner && <div className="city-hint" role="status">방장이 공개하면 지도에 나와요.</div>}
+      {/* 빌라 여러 곳에 살면 지도에 없는 빌라마다 한 줄씩 */}
+      {mineAll.length > 1 &&
+        hidden.map((m) => (
+          <div className="city-hint" role="status" key={m.villaId}>
+            <span>
+              {m.name}
+              {topicParticle(m.name)} {m.isOwner ? "아직 지도에 없어요." : "방장이 공개하면 지도에 나와요."}
+            </span>
+            {m.isOwner && (
+              <button type="button" className="btn" disabled={busy} aria-label={`${m.name} 지도에 공개하기`} onClick={() => publish(m.villaId)}>
+                지도에 공개하기
+              </button>
+            )}
+          </div>
+        ))}
       {hintErr && <p className="error" role="alert" style={{ margin: "0 16px 12px" }}>{hintErr}</p>}
 
       <div className="city-frame">
         <CityMap
           villas={villas}
           cols={cols}
-          mineId={onMap ? mine!.villaId : null}
+          mineIds={mineIds}
           selectedId={selected}
           onSelect={(v) => setSelected(v.id)}
         />
       </div>
 
-      {sel && <VillaCard v={sel} mine={sel.id === mine?.villaId} onClose={() => setSelected(null)} />}
+      {sel && <VillaCard v={sel} mine={mineIds.includes(sel.id)} onClose={() => setSelected(null)} />}
     </main>
   );
 }

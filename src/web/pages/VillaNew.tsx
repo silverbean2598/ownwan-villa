@@ -1,6 +1,8 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
+import { MAX_VILLAS_PER_USER, VILLA_LIMIT_MSG } from "../../shared/villa";
+import { loadMyVillas, villaPath, writeCurrentVilla } from "../villa/current";
 
 export function VillaNew() {
   const nav = useNavigate();
@@ -9,6 +11,13 @@ export function VillaNew() {
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState("");
   const [copied, setCopied] = useState(false);
+  const [newId, setNewId] = useState("");
+  // 지금 사는 빌라 수 (만든 빌라도 3곳에 센다). 못 불러와도 만들기는 할 수 있다(서버가 다시 확인)
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    loadMyVillas().then((l) => setCount(l.length), () => {});
+  }, []);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -17,7 +26,9 @@ export function VillaNew() {
     setError("");
     setBusy(true);
     try {
-      const { inviteToken } = await api<{ inviteToken: string }>("/api/villas", { method: "POST", body: JSON.stringify({ name: n }) });
+      const { id, inviteToken } = await api<{ id: string; inviteToken: string }>("/api/villas", { method: "POST", body: JSON.stringify({ name: n }) });
+      writeCurrentVilla(id);
+      setNewId(id);
       setLink(`${location.origin}/join/${inviteToken}`);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) return nav("/login?next=/villa/new");
@@ -45,13 +56,24 @@ export function VillaNew() {
         <div className="row">
           <button className="btn ghost" type="button" onClick={copy}>{copied ? "복사했어요" : "링크 복사"}</button>
         </div>
-        <button className="btn" type="button" onClick={() => nav("/villa", { replace: true })} style={{ marginTop: 16 }}>내 빌라로</button>
+        <button className="btn" type="button" onClick={() => nav(newId ? villaPath(newId) : "/villa", { replace: true })} style={{ marginTop: 16 }}>내 빌라로</button>
+      </main>
+    );
+
+  if (count !== null && count >= MAX_VILLAS_PER_USER)
+    return (
+      <main className="page">
+        <h1>빌라 만들기</h1>
+        <p className="limit-box" role="status">{VILLA_LIMIT_MSG}</p>
+        <Link className="btn" to="/villa">내 빌라로</Link>
+        <Link className="btn ghost" to="/settings" style={{ marginTop: 8 }}>설정에서 빌라 나가기</Link>
       </main>
     );
 
   return (
     <main className="page">
       <h1>빌라 만들기</h1>
+      {!!count && <p className="muted">지금 사는 빌라는 그대로 두고 한 곳 더 지어요. ({count + 1}/{MAX_VILLAS_PER_USER}곳)</p>}
       <form onSubmit={submit} noValidate>
         <div className="field">
           <label htmlFor="name">빌라 이름</label>

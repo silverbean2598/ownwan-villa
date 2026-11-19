@@ -6,6 +6,9 @@ import { AvatarEditor } from "../components/AvatarEditor";
 import { SportCards } from "../components/SportCards";
 import { MemberManage, type Member } from "../components/MemberManage";
 import { pokeEvents } from "../events/poke";
+import { VillaSwitcher } from "../components/VillaSwitcher";
+import { loadMyVillas, pickVilla, writeCurrentVilla } from "../villa/current";
+import type { MyVilla } from "../../shared/villa";
 import { DEFAULT_AVATAR, type AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
 
@@ -31,6 +34,8 @@ export function Settings() {
   const nav = useNavigate();
   const [me, setMe] = useState<Me | null>(null);
   const [villa, setVilla] = useState<VillaInfo>(null);
+  // 내가 사는 빌라 모두. 빌라 설정(방장 메뉴 · 공개 · 나가기)은 고른 빌라 하나에 대해 보여 준다
+  const [villas, setVillas] = useState<MyVilla[]>([]);
   const [pending, setPending] = useState<Pending>([]);
   const [loadError, setLoadError] = useState("");
   const [notes, setNotes] = useState<Record<string, Note>>({});
@@ -60,11 +65,20 @@ export function Settings() {
   async function loadPending() {
     setPending(await api<Pending>("/api/recover/pending"));
   }
-  /** 방장 넘기기 · 내보내기 뒤: 빌라 정보(방장 · 입주민 · 초대 링크)를 다시 불러온다 */
-  async function reloadVilla() {
-    const v = await api<VillaInfo>("/api/villas/mine");
+  /** 내 빌라 목록과 고른 빌라(want → 이 기기에서 마지막으로 본 빌라 → 첫 빌라)의 정보를 불러온다 */
+  async function loadVillas(want?: string | null) {
+    const list = await loadMyVillas();
+    const id = pickVilla(list, want);
+    const v = id ? await api<NonNullable<VillaInfo>>(`/api/villas/${id}`) : null;
+    setVillas(list);
     setVilla(v);
     setVillaName(v?.name ?? "");
+    setConfirm((c) => (c === "leave" ? "" : c));
+    return v;
+  }
+  /** 방장 넘기기 · 내보내기 뒤: 빌라 정보(방장 · 입주민 · 초대 링크)를 다시 불러온다 */
+  async function reloadVilla() {
+    const v = await loadVillas(villa?.id);
     pokeEvents();
     if (v) await loadPending().catch(() => {});
   }
@@ -73,13 +87,11 @@ export function Settings() {
     (async () => {
       try {
         const m = await api<Me>("/api/me");
-        const v = await api<VillaInfo>("/api/villas/mine");
+        const v = await loadVillas();
         setMe(m);
         setNickname(m.nickname);
         setSport(m.sport);
         setAvatar(m.avatar);
-        setVilla(v);
-        setVillaName(v?.name ?? "");
         if (v) await loadPending();
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) return nav("/login?next=/settings", { replace: true });
@@ -107,7 +119,7 @@ export function Settings() {
 
   return (
     <main className="page">
-      <Link className="back" to="/villa">← 빌라로</Link>
+      <Link className="back" to={villa ? `/villa/${villa.id}` : "/villa"}>← 빌라로</Link>
       <h1>설정</h1>
 
       {pending.length > 0 && (
@@ -209,8 +221,25 @@ export function Settings() {
         )}
       </Section>
 
+      {villas.length > 1 && villa && (
+        <section className="settings-section" aria-label="빌라 고르기">
+          <h2>빌라별 설정</h2>
+          <p className="muted small">아래 방장 메뉴 · 도시 지도 공개 · 빌라 나가기는 고른 빌라에만 적용돼요.</p>
+          <VillaSwitcher
+            villas={villas}
+            currentId={villa.id}
+            label="설정할 빌라"
+            onPick={(id) => {
+              writeCurrentVilla(id);
+              setNotes((p) => ({ ...p, villa: {}, city: {}, leave: {}, transfer: {} }));
+              void loadVillas(id).catch((e) => note("leave", { err: msg(e) }));
+            }}
+          />
+        </section>
+      )}
+
       {villa && isOwner && (
-        <Section title="빌라 (방장)" note={notes.villa}>
+        <Section title={villas.length > 1 ? `${villa.name} (방장)` : "빌라 (방장)"} note={notes.villa}>
           <div className="field">
             <label htmlFor="villa-name">빌라 이름</label>
             <input id="villa-name" type="text" value={villaName} onChange={(e) => setVillaName(e.target.value)} />
@@ -235,7 +264,7 @@ export function Settings() {
       )}
 
       {villa && (
-        <Section title="도시 지도에 공개" note={notes.city}>
+        <Section title={villas.length > 1 ? `${villa.name} 도시 지도 공개` : "도시 지도에 공개"} note={notes.city}>
           {isOwner ? (
             <>
               <label className="switch-row">
@@ -293,13 +322,17 @@ export function Settings() {
       {notes.transfer?.ok && <p className="ok" role="status">{notes.transfer.ok}</p>}
 
       {villa && (
-        <Section title="빌라 나가기" note={notes.leave}>
+        <Section title={villas.length > 1 ? `${villa.name} 나가기` : "빌라 나가기"} note={notes.leave}>
           {confirm === "leave" ? (
             <div role="alertdialog" aria-label="빌라 나가기 확인">
-              <p>빌라를 나갈까요? 연속 기록과 포인트, 가구는 그대로지만 층은 1층부터 다시 시작해요.</p>
+              <p>
+                {villas.length > 1
+                  ? `${villa.name}에서 나갈까요? 연속 기록과 포인트, 가구, 다른 빌라는 그대로예요. 다시 들어오면 이 빌라에서는 1층부터 시작해요.`
+                  : "빌라를 나갈까요? 연속 기록과 포인트, 가구는 그대로지만 층은 1층부터 다시 시작해요."}
+              </p>
               <div className="row">
                 <button className="btn danger" type="button" onClick={() => run("leave", "", async () => {
-                  await api("/api/villas/leave", { method: "POST" });
+                  await api(`/api/villas/${villa.id}/leave`, { method: "POST" });
                   nav("/villa", { replace: true });
                 })}>나갈게요</button>
                 <button className="btn ghost" type="button" onClick={() => setConfirm("")}>취소</button>

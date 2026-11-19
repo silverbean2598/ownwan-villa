@@ -34,7 +34,8 @@ function mockApi(ownerId: string, bans: unknown[] = []) {
       calls.push({ path, method, body: init?.body ? JSON.parse(String(init.body)) : undefined });
       const body = (data: unknown) => new Response(JSON.stringify(data), { status: 200 });
       if (path === "/api/me") return body(ME);
-      if (path === "/api/villas/mine") return body(villa(owner));
+      if (path === "/api/me/villas") return body([{ id: "v1", name: "땀빌라", ownerId: owner, public: false, memberCount: 2, joinedAt: 0, certifiedToday: false }]);
+      if (path === "/api/villas/v1" && method === "GET") return body(villa(owner));
       if (path === "/api/villas/v1/transfer") owner = "b";
       if (path === "/api/recover/pending") return body([]);
       if (path === "/api/shop") return body({ owned: [] });
@@ -116,10 +117,10 @@ describe("Settings 입주민 관리", () => {
     await mount();
     await click(button("방장 넘기기", host.querySelectorAll(".member-row:not(.ban-row)")[1]));
     expect(dialog()?.textContent).toContain("비비 님에게 방장을 넘길까요? 넘기면 나는 일반 입주민이 돼요.");
-    const before = calls.filter((c) => c.path === "/api/villas/mine").length;
+    const before = calls.filter((c) => c.path === "/api/villas/v1" && c.method === "GET").length;
     await click(button("넘기기", dialog()!));
     expect(calls).toContainEqual({ path: "/api/villas/v1/transfer", method: "POST", body: { userId: "b" } });
-    expect(calls.filter((c) => c.path === "/api/villas/mine").length).toBeGreaterThan(before);
+    expect(calls.filter((c) => c.path === "/api/villas/v1" && c.method === "GET").length).toBeGreaterThan(before);
     // 이제 방장이 아니라 입주민 관리는 사라지고, 넘겼다는 안내는 남는다
     expect(headings()).not.toContain("입주민 관리");
     expect(host.querySelector('[role="status"]')?.textContent).toBe("비비 님에게 방장을 넘겼어요");

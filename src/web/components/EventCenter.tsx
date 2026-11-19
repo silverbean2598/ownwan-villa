@@ -32,7 +32,8 @@ function markSeen(ids: string[]) {
   if (server.length) api("/api/events/seen", { method: "POST", body: JSON.stringify({ ids: server }) }).catch(() => {});
 }
 
-const onVillaScreens = (path: string) => path === "/villa" || path.startsWith("/room/");
+const onVillaScreens = (path: string) =>
+  path === "/villa" || (path.startsWith("/villa/") && path !== "/villa/new") || path.startsWith("/room/");
 
 /**
  * 축하 카드 · 알림 토스트. App 에 한 번만 둔다.

@@ -40,6 +40,12 @@ export function subjParticle(word: string): "이" | "가" | "이(가)" {
   return f === null ? "이(가)" : f ? "이" : "가";
 }
 
+/** 보조사: 받침 있으면 "은", 없으면 "는". 끝 글자를 읽을 수 없으면 "은(는)" */
+export function topicParticle(word: string): "은" | "는" | "은(는)" {
+  const f = hasFinal(word);
+  return f === null ? "은(는)" : f ? "은" : "는";
+}
+
 const str = (v: unknown, fallback = "") => (typeof v === "string" ? v : typeof v === "number" ? String(v) : fallback);
 
 export const COMMENT_PREVIEW = 20;
@@ -50,41 +56,54 @@ export function preview(text: string, n = COMMENT_PREVIEW): string {
   return chars.length > n ? chars.slice(0, n).join("").trimEnd() + "…" : text;
 }
 
+/**
+ * 빌라 여러 곳에 사는 사람에게 온 빌라 알림이면 빌라 이름 (서버가 villaName · multi 를 붙인다).
+ * 빌라 1곳에 사는 사람에게는 null → 지금까지와 같은 문구
+ */
+function villaOf(p: Record<string, unknown>): string | null {
+  return p.multi === true && typeof p.villaName === "string" && p.villaName ? p.villaName : null;
+}
+
 /** 카드 · 토스트 한 줄 문구 */
 export function eventCopy(e: AppEvent): string {
   const p = e.payload;
+  const villa = villaOf(p);
   switch (e.type) {
     case "streak7":
       return `${str(p.streak)}일 연속 오운완! 대단해요`;
-    case "floor_up":
+    case "floor_up": {
       // 7일째 인증은 연속 기록 카드와 층 카드가 겹치므로 서버가 floor_up 하나에 streak 을 함께 담는다
-      return p.streak !== undefined ? `${str(p.streak)}일 연속! ${str(p.floor)}층으로 올라왔어요` : `${str(p.floor)}층으로 올라왔어요`;
+      const where = villa ? `${villa} ` : "";
+      return p.streak !== undefined ? `${str(p.streak)}일 연속! ${where}${str(p.floor)}층으로 올라왔어요` : `${where}${str(p.floor)}층으로 올라왔어요`;
+    }
     case "penthouse_in":
-      return "펜트하우스에 입주했어요";
+      return villa ? `${villa} 펜트하우스에 입주했어요` : "펜트하우스에 입주했어요";
     case "penthouse_out":
-      return `${str(p.nickname, "이웃")} 님이 펜트하우스를 차지했어요`;
+      return villa
+        ? `${str(p.nickname, "이웃")} 님이 ${villa} 펜트하우스를 차지했어요`
+        : `${str(p.nickname, "이웃")} 님이 펜트하우스를 차지했어요`;
     case "floor_down":
-      return `어제 쉬어서 ${str(p.floor)}층으로 내려왔어요`;
+      return villa ? `어제 ${villa}에 올리지 않아서 ${str(p.floor)}층으로 내려왔어요` : `어제 쉬어서 ${str(p.floor)}층으로 내려왔어요`;
     case "welcome":
       return `${str(p.villaName, "빌라")}에 입주했어요`;
     case "certified":
       return `불이 켜졌어요 +${str(p.points, "0")}P`;
     case "streak6":
-      return "내일 인증하면 한 층 올라가요";
+      return villa ? `내일 ${villa}에 인증하면 한 층 올라가요` : "내일 인증하면 한 층 올라가요";
     case "bought": {
       const name = str(p.itemName, "가구");
       return `${name}${objParticle(name)} 샀어요`;
     }
     case "friend_joined":
-      return `${str(p.nickname, "새 이웃")} 님이 입주했어요`;
+      return villa ? `${str(p.nickname, "새 이웃")} 님이 ${villa}에 입주했어요` : `${str(p.nickname, "새 이웃")} 님이 입주했어요`;
     case "night_reminder":
       return "오늘 아직 불이 꺼져 있어요";
     case "kicked":
       return `${str(p.villaName, "빌라")}에서 나가게 됐어요`;
     case "owner_in":
-      return "방장이 됐어요";
+      return villa ? `${villa} 방장이 됐어요` : "방장이 됐어요";
     case "owner_changed":
-      return `${str(p.nickname, "이웃")} 님이 새 방장이 됐어요`;
+      return villa ? `${str(p.nickname, "이웃")} 님이 ${villa} 새 방장이 됐어요` : `${str(p.nickname, "이웃")} 님이 새 방장이 됐어요`;
     case "dissolved": {
       const name = str(p.villaName, "빌라");
       return `${name}${subjParticle(name)} 해체됐어요`;
@@ -101,7 +120,7 @@ export function eventCopy(e: AppEvent): string {
 /**
  * 받아 온 이벤트를 카드 · 토스트로 나눈다 (순서 유지).
  * 48시간보다 오래된 이벤트는 보여 주지 않는다(오랜만에 들어온 사람에게 지난 카드가 쏟아지지 않게).
- * 펜트하우스는 마지막 변경만 보여 준다(오래 안 들어온 사이 여러 번 뺏고 뺏겼을 때). 나머지와 모르는 종류는 drop → 바로 본 것으로.
+ * 펜트하우스는 빌라마다 마지막 변경만 보여 준다(오래 안 들어온 사이 여러 번 뺏고 뺏겼을 때). 나머지와 모르는 종류는 drop → 바로 본 것으로.
  */
 export const STALE_MS = 48 * 3600_000;
 
@@ -109,12 +128,21 @@ export function planEvents(all: AppEvent[], nowMs: number): { cards: AppEvent[];
   const stale = all.filter((e) => nowMs - e.createdAt > STALE_MS);
   const list = all.filter((e) => nowMs - e.createdAt <= STALE_MS);
   const isPenthouse = (t: string) => t === "penthouse_in" || t === "penthouse_out";
-  const lastPenthouse = [...list].reverse().find((e) => isPenthouse(e.type))?.id;
+  // 빌라마다 마지막 펜트하우스 알림 (빌라 정보가 없는 예전 알림은 한 묶음)
+  const lastPenthouse = new Set<string>();
+  const seenVilla = new Set<string>();
+  for (const e of [...list].reverse()) {
+    if (!isPenthouse(e.type)) continue;
+    const v = typeof e.payload.villaId === "string" ? e.payload.villaId : "";
+    if (seenVilla.has(v)) continue;
+    seenVilla.add(v);
+    lastPenthouse.add(e.id);
+  }
   const cards: AppEvent[] = [];
   const toasts: AppEvent[] = [];
   const drop: string[] = stale.map((e) => e.id);
   for (const e of list) {
-    if (isPenthouse(e.type) && e.id !== lastPenthouse) drop.push(e.id);
+    if (isPenthouse(e.type) && !lastPenthouse.has(e.id)) drop.push(e.id);
     else if (isCard(e.type)) cards.push(e);
     else if (isToast(e.type)) toasts.push(e);
     else drop.push(e.id);

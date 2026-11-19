@@ -11,8 +11,14 @@ export type Member = {
   avatar: AvatarSpec;
   floor: number;
   floorUpToday?: boolean;
+  /** 이 빌라 층을 정하는 연속 기록 (이 빌라에 올린 날로 센다) */
   streak: number;
+  /** 어느 빌라든 올린 날로 센 연속 기록 (프로필) */
+  userStreak?: number;
+  /** 오늘 이 빌라에 올렸다 = 이 빌라에서 불이 켜졌다 */
   certifiedToday: boolean;
+  /** 오늘 어느 빌라든 올렸다 */
+  certifiedAnywhere?: boolean;
   placements: { slot: string; itemId: string }[];
 };
 
@@ -68,12 +74,12 @@ function VacantRoom() {
   );
 }
 
-type Props = { members: Member[]; penthouseUserId: string | null; ownerId: string; meId: string };
+type Props = { members: Member[]; penthouseUserId: string | null; ownerId: string; meId: string; villaId?: string };
 
-export function Building({ members, penthouseUserId, ownerId, meId }: Props) {
+export function Building({ members, penthouseUserId, ownerId, meId, villaId }: Props) {
   const rows = layoutFloors(members, penthouseUserId);
   const tile = (m: Member, penthouse = false) => (
-    <RoomTile key={m.userId} member={m} isMe={m.userId === meId} isOwner={m.userId === ownerId} penthouse={penthouse} />
+    <RoomTile key={m.userId} member={m} isMe={m.userId === meId} isOwner={m.userId === ownerId} penthouse={penthouse} villaId={villaId} />
   );
   return (
     <section className="bldg" aria-label="빌라 단면">

@@ -5,6 +5,7 @@ import { BoardItem, groupByDay, type BoardItemData } from "../components/Board";
 import { usePhotoActions } from "../components/PhotoActions";
 import { CheerBar, CommentThread } from "../components/Cheer";
 import { NotFoundRoom, useRoomMember } from "./Room";
+import { roomPath } from "../villa/current";
 import "../components/villa.css";
 
 const PAGE = 20;
@@ -18,6 +19,7 @@ export function RoomBoard() {
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState("");
   const target = state?.member?.userId;
+  const villaId = state?.villaId ?? "";
   const [thread, setThread] = useState<string | null>(null);
   const cheering = useRef(new Set<string>());
   const patch = (id: string, p: Partial<BoardItemData>) => setItems((xs) => xs.map((x) => (x.id === id ? { ...x, ...p } : x)));
@@ -53,7 +55,7 @@ export function RoomBoard() {
       setErr("");
       try {
         const r = await api<BoardItemData[]>(
-          `/api/users/${target}/board?limit=${PAGE}${before ? `&before=${before}` : ""}`,
+          `/api/users/${target}/board?limit=${PAGE}&villa=${encodeURIComponent(villaId)}${before ? `&before=${before}` : ""}`,
         );
         setItems((prev) => (before ? [...prev, ...r] : r));
         setMore(r.length === PAGE);
@@ -64,7 +66,7 @@ export function RoomBoard() {
         setLoading(false);
       }
     },
-    [target],
+    [target, villaId],
   );
   useEffect(() => {
     void load();
@@ -77,7 +79,7 @@ export function RoomBoard() {
 
   return (
     <main className="villa-page room-page">
-      <Link className="back" to={`/room/${state.member.userId}`}>← 방으로</Link>
+      <Link className="back" to={roomPath(state.member.userId, state.villaId)}>← 방으로</Link>
       <h1>{state.member.nickname}의 기록</h1>
       {err && <p className="error" role="alert">{err}</p>}
       {loaded && items.length === 0 && <p className="muted">아직 붙인 기록이 없어요</p>}

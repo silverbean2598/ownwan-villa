@@ -2,10 +2,11 @@ import { useNavigate } from "react-router-dom";
 import { SPORT_LABEL } from "../../shared/sports";
 import { RoomScene } from "./RoomScene";
 import type { Member } from "./Building";
+import { roomPath } from "../villa/current";
 
-type Props = { member: Member; isMe: boolean; isOwner: boolean; penthouse?: boolean };
+type Props = { member: Member; isMe: boolean; isOwner: boolean; penthouse?: boolean; villaId?: string };
 
-export function RoomTile({ member, isMe, isOwner, penthouse = false }: Props) {
+export function RoomTile({ member, isMe, isOwner, penthouse = false, villaId }: Props) {
   const nav = useNavigate();
   const lit = member.certifiedToday;
   const label = `${member.nickname}의 방, ${SPORT_LABEL[member.sport]}, ${lit ? "오늘 인증함" : "오늘 아직"}`;
@@ -15,7 +16,7 @@ export function RoomTile({ member, isMe, isOwner, penthouse = false }: Props) {
       className={`room ${lit ? "on" : "off"}${isMe ? " me" : ""}${penthouse ? " ph-wide" : ""}`}
       data-penthouse={penthouse ? "true" : undefined}
       aria-label={label}
-      onClick={() => nav(`/room/${member.userId}`)}
+      onClick={() => nav(villaId ? roomPath(member.userId, villaId) : `/room/${member.userId}`)}
     >
       <RoomScene sport={member.sport} lit={lit} avatar={member.avatar} penthouse={penthouse} placements={member.placements} />
       <span className="tag">

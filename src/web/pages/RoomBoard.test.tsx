@@ -39,7 +39,8 @@ function mockApi(boardOf: string, items: unknown[], extra?: Handler) {
       const r = extra?.(path, method);
       if (r) return r;
       if (path === "/api/me") return body({ id: "me" });
-      if (path === "/api/villas/mine") return body(villa);
+      if (path === "/api/me/villas") return body([{ id: "v1", name: "땀빌라", ownerId: "me", public: false, memberCount: 2, joinedAt: 0, certifiedToday: false }]);
+      if (path === "/api/villas/v1") return body(villa);
       if (path.startsWith(`/api/users/${boardOf}/board`)) return body(items);
       if (path === "/api/certs/c1/comments" && method === "GET")
         return body([

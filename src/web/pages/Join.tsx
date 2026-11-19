@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { VILLA_CAPACITY } from "../../shared/villa";
+import { MAX_VILLAS_PER_USER, VILLA_CAPACITY, VILLA_LIMIT_MSG } from "../../shared/villa";
+import { villaPath, writeCurrentVilla } from "../villa/current";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 
-// 로그인한 상태면 alreadyMember · inOtherVilla가 함께 온다
-type Preview = { villaName: string; memberCount: number; alreadyMember?: boolean; inOtherVilla?: boolean };
+// 로그인한 상태면 alreadyMember(+ villaId) · myVillaCount · atLimit 이 함께 온다
+type Preview = { villaName: string; memberCount: number; alreadyMember?: boolean; villaId?: string; myVillaCount?: number; atLimit?: boolean };
 
 export function Join() {
   const { token = "" } = useParams();
@@ -20,7 +21,10 @@ export function Join() {
   useEffect(() => {
     api<Preview>(`/api/invite/${token}`).then((p) => {
       // 이미 이 빌라 입주민(온보딩 중에 나갔다가 다시 연 경우)이면 바로 빌라로. 운동 종목이 없으면 빌라 화면이 온보딩으로 보낸다
-      if (p.alreadyMember) return nav("/villa", { replace: true });
+      if (p.alreadyMember) {
+        if (p.villaId) writeCurrentVilla(p.villaId);
+        return nav(p.villaId ? villaPath(p.villaId) : "/villa", { replace: true });
+      }
       setPreview(p);
     }, (e) => {
       setBanned(e instanceof ApiError && e.status === 403);
@@ -36,8 +40,10 @@ export function Join() {
     setBusy(true);
     setError("");
     try {
-      await api(`/api/invite/${token}/join`, { method: "POST" });
-      nav("/villa", { replace: true });
+      const r = await api<{ villaId?: string }>(`/api/invite/${token}/join`, { method: "POST" });
+      // 새로 들어온 빌라를 바로 보여 준다
+      if (r.villaId) writeCurrentVilla(r.villaId);
+      nav(r.villaId ? villaPath(r.villaId) : "/villa", { replace: true });
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
         setBanned(true);
@@ -64,17 +70,24 @@ export function Join() {
           <Link className="btn ghost" to="/" replace>첫 화면</Link>
         </div>
       )}
-      {preview?.inOtherVilla && (
+      {preview?.atLimit && (
         <>
-          <p className="muted">이미 다른 빌라에 살고 있어요. 옮기려면 설정에서 지금 빌라를 먼저 나가 주세요.</p>
+          <p className="limit-box" role="status">{VILLA_LIMIT_MSG}</p>
           <div className="row" style={{ flexDirection: "column" }}>
             <Link className="btn" to="/villa" replace>내 빌라로</Link>
-            <Link className="btn ghost" to="/settings">설정</Link>
+            <Link className="btn ghost" to="/settings">설정에서 빌라 나가기</Link>
           </div>
         </>
       )}
-      {preview && !preview.inOtherVilla && loggedIn === true && (
-        <button className="btn" type="button" disabled={busy} onClick={join}>입주하기</button>
+      {preview && !preview.atLimit && loggedIn === true && (
+        <>
+          {!!preview.myVillaCount && (
+            <p className="muted">
+              지금 사는 빌라는 그대로 두고 한 곳 더 입주해요. ({preview.myVillaCount + 1}/{MAX_VILLAS_PER_USER}곳)
+            </p>
+          )}
+          <button className="btn" type="button" disabled={busy} onClick={join}>입주하기</button>
+        </>
       )}
       {preview && loggedIn === false && (
         <div className="row" style={{ flexDirection: "column" }}>

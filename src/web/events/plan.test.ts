@@ -146,3 +146,32 @@ describe("응원 · 댓글 알림", () => {
     expect(p.toasts.map((e) => e.id)).toEqual(["a", "b"]);
   });
 });
+
+describe("빌라 여러 곳에 살 때 알림 문구 [확정 — 기획자 결정, 2026-11-19]", () => {
+  const tag = (multi: boolean, villaName = "에이빌라") => ({ villaId: "A", villaName, multi });
+  it("names_the_villa_only_when_living_in_several", () => {
+    expect(eventCopy(ev("1", "floor_up", { floor: 3, streak: 14, ...tag(true) }))).toBe("14일 연속! 에이빌라 3층으로 올라왔어요");
+    expect(eventCopy(ev("1", "floor_up", { floor: 3, streak: 14, ...tag(false) }))).toBe("14일 연속! 3층으로 올라왔어요");
+    expect(eventCopy(ev("1", "floor_down", { floor: 2, ...tag(true) }))).toBe("어제 에이빌라에 올리지 않아서 2층으로 내려왔어요");
+    expect(eventCopy(ev("1", "floor_down", { floor: 2, ...tag(false) }))).toBe("어제 쉬어서 2층으로 내려왔어요");
+    expect(eventCopy(ev("1", "streak6", { streak: 6, ...tag(true) }))).toBe("내일 에이빌라에 인증하면 한 층 올라가요");
+    expect(eventCopy(ev("1", "penthouse_in", tag(true)))).toBe("에이빌라 펜트하우스에 입주했어요");
+    expect(eventCopy(ev("1", "penthouse_out", { nickname: "민지", ...tag(true) }))).toBe("민지 님이 에이빌라 펜트하우스를 차지했어요");
+    expect(eventCopy(ev("1", "friend_joined", { nickname: "민지", ...tag(true) }))).toBe("민지 님이 에이빌라에 입주했어요");
+    expect(eventCopy(ev("1", "owner_in", tag(true)))).toBe("에이빌라 방장이 됐어요");
+    expect(eventCopy(ev("1", "owner_changed", { nickname: "민지", ...tag(true) }))).toBe("민지 님이 에이빌라 새 방장이 됐어요");
+    expect(eventCopy(ev("1", "penthouse_in", tag(false)))).toBe("펜트하우스에 입주했어요");
+  });
+  it("keeps_the_latest_penthouse_change_per_villa", () => {
+    const p = planEvents(
+      [
+        ev("a", "penthouse_in", { villaId: "A" }),
+        ev("b", "penthouse_in", { villaId: "B" }),
+        ev("c", "penthouse_out", { villaId: "A" }),
+      ],
+      NOW,
+    );
+    expect(p.cards.map((e) => e.id)).toEqual(["b", "c"]);
+    expect(p.drop).toEqual(["a"]);
+  });
+});

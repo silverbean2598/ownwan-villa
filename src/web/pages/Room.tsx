@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { SPORT_LABEL } from "../../shared/sports";
 import { displayStreak } from "../../shared/rules/streak";
@@ -11,9 +11,10 @@ import { FurnitureIcon } from "../components/furniture";
 import { slotAnchors, sceneGeom, type Anchor } from "../components/furniture/layout";
 import { FURNITURE, SLOTS, findItem, slotType, type Slot } from "../../shared/catalog";
 import { CertifyButton } from "../components/CertifyButton";
+import { loadMyVillas, pickVilla, roomPath, villaPath } from "../villa/current";
 import "../components/villa.css";
 
-type VillaData = { ownerId: string; penthouseUserId: string | null; members: Member[] } | null;
+type VillaData = { id: string; ownerId: string; penthouseUserId: string | null; members: Member[] };
 type Me = { id: string };
 
 type Placement = { slot: string; itemId: string };
@@ -43,19 +44,35 @@ function slotStyle(p: Anchor): CSSProperties {
   };
 }
 
-/** 방 주인의 방 정보를 불러온다. 401이면 로그인으로 보낸다. */
+type RoomState = { me: Me; member: Member | null; penthouse: boolean; iAmVillaOwner: boolean; villaId: string; multi: boolean };
+
+/**
+ * 방 주인의 방 정보를 불러온다. 401이면 로그인으로 보낸다.
+ * 어느 빌라에서 보는지는 주소의 ?villa= 로 정한다. 없으면(예전 주소) 이 기기에서 마지막으로 본 빌라부터, 그 사람이 사는 빌라를 찾는다.
+ */
 export function useRoomMember(userId: string | undefined, path: string) {
   const nav = useNavigate();
-  const [state, setState] = useState<{ me: Me; member: Member | null; penthouse: boolean; iAmVillaOwner: boolean } | null>(null);
+  const [params] = useSearchParams();
+  const want = params.get("villa");
+  const [state, setState] = useState<RoomState | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const me = await api<Me>("/api/me");
-        const villa = await api<VillaData>("/api/villas/mine");
-        const member = villa?.members.find((m) => m.userId === userId) ?? null;
-        if (alive) setState({ me, member, penthouse: !!member && villa?.penthouseUserId === member.userId, iAmVillaOwner: villa?.ownerId === me.id });
+        const villas = await loadMyVillas();
+        const first = pickVilla(villas, want);
+        const order = want ? (first === want ? [want] : []) : [...new Set([first, ...villas.map((v) => v.id)])].filter((x): x is string => !!x);
+        let found: RoomState = { me, member: null, penthouse: false, iAmVillaOwner: false, villaId: first ?? "", multi: villas.length > 1 };
+        for (const id of order) {
+          const villa = await api<VillaData>(`/api/villas/${id}`);
+          const member = villa.members.find((m) => m.userId === userId) ?? null;
+          if (!member) continue;
+          found = { ...found, member, penthouse: villa.penthouseUserId === member.userId, iAmVillaOwner: villa.ownerId === me.id, villaId: id };
+          break;
+        }
+        if (alive) setState(found);
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) return nav(`/login?next=${encodeURIComponent(path)}`, { replace: true });
         if (alive) setError(e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
@@ -64,7 +81,7 @@ export function useRoomMember(userId: string | undefined, path: string) {
     return () => {
       alive = false;
     };
-  }, [nav, userId, path]);
+  }, [nav, userId, path, want]);
   return { state, error };
 }
 
@@ -108,7 +125,7 @@ export function Room() {
   useEffect(() => {
     if (!state?.member) return;
     let alive = true;
-    api<BoardItemData[]>(`/api/users/${state.member.userId}/board?limit=6`)
+    api<BoardItemData[]>(`/api/users/${state.member.userId}/board?limit=6&villa=${encodeURIComponent(state.villaId)}`)
       .then((r) => alive && setItems(r))
       .catch((e) => alive && setBoardError(e instanceof ApiError ? e.message : "기록을 불러오지 못했어요"));
     return () => {
@@ -124,8 +141,10 @@ export function Room() {
 
   if (error) return <main className="page"><p className="error" role="alert">{error}</p></main>;
   if (!state) return <main className="page"><p className="muted">불러오는 중이에요</p></main>;
-  const { member, penthouse } = state;
+  const { member, penthouse, villaId, multi } = state;
   if (!member) return <NotFoundRoom />;
+  const userStreak = displayStreak(member.userStreak ?? member.streak, member.certifiedAnywhere ?? member.certifiedToday);
+  const villaStreak = displayStreak(member.streak, member.certifiedToday);
   const anchors = slotAnchors("detail", penthouse);
   const placedIn = (slot: Slot) => placements.find((p) => p.slot === slot);
 
@@ -153,16 +172,18 @@ export function Room() {
 
   return (
     <main className="villa-page room-page">
-      <Link className="back" to="/villa">← 빌라로</Link>
+      <Link className="back" to={villaPath(villaId)}>← 빌라로</Link>
       <header className="room-head">
         <h1>{member.nickname}</h1>
         <div className="stats">
           <span className="chip" aria-label="종목">{SPORT_LABEL[member.sport]}</span>
           <span className="chip">{penthouse ? "펜트하우스" : `${member.floor}층`}</span>
           {member.floorUpToday && <span className="chip up-chip">+1층</span>}
-          <span className="chip">연속 <b>{displayStreak(member.streak, member.certifiedToday)}</b>일</span>
+          <span className="chip">연속 <b>{userStreak}</b>일</span>
+          {/* 빌라 여러 곳에 살면 이 빌라 층을 정하는 연속 기록이 다를 수 있다 */}
+          {multi && villaStreak !== userStreak && <span className="chip">이 빌라 <b>{villaStreak}</b>일</span>}
         </div>
-        {isMe && <CertifyButton certifiedToday={member.certifiedToday} />}
+        {isMe && <CertifyButton certifiedToday={member.certifiedToday} certifiedElsewhere={multi && !!member.certifiedAnywhere} villaId={villaId} />}
       </header>
       <div className={`room-stage ${member.certifiedToday ? "on" : "off"}`}>
         <div className={`room ${member.certifiedToday ? "on" : "off"} big`}>
@@ -175,7 +196,7 @@ export function Room() {
             placements={placements}
             board={
               <section className="left-wall" aria-label="게시판">
-                <Link className="board-link" to={`/room/${member.userId}/board`} aria-label="전체 기록 보기">
+                <Link className="board-link" to={roomPath(member.userId, villaId, true)} aria-label="전체 기록 보기">
                   {boardError ? <p className="error" role="alert">{boardError}</p> : <Board items={items ?? []} renderPhotoActions={photoActions.render} />}
                 </Link>
               </section>
@@ -224,7 +245,7 @@ export function Room() {
           <Link className="btn ghost" to="/shop">가구 상점</Link>
         </div>
       )}
-      <Link className="btn ghost board-all" to={`/room/${member.userId}/board`}>전체 기록 보기</Link>
+      <Link className="btn ghost board-all" to={roomPath(member.userId, villaId, true)}>전체 기록 보기</Link>
       {photoActions.dialog}
     </main>
   );

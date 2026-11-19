@@ -46,12 +46,14 @@ type Props = {
   x: number;
   y: number;
   mine: boolean;
+  /** 처음 열 때 화면을 맞출 건물 (우리 빌라 중 하나). 없으면 mine 을 따른다 */
+  anchor?: boolean;
   selected: boolean;
   onSelect: (v: CityVilla) => void;
 };
 
 /** 공개 빌라 한 채. (x, y) = 건물 바닥 가운데. 누르면 카드가 열린다 */
-export function CityBuilding({ villa, x, y, mine, selected, onSelect }: Props) {
+export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSelect }: Props) {
   const seed = hash(villa.id);
   const shape = buildingShape(villa.topFloor, villa.memberCount, villa.litCount, seed);
   const d = dims(shape.tall);
@@ -81,7 +83,7 @@ export function CityBuilding({ villa, x, y, mine, selected, onSelect }: Props) {
       tabIndex={0}
       aria-label={buildingLabel(villa, mine)}
       aria-pressed={selected}
-      id={mine ? "city-mine" : undefined}
+      id={anchor ? "city-mine" : undefined}
       onClick={() => onSelect(villa)}
       onKeyDown={onKey}
       data-lit={villa.litCount}

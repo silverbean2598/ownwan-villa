@@ -31,6 +31,7 @@ export function App() {
         <Route path="/join/:token" element={<Join />} />
         <Route path="/onboard" element={<Onboard />} />
         <Route path="/villa" element={<Villa />} />
+        <Route path="/villa/:id" element={<Villa />} />
         <Route path="/certify" element={<Certify />} />
         <Route path="/room/:userId" element={<Room />} />
         <Route path="/room/:userId/board" element={<RoomBoard />} />
