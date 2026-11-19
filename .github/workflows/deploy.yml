@@ -63,9 +63,14 @@ jobs:
         run: |
           set -euo pipefail
           for NAME in KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET; do
-            if [ -z "${!NAME:-}" ]; then
+            VALUE="${!NAME:-}"
+            # 앞뒤 공백 · 줄바꿈을 지운다 (출력 없이 셸 치환만 쓴다)
+            VALUE="${VALUE#"${VALUE%%[![:space:]]*}"}"
+            VALUE="${VALUE%"${VALUE##*[![:space:]]}"}"
+            if [ -z "$VALUE" ]; then
               echo "::warning::$NAME 이(가) 비어 있어 건너뛰어요. 카카오 로그인은 '준비 중'으로 보여요"
               continue
             fi
-            printf %s "${!NAME}" | npx wrangler secret put "$NAME"
+            printf %s "$VALUE" | npx wrangler secret put "$NAME"
           done
+          unset VALUE

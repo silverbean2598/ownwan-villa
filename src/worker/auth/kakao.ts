@@ -22,6 +22,9 @@ export const KAKAO_NOT_READY = "카카오 로그인을 준비 중이에요";
 const AUTHORIZE_URL = "https://kauth.kakao.com/oauth/authorize";
 const TOKEN_URL = "https://kauth.kakao.com/oauth/token";
 const ME_URL = "https://kapi.kakao.com/v2/user/me";
+const KAKAO_TIMEOUT_MS = 8000;
+/** 살아 있는 state 가 이만큼 넘으면 새로 만들지 않는다 (로그인 없이 부를 수 있는 /start 반복으로 표가 끝없이 커지지 않게) */
+export const MAX_LIVE_STATES = 5000;
 
 type Mode = "login" | "link";
 
@@ -56,9 +59,25 @@ function setShortCookie(c: Context<AppEnv>, name: string, value: string) {
   setCookie(c, name, value, { httpOnly: true, secure: true, sameSite: "Lax", path: COOKIE_PATH, maxAge: TTL_MS / 1000 });
 }
 
+/** 콜백 응답은 저장하지 않고, 이동할 때 주소(code · state)를 Referer 로 넘기지 않는다 */
+function redirectNoStore(c: Context<AppEnv>, location: string) {
+  c.header("Cache-Control", "no-store");
+  c.header("Referrer-Policy", "no-referrer");
+  return c.redirect(location, 302);
+}
+
 /** 실패하면 화면으로 돌려보내며 이유 코드를 붙인다 (문구는 화면이 정한다) */
 function fail(c: Context<AppEnv>, mode: Mode, code: string) {
-  return c.redirect(mode === "link" ? `/settings?kakao=${code}#kakao` : `/login?kakao=${code}`, 302);
+  return redirectNoStore(c, mode === "link" ? `/settings?kakao=${code}#kakao` : `/login?kakao=${code}`);
+}
+
+/** 만료된 state · 가입 대기 행을 지운다 (/start · 콜백 때, 그리고 매일 크론에서) */
+export async function purgeExpiredKakao(env: Env): Promise<void> {
+  const t = now();
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM oauth_states WHERE expires_at <= ?").bind(t),
+    env.DB.prepare("DELETE FROM kakao_pending WHERE expires_at <= ?").bind(t),
+  ]);
 }
 
 /** 로그인 세션 발급: 들고 온 세션은 지우고 새로 만든다 (세션 고정 방지) */
@@ -81,11 +100,23 @@ async function userIdForKakao(env: Env, kakaoId: string): Promise<string | null>
   return row?.user_id ?? null;
 }
 
+/** 실패 원인을 Workers Logs 에 남긴다: HTTP 상태와 카카오 error_code 만 (토큰 · 인가 코드는 절대 남기지 않는다) */
+async function warnKakao(step: string, res: Response) {
+  let errorCode: unknown = null;
+  try {
+    const b = (await res.json()) as { error_code?: unknown; code?: unknown };
+    errorCode = b.error_code ?? b.code ?? null;
+  } catch {}
+  const safe = typeof errorCode === "string" || typeof errorCode === "number" ? String(errorCode).slice(0, 40) : "-";
+  console.warn(`kakao ${step} failed: status=${res.status} error_code=${safe}`);
+}
+
 /** 인가 코드 → 액세스 토큰 → 회원번호. 토큰은 이 함수 밖으로 내보내지 않는다. 실패하면 null */
 async function fetchKakaoId(c: Context<AppEnv>, code: string): Promise<string | null> {
   try {
     const tokenRes = await fetch(TOKEN_URL, {
       method: "POST",
+      signal: AbortSignal.timeout(KAKAO_TIMEOUT_MS),
       headers: { "content-type": "application/x-www-form-urlencoded;charset=utf-8" },
       body: new URLSearchParams({
         grant_type: "authorization_code",
@@ -95,14 +126,22 @@ async function fetchKakaoId(c: Context<AppEnv>, code: string): Promise<string | 
         code,
       }),
     });
-    if (!tokenRes.ok) return null;
+    if (!tokenRes.ok) {
+      await warnKakao("token", tokenRes);
+      return null;
+    }
     const token = ((await tokenRes.json()) as { access_token?: unknown }).access_token;
     if (typeof token !== "string" || !token) return null;
-    const meRes = await fetch(ME_URL, { headers: { authorization: `Bearer ${token}` } });
-    if (!meRes.ok) return null;
+    const meRes = await fetch(ME_URL, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(KAKAO_TIMEOUT_MS) });
+    if (!meRes.ok) {
+      await warnKakao("user/me", meRes);
+      return null;
+    }
     const id = ((await meRes.json()) as { id?: unknown }).id;
     return typeof id === "number" && Number.isSafeInteger(id) && id > 0 ? String(id) : null;
-  } catch {
+  } catch (e) {
+    // 시간 초과 · 네트워크 오류: 오류 이름만 남긴다
+    console.warn(`kakao request failed: ${e instanceof Error ? e.name : "unknown"}`);
     return null;
   }
 }
@@ -119,12 +158,12 @@ kakao.get(`${COOKIE_PATH}/start`, async (c) => {
   const next = mode === "link" ? "/settings" : safeInternalPath(c.req.query("next"));
   const state = randomToken();
   const t = now();
-  await c.env.DB.batch([
-    c.env.DB.prepare("DELETE FROM oauth_states WHERE expires_at <= ?").bind(t),
-    c.env.DB.prepare("INSERT INTO oauth_states (state_hash, mode, user_id, next, expires_at) VALUES (?, ?, ?, ?, ?)").bind(
-      await hashToken(state), mode, userId, next, t + TTL_MS,
-    ),
-  ]);
+  await c.env.DB.prepare("DELETE FROM oauth_states WHERE expires_at <= ?").bind(t).run();
+  const live = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM oauth_states").first<{ n: number }>();
+  if ((live?.n ?? 0) >= MAX_LIVE_STATES) return fail(c, mode, "busy");
+  await c.env.DB.prepare("INSERT INTO oauth_states (state_hash, mode, user_id, next, expires_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(await hashToken(state), mode, userId, next, t + TTL_MS)
+    .run();
   setShortCookie(c, STATE_COOKIE, state);
   const url = new URL(AUTHORIZE_URL);
   url.searchParams.set("response_type", "code");
@@ -161,7 +200,7 @@ kakao.get(`${COOKIE_PATH}/callback`, async (c) => {
   if (mode === "link") {
     // 시작한 사람과 지금 로그인한 사람이 같아야 한다
     const me = await sessionUserId(c);
-    if (!me || me !== row.user_id) return fail(c, "link", "state");
+    if (!me || me !== row.user_id) return fail(c, "link", "link_mismatch");
     if (owner === me) return fail(c, "link", "linked");
     if (owner) return fail(c, "link", "linked_other");
     try {
@@ -179,7 +218,7 @@ kakao.get(`${COOKIE_PATH}/callback`, async (c) => {
 
   if (owner) {
     await logIn(c, owner);
-    return c.redirect(row.next ?? "/villa", 302);
+    return redirectNoStore(c, row.next ?? "/villa");
   }
 
   // 처음 온 카카오 회원번호 → 닉네임 정하기 (회원번호만 10분 동안 들고 있는다)
@@ -192,7 +231,7 @@ kakao.get(`${COOKIE_PATH}/callback`, async (c) => {
     ),
   ]);
   setShortCookie(c, PENDING_COOKIE, token);
-  return c.redirect("/kakao/nickname", 302);
+  return redirectNoStore(c, "/kakao/nickname");
 });
 
 // POST /api/auth/kakao/finish { nickname, over14, agree } → 계정 만들기 + 로그인

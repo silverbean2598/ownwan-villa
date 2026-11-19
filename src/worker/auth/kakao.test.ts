@@ -1,7 +1,9 @@
 import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { app } from "../index";
-import { safeInternalPath } from "./kakao";
+import { MAX_LIVE_STATES, safeInternalPath } from "./kakao";
+import { settleThrough } from "../cron/settle";
+import { hashToken } from "../recovery/codes";
 
 // 카카오 키가 있는 환경 (테스트 기본 env 에는 키가 없다 = "준비 중")
 const kenv = { ...env, KAKAO_REST_API_KEY: "rest-key", KAKAO_CLIENT_SECRET: "client-secret" };
@@ -332,7 +334,7 @@ describe("link / unlink", () => {
     const cb = await req(`/api/auth/kakao/callback?code=C&state=${state}`, {
       headers: { cookie: `${cookieVal(start, "kakao_state")}; ${b.sid}` },
     });
-    expect(cb.headers.get("location")).toBe("/settings?kakao=state#kakao");
+    expect(cb.headers.get("location")).toBe("/settings?kakao=link_mismatch#kakao");
     expect(await env.DB.prepare("SELECT 1 FROM user_identities WHERE user_id IN (?, ?)").bind(a.id, b.id).first()).toBeNull();
   });
 
@@ -375,5 +377,79 @@ describe("deletion and missing secrets", () => {
     expect(linkStart.headers.get("location")).toBe("/settings?kakao=unconfigured#kakao");
     const st = await req("/api/auth/kakao/status", { headers: { cookie: u.sid } }, env);
     expect(await st.json()).toEqual({ configured: false, linked: false, hasPassword: true });
+  });
+});
+
+describe("review fixes", () => {
+  it("start_refuses_when_too_many_live_states", async () => {
+    await env.DB.prepare("DELETE FROM oauth_states").run();
+    await env.DB.prepare(
+      `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
+       INSERT INTO oauth_states (state_hash, mode, expires_at) SELECT 'fill' || i, 'login', ? FROM n`,
+    ).bind(MAX_LIVE_STATES, Date.now() + 600_000).run();
+    const res = await req("/api/auth/kakao/start");
+    expect(res.headers.get("location")).toBe("/login?kakao=busy");
+    expect(cookieVal(res, "kakao_state")).toBeUndefined();
+    // 만료된 행은 세지 않는다
+    await env.DB.prepare("UPDATE oauth_states SET expires_at = 1 WHERE state_hash LIKE 'fill%'").run();
+    const ok = await req("/api/auth/kakao/start");
+    expect(new URL(ok.headers.get("location")!).origin).toBe("https://kauth.kakao.com");
+    expect(await env.DB.prepare("SELECT 1 FROM oauth_states WHERE state_hash LIKE 'fill%'").first()).toBeNull();
+  });
+
+  it("daily_cron_purges_expired_kakao_rows", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO oauth_states (state_hash, mode, expires_at) VALUES ('old-s', 'login', 1), ('live-s', 'login', ?)").bind(Date.now() + 600_000),
+      env.DB.prepare("INSERT INTO kakao_pending (token_hash, kakao_id, expires_at) VALUES ('old-p', '1', 1), ('live-p', '2', ?)").bind(Date.now() + 600_000),
+    ]);
+    await settleThrough(env, "2000-01-01");
+    const left = async (sql: string) => (await env.DB.prepare(sql).all<{ k: string }>()).results.map((r) => r.k);
+    expect(await left("SELECT state_hash AS k FROM oauth_states WHERE state_hash IN ('old-s','live-s')")).toEqual(["live-s"]);
+    expect(await left("SELECT token_hash AS k FROM kakao_pending WHERE token_hash IN ('old-p','live-p')")).toEqual(["live-p"]);
+  });
+
+  it("recover_complete_is_blocked_for_kakao_only", async () => {
+    const { me } = await kakaoSignup();
+    const ticket = "ABCD-EFGH-JKMN-PQRS";
+    await env.DB.prepare(
+      `INSERT INTO recovery_requests (id, user_id, approver_id, ticket_hash, status, approved_at, created_at)
+       VALUES (?, ?, 'x', ?, 'approved', 1, 1)`,
+    ).bind(crypto.randomUUID(), me.id, await hashToken(ticket)).run();
+    const res = await req("/api/recover/complete", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: me.username, ticket, newPassword: "password1" }),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "카카오로 가입한 계정이에요. 카카오로 로그인하면 돼요" });
+    expect((await userByName(me.username))!.password_hash).toBe("!kakao-only");
+  });
+
+  it("callback_redirects_are_no_store_and_no_referrer", async () => {
+    const { cb } = await flow({ kakaoId: newKakaoId() });
+    expect(cb.headers.get("cache-control")).toBe("no-store");
+    expect(cb.headers.get("referrer-policy")).toBe("no-referrer");
+    const bad = await req("/api/auth/kakao/callback?code=C&state=x", { headers: { cookie: "kakao_state=y" } });
+    expect(bad.headers.get("cache-control")).toBe("no-store");
+    expect(bad.headers.get("referrer-policy")).toBe("no-referrer");
+  });
+
+  it("kakao_failure_logs_status_and_error_code_only_with_timeout", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const start = await req("/api/auth/kakao/start");
+    const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
+    const signals: (AbortSignal | null | undefined)[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_i: RequestInfo | URL, init?: RequestInit) => {
+      signals.push(init?.signal);
+      return Response.json({ error: "invalid_client", error_code: "KOE010" }, { status: 401 });
+    });
+    const res = await req(`/api/auth/kakao/callback?code=SECRETCODE&state=${state}`, { headers: { cookie: cookieVal(start, "kakao_state")! } });
+    expect(res.headers.get("location")).toBe("/login?kakao=failed");
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
+    const logged = warn.mock.calls.map((a) => a.join(" ")).join("\n");
+    expect(logged).toContain("status=401");
+    expect(logged).toContain("error_code=KOE010");
+    expect(logged).not.toContain("SECRETCODE");
+    expect(logged).not.toContain("client-secret");
   });
 });

@@ -5,6 +5,7 @@ import { nextDay } from "../../shared/rules/day";
 import { recomputePenthouse } from "../villa/service";
 import { CERTIFIED_PHOTO } from "../cert/certified";
 import { logEvents, type NewEvent } from "../events/log";
+import { purgeExpiredKakao } from "../auth/kakao";
 
 type Row = {
   id: string;
@@ -50,6 +51,12 @@ export async function settleThrough(env: Env, target: string): Promise<string[]>
       console.error(`settle ${day} failed (target ${target}, settled so far: ${done.join(",") || "none"})`, e);
       throw e;
     }
+  }
+  // 카카오 로그인의 만료된 state · 가입 대기 행 정리 (정산할 날이 없어도 매일). 실패해도 정산 결과는 그대로 둔다
+  try {
+    await purgeExpiredKakao(env);
+  } catch (e) {
+    console.warn("kakao purge failed", e);
   }
   return done;
 }

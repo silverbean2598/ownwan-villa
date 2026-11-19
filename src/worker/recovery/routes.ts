@@ -152,13 +152,15 @@ recovery.post("/api/recover/complete", async (c) => {
   const newPassword = typeof b?.newPassword === "string" ? b.newPassword : "";
   const req = ticket
     ? await c.env.DB.prepare(
-        `SELECT r.id, r.user_id, r.approved_at, r.villa_id FROM recovery_requests r JOIN users u ON u.id = r.user_id
+        `SELECT r.id, r.user_id, r.approved_at, r.villa_id, u.password_hash FROM recovery_requests r JOIN users u ON u.id = r.user_id
          WHERE u.username = ? AND r.ticket_hash = ? AND r.status = 'approved'`,
       )
         .bind(username, await hashToken(ticket))
-        .first<{ id: string; user_id: string; approved_at: number; villa_id: string | null }>()
+        .first<{ id: string; user_id: string; approved_at: number; villa_id: string | null; password_hash: string }>()
     : null;
   if (!req) return jsonError(c, 400, BAD_TICKET);
+  // 카카오 전용 계정은 복구로 비밀번호 계정이 되지 않는다
+  if (isPasswordless(req.password_hash)) return jsonError(c, 400, KAKAO_ONLY_MSG);
   if (!isValidPasswordLength(newPassword)) return jsonError(c, 400, PASSWORD_LENGTH_MSG);
   // 승인받을 때와 같은 (해산되지 않은) 빌라에 지금도 살아야 한다
   const stillIn = await c.env.DB.prepare(
