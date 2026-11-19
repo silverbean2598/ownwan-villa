@@ -148,12 +148,15 @@ export function RecruitSettings({
           <div className="recruit-edit">
             <div className="field">
               <label htmlFor="recruit-intro">한 줄 소개</label>
-              <input
+              {/* 한 줄 글이지만 60자가 다 보이도록 두 줄 높이. 줄바꿈은 넣지 않는다 */}
+              <textarea
                 id="recruit-intro"
-                type="text"
+                className="recruit-intro-input"
+                rows={2}
                 value={intro}
                 placeholder="예) 평일 아침 7시, 같이 인증할 이웃 찾아요"
-                onChange={(e) => setIntro(e.target.value)}
+                onChange={(e) => setIntro(e.target.value.replace(/\n/g, " "))}
+                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
                 aria-describedby="recruit-intro-count"
               />
               <div className={`counter${over ? " over" : ""}`} id="recruit-intro-count" style={{ textAlign: "right" }}>{charLen(intro)}/{RECRUIT_INTRO_MAX}</div>

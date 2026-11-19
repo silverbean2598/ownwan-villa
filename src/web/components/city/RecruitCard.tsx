@@ -58,7 +58,8 @@ export function RecruitCard({
       setBusy(false);
     }
   }
-  const apply = () => act("신청했어요! 방장이 승인하면 바로 입주해요", () => api(`/api/villas/${v.id}/apply`, { method: "POST", body: JSON.stringify({ message }) }));
+  // 신청하면 카드가 "신청했어요" 상태로 바뀌므로 따로 안내하지 않는다
+  const apply = () => act("", () => api(`/api/villas/${v.id}/apply`, { method: "POST", body: JSON.stringify({ message }) }));
   const cancel = (app: MyApplication) => act("신청을 취소했어요", () => api(`/api/applications/${app.id}/cancel`, { method: "POST" }));
   const over = charLen(message) > APPLY_MESSAGE_MAX;
 
@@ -68,7 +69,9 @@ export function RecruitCard({
     action = (
       <div className="recruit-state waiting" role="status">
         <span>
-          <b>신청했어요</b> 방장의 답을 기다리는 중이에요 · {daysLeft(myApp.expiresAt)}일 뒤 만료
+          <b>신청했어요</b>
+          <br />
+          방장이 승인하면 바로 입주해요 · {daysLeft(myApp.expiresAt)}일 뒤 만료
         </span>
         <button type="button" className="btn ghost small" disabled={busy} onClick={() => cancel(myApp)}>신청 취소</button>
       </div>

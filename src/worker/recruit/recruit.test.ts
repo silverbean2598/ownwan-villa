@@ -320,11 +320,15 @@ describe("승인 · 거절", () => {
     // 다른 빌라에 살면서 신청한다 (3곳 안)
     await create(a, "원래빌라");
     await env.DB.prepare("UPDATE users SET streak = 9 WHERE id = ?").bind(a.id).run();
+    // 오늘 사진 인증도 했다 → 목록의 연속 기록은 빌라 화면처럼 오늘까지 친 10일
+    await env.DB.prepare("INSERT INTO certs (id, user_id, day, kind, points, duplicate, created_at) VALUES (?, ?, ?, 'photo', 20, 0, 1)")
+      .bind(crypto.randomUUID(), a.id, kstDay(Date.now()))
+      .run();
     const appId = await applied(a, r.id, "잘 부탁해요");
 
     const list = await get<any[]>(r.owner, `/api/villas/${r.id}/applications`);
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ id: appId, userId: a.id, nickname: "새식구", streak: 9, message: "잘 부탁해요" });
+    expect(list[0]).toMatchObject({ id: appId, userId: a.id, nickname: "새식구", streak: 10, message: "잘 부탁해요" });
     expect(list[0].avatar).toBeTypeOf("object");
     // 방장이 아니면 목록을 못 본다
     expect((await send("GET", `/api/villas/${r.id}/applications`, undefined, mate.cookie)).status).toBe(403);

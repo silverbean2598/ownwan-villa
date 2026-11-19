@@ -92,7 +92,7 @@ describe("설정 → 빈방 모집", () => {
     await click(sw);
     // 아직 저장 전: 칸만 열린다
     expect(calls.some((c) => c.method === "PUT")).toBe(false);
-    await type(host.querySelector("#recruit-intro") as HTMLInputElement, "아침 러닝 같이 해요");
+    await type(host.querySelector("#recruit-intro") as HTMLTextAreaElement, "아침 러닝 같이 해요");
     expect(host.textContent).toContain("고르지 않으면 종목 상관없음");
     await click(button("러닝"));
     await click(button("헬스"));
@@ -106,8 +106,8 @@ describe("설정 → 빈방 모집", () => {
   it("intro_over_60_disables_save", async () => {
     mockApi({ "GET /api/villas/v1/recruit": post({ open: true, intro: "기존 글" }) });
     await mount(settings(true));
-    expect((host.querySelector("#recruit-intro") as HTMLInputElement).value).toBe("기존 글");
-    await type(host.querySelector("#recruit-intro") as HTMLInputElement, "가".repeat(61));
+    expect((host.querySelector("#recruit-intro") as HTMLTextAreaElement).value).toBe("기존 글");
+    await type(host.querySelector("#recruit-intro") as HTMLTextAreaElement, "가".repeat(61));
     expect(host.querySelector(".counter.over")?.textContent).toBe("61/60");
     expect(button("저장")!.disabled).toBe(true);
   });
@@ -171,14 +171,14 @@ describe("도시 카드 → 입주 신청", () => {
     await click(button("신청 보내기"));
     expect(calls).toContainEqual({ path: "/api/villas/v9/apply", method: "POST", body: { message: "저도 아침형이에요" } });
     expect(onChanged).toHaveBeenCalled();
-    expect(host.textContent).toContain("방장이 승인하면 바로 입주해요");
+    expect(host.querySelector("textarea")).toBeNull();
   });
 
   it("pending_here_shows_waiting_and_cancel", async () => {
     mockApi({});
     await mount(card({ myApp: APP }));
     expect(button("입주 신청")).toBeUndefined();
-    expect(host.textContent).toContain("방장의 답을 기다리는 중이에요 · 3일 뒤 만료");
+    expect(host.textContent).toContain("방장이 승인하면 바로 입주해요 · 3일 뒤 만료");
     await click(button("신청 취소"));
     expect(calls).toContainEqual({ path: "/api/applications/a1/cancel", method: "POST", body: undefined });
   });

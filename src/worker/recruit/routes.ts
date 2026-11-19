@@ -5,6 +5,9 @@ import { jsonError, requireUser } from "../http";
 import { logEvents } from "../events/log";
 import { ACTIVE_COUNT, isMember, myVillaIds, tagVilla } from "../villa/membership";
 import { recomputePenthouse } from "../villa/service";
+import { CERTIFIED_PHOTO } from "../cert/certified";
+import { kstDay } from "../../shared/rules/day";
+import { displayStreak } from "../../shared/rules/streak";
 import { afterJoin, logJoinEvents, safeAvatar } from "../villa/routes";
 import { FRESH, MEMBER_COUNT, closeApplications, closeIfFull, cutoffOf } from "./service";
 import { MAX_VILLAS_PER_USER, VILLA_CAPACITY, VILLA_LIMIT_MSG } from "../../shared/villa";
@@ -119,14 +122,19 @@ recruit.get("/api/villas/:id/applications", requireUser, async (c) => {
   const id = c.req.param("id");
   const gate = await ownerGate(c, id);
   if (gate) return gate;
+  const t = now();
   const { results } = await c.env.DB.prepare(
-    `SELECT a.id, a.user_id AS userId, u.nickname, u.avatar, u.sport, u.streak, a.message, a.created_at AS createdAt
+    `SELECT a.id, a.user_id AS userId, u.nickname, u.avatar, u.sport, u.streak, a.message, a.created_at AS createdAt,
+       EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ?3 AND ${CERTIFIED_PHOTO}) AS today
      FROM villa_applications a JOIN users u ON u.id = a.user_id
-     WHERE a.villa_id = ? AND ${FRESH("a", "?")} ORDER BY a.created_at ASC, a.rowid ASC`,
+     WHERE a.villa_id = ?1 AND ${FRESH("a", "?2")} ORDER BY a.created_at ASC, a.rowid ASC`,
   )
-    .bind(id, cutoffOf(now()))
-    .all<Omit<ReceivedApplication, "avatar"> & { avatar: string }>();
-  return c.json(results.map((r) => ({ ...r, avatar: safeAvatar(r.avatar) })) satisfies ReceivedApplication[]);
+    .bind(id, cutoffOf(t), kstDay(t))
+    .all<Omit<ReceivedApplication, "avatar"> & { avatar: string; today: number }>();
+  // 연속 기록은 빌라 화면과 같은 기준 (오늘 어느 빌라든 사진 인증했으면 오늘까지 친다)
+  return c.json(
+    results.map(({ today, ...r }) => ({ ...r, streak: displayStreak(r.streak, !!today), avatar: safeAvatar(r.avatar) })) satisfies ReceivedApplication[],
+  );
 });
 
 /** 내가 보낸, 아직 기다리는 신청 (한 번에 하나) */

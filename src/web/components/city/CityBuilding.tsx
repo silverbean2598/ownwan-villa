@@ -152,7 +152,7 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
         <Bush x={W / 2 - 10} y={roof} s={0.85} />
       </g>
 
-      {villa.recruit && <RecruitFlag x={W / 2 - 6} y={roof} />}
+      {villa.recruit && <RecruitFlag x={W / 2 - 18} y={roof} />}
 
       {mine && (
         <g className="cb-mine" transform={`translate(0 ${phTop - 12})`}>

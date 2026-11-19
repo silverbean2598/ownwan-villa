@@ -183,3 +183,4 @@ body {
 .streak-chip { color: #C2512F; font-weight: 700; }
 .my-apply { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid #FFD9CC; border-radius: 14px; background: #FFF8F5; font-size: 14px; line-height: 1.5; }
 .my-apply .btn { align-self: flex-start; }
+.recruit-intro-input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: 16px; line-height: 1.45; resize: none; }
