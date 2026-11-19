@@ -72,9 +72,19 @@ export function Settings() {
   }
   /** 내 빌라 목록과 고른 빌라(want → 이 기기에서 마지막으로 본 빌라 → 첫 빌라)의 정보를 불러온다 */
   async function loadVillas(want?: string | null) {
-    const list = await loadMyVillas();
-    const id = pickVilla(list, want);
-    const v = id ? await api<NonNullable<VillaInfo>>(`/api/villas/${id}`) : null;
+    let list = await loadMyVillas();
+    let id = pickVilla(list, want);
+    let v: VillaInfo = null;
+    try {
+      v = id ? await api<NonNullable<VillaInfo>>(`/api/villas/${id}`) : null;
+    } catch (e) {
+      if (!(e instanceof ApiError && e.status === 404)) throw e;
+      // 목록을 받은 뒤 그 빌라에서 나갔거나 내보내졌다: 목록을 다시 받아 다른 빌라로
+      list = (await loadMyVillas()).filter((x) => x.id !== id);
+      id = pickVilla(list);
+      v = id ? await api<NonNullable<VillaInfo>>(`/api/villas/${id}`) : null;
+      if (id) writeCurrentVilla(id);
+    }
     setVillas(list);
     setVilla(v);
     setVillaName(v?.name ?? "");

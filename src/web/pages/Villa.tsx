@@ -30,6 +30,7 @@ export function Villa() {
   const [badge, setBadge] = useState(0);
   const [copied, setCopied] = useState<"" | "ok" | "manual">("");
   const linkRef = useRef<HTMLTextAreaElement>(null);
+  const retried = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -48,7 +49,20 @@ export function Villa() {
         // 주소에 빌라가 없거나 내가 살지 않는 빌라면 보여 줄 빌라 주소로 바꾼다
         if (pick !== id) return nav(villaPath(pick), { replace: true });
         writeCurrentVilla(pick);
-        const villa = await api<VillaData>(`/api/villas/${pick}`);
+        let villa: VillaData;
+        try {
+          villa = await api<VillaData>(`/api/villas/${pick}`);
+        } catch (e) {
+          // 목록을 받은 뒤 이 빌라에서 나갔거나 내보내졌다: 목록을 다시 받아 다른 빌라로 (한 번만)
+          if (e instanceof ApiError && e.status === 404 && !retried.current) {
+            retried.current = true;
+            const again = pickVilla((await loadMyVillas()).filter((v) => v.id !== pick));
+            if (again) writeCurrentVilla(again);
+            return nav(again ? villaPath(again) : "/villa", { replace: true });
+          }
+          throw e;
+        }
+        retried.current = false;
         if (alive) setState({ me, villas, villa });
         api<{ recoveryApprovals: number }>("/api/badges").then((b) => alive && setBadge(b.recoveryApprovals), () => {});
       } catch (e) {

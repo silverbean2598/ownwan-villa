@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { app } from "../index";
 import { setNow } from "../clock";
 import { settle } from "../cron/settle";
+import { certTestHooks } from "../cert/routes";
 import { nextDay } from "../../shared/rules/day";
 import { VILLA_LIMIT_MSG } from "../../shared/villa";
 
@@ -84,7 +85,10 @@ async function twoVillas() {
   return { a, b, u, A: A.id, B: B.id, tokenA: A.inviteToken, tokenB: B.inviteToken };
 }
 
-afterEach(() => setNow(null));
+afterEach(() => {
+  setNow(null);
+  certTestHooks.beforeWrite = undefined;
+});
 
 describe("빌라 3곳까지", () => {
   it("join_up_to_three_fourth_refused_then_leave_one_frees_a_slot", async () => {
@@ -231,6 +235,68 @@ describe("인증은 고른 빌라에만", () => {
     expect(r.status).toBe(200);
     expect((await get<any[]>(a, `/api/users/${u.id}/board`)).map((x) => x.body)).toEqual(["스쿼트 5x5"]);
     expect(await get(b, `/api/users/${u.id}/board`)).toEqual([]);
+  });
+});
+
+describe("고른 빌라에서 올리는 사이 나간 경우", () => {
+  it("picked_only_A_then_kicked_from_A_mid_upload_never_posts_to_B", async () => {
+    const { a, b, u, A, B } = await twoVillas();
+    // 빌라를 확인한 뒤 · 기록을 쓰기 직전에 A 방장이 u 를 내보낸다
+    certTestHooks.beforeWrite = async () => {
+      certTestHooks.beforeWrite = undefined;
+      expect((await send("POST", `/api/villas/${A}/members/${u.id}/kick`, undefined, a.cookie)).status).toBe(200);
+    };
+    const r = await upload(u, [A]);
+    expect(r.status).toBe(409);
+    expect(await errorOf(r)).toBe("선택한 빌라에서 나가서 올리지 못했어요. 다시 골라 주세요");
+    // 기록 · 빌라 연결 · 포인트 · 알림 · 불 모두 없다
+    expect((await env.DB.prepare("SELECT COUNT(*) AS c FROM certs WHERE user_id = ?").bind(u.id).first<{ c: number }>())!.c).toBe(0);
+    expect((await env.DB.prepare("SELECT COUNT(*) AS c FROM cert_villas WHERE villa_id = ?").bind(B).first<{ c: number }>())!.c).toBe(0);
+    expect(await points(u)).toBe(0);
+    expect((await get<any[]>(u, "/api/events")).filter((e) => e.type === "certified")).toEqual([]);
+    expect(await memberOf(u, b, B)).toMatchObject({ certifiedToday: false, certifiedAnywhere: false });
+    expect(await get(b, `/api/users/${u.id}/board`)).toEqual([]);
+  });
+
+  it("same_race_for_routine", async () => {
+    const { a, b, u, A } = await twoVillas();
+    certTestHooks.beforeWrite = async () => {
+      certTestHooks.beforeWrite = undefined;
+      await send("POST", `/api/villas/${A}/members/${u.id}/kick`, undefined, a.cookie);
+    };
+    const r = await send("POST", "/api/certs/routine", { body: "런지", villaIds: [A] }, u.cookie);
+    expect(r.status).toBe(409);
+    expect(await points(u)).toBe(0);
+    expect(await get(b, `/api/users/${u.id}/board`)).toEqual([]);
+  });
+
+  it("losing_one_of_two_picked_villas_still_posts_to_the_other_only", async () => {
+    const { b, u, A, B } = await twoVillas();
+    const C = await create(await signup());
+    await join(u, C.inviteToken);
+    certTestHooks.beforeWrite = async () => {
+      certTestHooks.beforeWrite = undefined;
+      await send("POST", `/api/villas/${A}/leave`, undefined, u.cookie);
+    };
+    const r = await upload(u, [A, B]);
+    expect(r.status).toBe(200);
+    const { certId } = (await r.json()) as any;
+    expect(await linked(certId)).toEqual([B]);
+    expect(await memberOf(u, b, B)).toMatchObject({ certifiedToday: true });
+  });
+});
+
+describe("배포 당일 축하 겹침", () => {
+  it("skips_villa_floor_up_when_old_server_already_celebrated_today", async () => {
+    const { u, A } = await twoVillas();
+    await env.DB.prepare("UPDATE memberships SET streak = 6 WHERE user_id = ?").bind(u.id).run();
+    await env.DB.prepare("UPDATE users SET streak = 6 WHERE id = ?").bind(u.id).run();
+    const day = (await import("../../shared/rules/day")).kstDay(Date.now());
+    // 예전 서버가 오늘 남긴 floor_up (예전 키)
+    await env.DB.prepare("INSERT INTO events (id, user_id, type, payload, created_at) VALUES (?, ?, 'floor_up', '{}', 0)").bind(`streak:${u.id}:${day}`, u.id).run();
+    await upload(u, [A]);
+    const ups = (await get<any[]>(u, "/api/events")).filter((e) => e.type === "floor_up" || e.type === "streak7");
+    expect(ups.map((e) => e.id)).toEqual([`streak:${u.id}:${day}`]);
   });
 });
 

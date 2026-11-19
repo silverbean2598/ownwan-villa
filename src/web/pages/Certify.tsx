@@ -8,7 +8,7 @@ import { compressImage, ImageDecodeError } from "../image/compress";
 import { dhashFromBlob } from "../image/dhash";
 import { pokeEvents } from "../events/poke";
 
-type Item = { name: string; status: "working" | "done" | "error"; message: string };
+type Item = { name: string; status: "working" | "done" | "error"; message: string; code?: number };
 type PhotoResult = { certId: string; points: number; duplicate: boolean; certifiedToday: boolean };
 
 const GENERIC = "문제가 생겼어요. 잠시 후 다시 해 주세요";
@@ -20,7 +20,7 @@ function photoMessage(r: PhotoResult) {
   return `올렸어요 +${r.points}P`;
 }
 
-async function uploadOne(file: File, villaIds: string[] | null): Promise<Pick<Item, "status" | "message">> {
+async function uploadOne(file: File, villaIds: string[] | null): Promise<Pick<Item, "status" | "message" | "code">> {
   try {
     const blob = await compressImage(file);
     const dhash = await dhashFromBlob(blob);
@@ -32,7 +32,7 @@ async function uploadOne(file: File, villaIds: string[] | null): Promise<Pick<It
     const res = await fetch("/api/certs/photo", { method: "POST", body: fd });
     const data = (await res.json().catch(() => null)) as (PhotoResult & { error?: string }) | null;
     if (res.status === 401) throw new ApiError(401, "");
-    if (!res.ok || !data) return { status: "error", message: data?.error ?? GENERIC };
+    if (!res.ok || !data) return { status: "error", message: data?.error ?? GENERIC, code: res.status };
     return { status: data.duplicate ? "error" : "done", message: photoMessage(data) };
   } catch (e) {
     if (e instanceof ApiError) throw e;
@@ -70,6 +70,17 @@ export function Certify() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** 고른 빌라가 바뀌었을 수 있을 때(그 사이 나갔거나 내보내짐 → 400 · 403 · 409): 목록을 다시 받고 남은 빌라만 체크로 둔다 */
+  async function refreshPicks() {
+    const list = await reloadVillas().catch(() => null);
+    if (!list) return;
+    setPicked((p) => {
+      const kept = p.filter((id) => list.some((v) => v.id === id));
+      return kept.length ? kept : list.map((v) => v.id);
+    });
+  }
+  const pickStale = (code?: number) => code === 400 || code === 403 || code === 409;
+
   /** 올릴 빌라 id. 빌라 목록을 못 불러왔으면 null (서버가 사는 빌라 모두에 올린다) */
   const targets = villas ? villas.filter((v) => picked.includes(v.id)).map((v) => v.id) : null;
   const noPick = !!villas && villas.length > 0 && targets!.length === 0;
@@ -86,6 +97,12 @@ export function Certify() {
         const r = await uploadOne(list[i], targets);
         setItems((prev) => prev.map((it, j) => (j === base + i ? { ...it, ...r } : it)));
         if (r.status === "done") pokeEvents();
+        // 고른 빌라가 더는 내 빌라가 아니면 남은 사진은 올리지 않고 다시 고르게 한다
+        if (r.status === "error" && (r.code === 403 || r.code === 409)) {
+          await refreshPicks();
+          setItems((prev) => prev.map((it, j) => (j > base + i && it.status === "working" ? { ...it, status: "error", message: "빌라를 다시 골라 올려 주세요" } : it)));
+          return;
+        }
       }
       await reloadVillas().catch(() => {});
     } catch {
@@ -110,6 +127,7 @@ export function Certify() {
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) return toLogin();
       setRoutineMsg({ text: e instanceof ApiError ? e.message : GENERIC, error: true });
+      if (e instanceof ApiError && pickStale(e.status)) await refreshPicks();
     } finally {
       setBusy(false);
     }

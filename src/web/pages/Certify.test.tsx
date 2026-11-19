@@ -136,3 +136,38 @@ describe("Certify — 올릴 빌라 [확정 — 기획자 결정, 2026-11-19]", 
     expect(host.querySelector(".add-more")).toBeNull();
   });
 });
+
+describe("Certify — 고른 빌라에서 그 사이 나간 경우", () => {
+  it("routine_409_refreshes_villa_list_and_keeps_remaining_picks", async () => {
+    calls = [];
+    let n = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path: string, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        calls.push({ path, method, body: init?.body && !(init.body instanceof FormData) ? JSON.parse(String(init.body)) : undefined });
+        const r = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
+        if (path === "/api/me") return r({ id: "me" });
+        if (path === "/api/me/villas") {
+          const list = n++ === 0 ? [v("A", "에이빌라"), v("B", "비빌라"), v("C", "씨빌라")] : [v("B", "비빌라"), v("C", "씨빌라")];
+          return r(list.map((x) => ({ ownerId: "o", public: false, memberCount: 2, joinedAt: 0, ...x })));
+        }
+        if (path === "/api/certs/routine") return r({ error: "선택한 빌라에서 나가서 올리지 못했어요. 다시 골라 주세요" }, 409);
+        return r({ ok: true });
+      }),
+    );
+    await mount();
+    await click(boxes()[2]); // C 끄기 → A, B
+    const ta = host.querySelector<HTMLTextAreaElement>("#routine")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(ta, "런지");
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    await flush();
+    expect(host.querySelector('[role="alert"]')!.textContent).toBe("선택한 빌라에서 나가서 올리지 못했어요. 다시 골라 주세요");
+    // 목록을 다시 받아 A 는 사라지고, 남은 B 만 체크
+    expect(Array.from(host.querySelectorAll(".villa-pick .name")).map((x) => x.textContent)).toEqual(["비빌라", "씨빌라"]);
+    expect(boxes().map((b) => b.checked)).toEqual([true, false]);
+  });
+});

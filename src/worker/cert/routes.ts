@@ -98,18 +98,31 @@ SELECT ?1, ?2, ?3, 'photo', ?4, ?5,
   CASE WHEN ?6 = 1 THEN 0 ELSE
     CASE (SELECT COUNT(*) FROM certs WHERE user_id = ?2 AND day = ?3 AND kind = 'photo' AND duplicate = 0)
       WHEN 0 THEN ${photoPoints(1)} WHEN 1 THEN ${photoPoints(2)} WHEN 2 THEN ${photoPoints(3)} ELSE 0 END
-  END, ?6, ?7`;
+  END, ?6, ?7
+WHERE ?8 = 0 OR EXISTS (SELECT 1 FROM cert_villas WHERE cert_id = ?1)`;
 
 const ROUTINE_INSERT = `
 INSERT INTO certs (id, user_id, day, kind, body, points, duplicate, created_at)
 SELECT ?1, ?2, ?3, 'routine', ?4,
   CASE WHEN EXISTS (SELECT 1 FROM certs WHERE user_id = ?2 AND day = ?3 AND kind = 'routine')
-    THEN ${routinePoints(true)} ELSE ${routinePoints(false)} END, 0, ?5`;
+    THEN ${routinePoints(true)} ELSE ${routinePoints(false)} END, 0, ?5
+WHERE ?6 = 0 OR EXISTS (SELECT 1 FROM cert_villas WHERE cert_id = ?1)`;
 
 
 const JPEG_MAGIC = [0xff, 0xd8, 0xff];
 
-const ADD_POINTS = "UPDATE users SET points = points + (SELECT points FROM certs WHERE id = ?1) WHERE id = ?2";
+// 기록이 실제로 들어갔을 때만 (빌라를 골랐는데 그 사이 모두 나가 기록이 안 들어간 경우 아무것도 하지 않는다)
+const ADD_POINTS = "UPDATE users SET points = points + (SELECT points FROM certs WHERE id = ?1) WHERE id = ?2 AND EXISTS (SELECT 1 FROM certs WHERE id = ?1)";
+
+/**
+ * 빌라 이야기: 기록 INSERT 는 빌라를 골랐다면(?8 / ?6 = 1) 고른 빌라 행이 하나라도 들어갔을 때만 일어난다.
+ * 고른 빌라에서 그 사이 모두 나갔는데(다른 탭에서 나가기 · 내보내짐) 그냥 넣으면 0010 안전망 트리거가
+ * 고르지 않은 다른 빌라 모두에 올려 버린다. 그래서 그때는 아무것도 넣지 않고 409 로 다시 고르게 한다.
+ */
+const PICK_GONE = "선택한 빌라에서 나가서 올리지 못했어요. 다시 골라 주세요";
+
+/** 테스트용: 빌라를 고른 뒤 기록을 쓰기 직전에 부른다 (그 사이 빌라에서 나가는 경쟁을 재현) */
+export const certTestHooks: { beforeWrite?: (userId: string) => Promise<void> } = {};
 
 cert.post("/api/certs/photo", requireUser, async (c) => {
   const userId = c.get("userId");
@@ -146,10 +159,11 @@ cert.post("/api/certs/photo", requireUser, async (c) => {
   const id = crypto.randomUUID();
   const key = `photos/${userId}/${id}.jpg`;
   await putPhotoBlob(c.env, id, key, bytes, "image/jpeg");
+  await certTestHooks.beforeWrite?.(userId);
   try {
     await c.env.DB.batch([
       ...(pick.ids.length ? [linkStatement(c.env, id, userId, pick.ids, t)] : []),
-      c.env.DB.prepare(PHOTO_INSERT).bind(id, userId, day, key, dhash, duplicate, t),
+      c.env.DB.prepare(PHOTO_INSERT).bind(id, userId, day, key, dhash, duplicate, t, pick.ids.length ? 1 : 0),
       c.env.DB.prepare(ADD_POINTS).bind(id, userId),
     ]);
   } catch (e) {
@@ -157,19 +171,24 @@ cert.post("/api/certs/photo", requireUser, async (c) => {
     throw e;
   }
   const row = await c.env.DB.prepare("SELECT points FROM certs WHERE id = ?").bind(id).first<{ points: number }>();
+  if (!row) {
+    // 고른 빌라에서 모두 나가 기록이 들어가지 않았다: 사진 파일만 지우고 알림 · 1등 계산 없이 끝낸다
+    await deletePhotoBlob(c.env, { id, r2_key: key });
+    return jsonError(c, 409, PICK_GONE);
+  }
   const today = await c.env.DB.prepare(
     `SELECT 1 AS ok FROM certs WHERE user_id = ? AND day = ? AND ${CERTIFIED_PHOTO} LIMIT 1`,
   )
     .bind(userId, day)
     .first();
   const posted = await postedVillas(c.env, id);
-  const evs = await certEvents(c.env, userId, day, { points: row!.points, duplicate: !!duplicate }, !!today, today ? posted : []).catch((e) => {
+  const evs = await certEvents(c.env, userId, day, { points: row.points, duplicate: !!duplicate }, !!today, today ? posted : []).catch((e) => {
     console.error("cert events failed", e);
     return [];
   });
   await logEvents(c.env, evs);
   if (today) for (const v of posted) await recomputePenthouse(c.env, v);
-  return c.json({ certId: id, points: row!.points, duplicate: !!duplicate, certifiedToday: !!today, villaIds: posted });
+  return c.json({ certId: id, points: row.points, duplicate: !!duplicate, certifiedToday: !!today, villaIds: posted });
 });
 
 /** 이 기록이 실제로 올라간 빌라 (해체되지 않은 빌라만) */
@@ -204,6 +223,10 @@ async function certEvents(
   const u = await env.DB.prepare("SELECT streak FROM users WHERE id = ?").bind(userId).first<{ streak: number }>();
   if (!u) return evs;
   const floorUps = new Set<number>();
+  // 배포 당일: 예전 서버가 오늘 이미 층 축하(floor_up · streak6, 키 streak:{user}:{day})를 남겼다면 빌라별 축하를 다시 만들지 않는다
+  const legacy = await env.DB.prepare("SELECT 1 AS x FROM events WHERE id = ? AND type IN ('floor_up', 'streak6')")
+    .bind(`streak:${userId}:${day}`)
+    .first();
   for (const villaId of villaIds) {
     const m = await env.DB.prepare(
       `SELECT m.floor, m.streak, ${certifiedInVilla("m.user_id", "?3", "m.villa_id")} AS lit
@@ -211,7 +234,7 @@ async function certEvents(
     )
       .bind(userId, villaId, day)
       .first<{ floor: number; streak: number; lit: number }>();
-    if (!m || !m.lit) continue;
+    if (!m || !m.lit || legacy) continue;
     const streak = displayStreak(m.streak, true);
     const key = `streak:${userId}:${day}:${villaId}`;
     if (streak % 7 === 0) {
@@ -277,13 +300,15 @@ cert.post("/api/certs/routine", requireUser, async (c) => {
   if ("status" in pick) return jsonError(c, pick.status, pick.message);
   const t = now();
   const id = crypto.randomUUID();
+  await certTestHooks.beforeWrite?.(userId);
   await c.env.DB.batch([
     ...(pick.ids.length ? [linkStatement(c.env, id, userId, pick.ids, t)] : []),
-    c.env.DB.prepare(ROUTINE_INSERT).bind(id, userId, kstDay(t), body, t),
+    c.env.DB.prepare(ROUTINE_INSERT).bind(id, userId, kstDay(t), body, t, pick.ids.length ? 1 : 0),
     c.env.DB.prepare(ADD_POINTS).bind(id, userId),
   ]);
   const row = await c.env.DB.prepare("SELECT points FROM certs WHERE id = ?").bind(id).first<{ points: number }>();
-  return c.json({ certId: id, points: row!.points });
+  if (!row) return jsonError(c, 409, PICK_GONE);
+  return c.json({ certId: id, points: row.points });
 });
 
 cert.get("/api/users/:id/board", requireUser, async (c) => {
