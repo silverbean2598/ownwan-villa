@@ -7,6 +7,7 @@ import { displayFloor, displayStreak } from "../../shared/rules/streak";
 import { pickPenthouse } from "../../shared/rules/penthouse";
 import { logEvents } from "../events/log";
 import { myVillaIds, tagVilla } from "./membership";
+import { closeApplications, closeIfDissolved } from "../recruit/service";
 
 export const MAX_MEMBERS = VILLA_CAPACITY;
 
@@ -102,6 +103,8 @@ export async function leaveVilla(env: Env, userId: string, villaId: string): Pro
   // 그 사이 내보내졌거나 다른 요청으로 이미 나갔다
   if (res.meta.changes !== 1) throw new NotInVillaError();
   await recomputePenthouse(env, villaId);
+  // 마지막 입주민이 나가 해체됐으면 모집 · 기다리는 신청도 끝낸다
+  await closeIfDissolved(env, villaId).catch((e) => console.error("recruit cleanup failed", e));
 }
 
 /** 사는 빌라 모두에서 나간다 (탈퇴) */
@@ -112,6 +115,7 @@ export async function leaveAllVillas(env: Env, userId: string): Promise<void> {
   for (const r of results) {
     await env.DB.batch(leaveStatements(env, r.id, userId, now()));
     await recomputePenthouse(env, r.id);
+    await closeIfDissolved(env, r.id).catch((e) => console.error("recruit cleanup failed", e));
   }
 }
 
@@ -155,6 +159,12 @@ export async function kickMember(env: Env, villaId: string, ownerId: string, tar
   // 내보낸 사람에게만 알린다 (다른 입주민에게는 알리지 않는다)
   await logEvents(env, [{ userId: targetId, type: "kicked", payload: { villaName: v?.name ?? "" }, key: `kicked:${m.id}` }]);
   await recomputePenthouse(env, villaId);
+  // 내보낸 사람이 이 빌라에 보내 둔 입주 신청이 남아 있으면 거절로 끝낸다 (내보냄 알림을 이미 받았으니 따로 알리지 않는다)
+  await env.DB.prepare(
+    "UPDATE villa_applications SET status = 'rejected', reason = 'kicked', decided_at = ? WHERE villa_id = ? AND user_id = ? AND status = 'pending'",
+  )
+    .bind(now(), villaId, targetId)
+    .run();
 }
 
 /** 방장을 다른 입주민에게 바로 넘긴다. 아직 방장이고 상대가 아직 살 때만 바뀐다 (한 문장) */
@@ -222,4 +232,7 @@ export async function dissolveVilla(env: Env, villaId: string, ownerId: string, 
       key: `dissolved:${villaId}:${m.userId}`,
     })),
   );
+  // 모집 글을 끄고 기다리던 입주 신청을 취소한다 (신청한 사람에게 살짝 알림)
+  await env.DB.prepare("UPDATE villa_recruits SET open = 0, updated_at = ? WHERE villa_id = ?").bind(t, villaId).run();
+  await closeApplications(env, villaId, "dissolved");
 }

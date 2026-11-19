@@ -14,6 +14,7 @@ import { CERTIFIED_PHOTO, certifiedInVilla } from "../cert/certified";
 import { logEvents } from "../events/log";
 import { ACTIVE_COUNT, myActive, isMember, myVillaIds, tagVilla } from "./membership";
 import { MAX_VILLAS_PER_USER, VILLA_LIMIT_MSG, type MyVilla } from "../../shared/villa";
+import { closeIfFull } from "../recruit/service";
 
 export const villa = new Hono<AppEnv>();
 
@@ -263,8 +264,20 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
   }
   await logJoinEvents(c.env, userId, v.id, membershipId).catch((e) => console.error("join events failed", e));
   await recomputePenthouse(c.env, v.id);
+  // 이 빌라에 보내 둔 입주 신청은 초대 링크로 들어왔으니 끝낸다. 정원이 찼으면 모집도 끈다 (실패해도 입주는 그대로)
+  await afterJoin(c.env, userId, v.id).catch((e) => console.error("recruit cleanup failed", e));
   return c.json({ ok: true, villaId: v.id });
 });
+
+/** 입주한 뒤 모집 · 신청 정리: 그 빌라에 보낸 내 신청은 끝내고, 정원이 찼으면 모집을 끈다 */
+export async function afterJoin(env: AppEnv["Bindings"], userId: string, villaId: string) {
+  await env.DB.prepare(
+    "UPDATE villa_applications SET status = 'cancelled', reason = 'joined', decided_at = ? WHERE villa_id = ? AND user_id = ? AND status = 'pending'",
+  )
+    .bind(now(), villaId, userId)
+    .run();
+  await closeIfFull(env, villaId);
+}
 
 /** 방장 일의 실패를 응답으로 */
 function ownerError(c: Context<AppEnv>, e: unknown) {
@@ -353,8 +366,13 @@ villa.post("/api/villas/:id/dissolve", requireUser, async (c) => {
   return c.json({ ok: true });
 });
 
-/** 입주 알림: 들어온 사람에게 welcome, 원래 살던 입주민 모두에게 friend_joined (입주 한 번당 한 번) */
-async function logJoinEvents(env: AppEnv["Bindings"], userId: string, villaId: string, membershipId: string) {
+/**
+ * 입주 알림: 들어온 사람에게 welcome, 원래 살던 입주민 모두에게 friend_joined (입주 한 번당 한 번).
+ * 초대 링크 입주와 입주 신청 승인이 같이 쓴다. welcomeExtra: welcome 에 더 붙일 값 (신청 승인이면 { via: "recruit" })
+ */
+export async function logJoinEvents(
+  env: AppEnv["Bindings"], userId: string, villaId: string, membershipId: string, welcomeExtra: Record<string, unknown> = {},
+) {
   const [villaRow, me, others] = await env.DB.batch([
     env.DB.prepare("SELECT name FROM villas WHERE id = ?").bind(villaId),
     env.DB.prepare("SELECT nickname, avatar FROM users WHERE id = ?").bind(userId),
@@ -365,7 +383,7 @@ async function logJoinEvents(env: AppEnv["Bindings"], userId: string, villaId: s
   await logEvents(
     env,
     await tagVilla(env, villaId, [
-      { userId, type: "welcome", payload: { villaName: name }, key: `welcome:${membershipId}` },
+      { userId, type: "welcome", payload: { villaName: name, ...welcomeExtra }, key: `welcome:${membershipId}` },
       ...(others.results as { userId: string }[]).map((o) => ({
         userId: o.userId,
         type: "friend_joined" as const,

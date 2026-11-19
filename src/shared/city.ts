@@ -1,3 +1,5 @@
+import type { CityRecruit, MyApplication } from "./recruit";
+
 /** 도시 지도: 서버(GET /api/city)가 보내고 화면이 그리는 빌라 한 채. 다른 빌라 입주민의 사진 · 루틴 · 목록 · id 는 없다 */
 export type CityVilla = {
   id: string;
@@ -10,6 +12,8 @@ export type CityVilla = {
   /** 오늘 인증한 입주민 수 = 불 켜진 창문 수 */
   litCount: number;
   penthouseNickname: string | null;
+  /** 빈방 모집 중일 때만 (공개 · 모집 켬 · 빈방 있음). 모집 글과 빈방 수만 담는다 */
+  recruit?: CityRecruit;
 };
 
 /** 내 빌라: 지도에 있는지(public), 내가 방장인지 */
@@ -19,7 +23,13 @@ export type CityMine = { villaId: string; name: string; public: boolean; isOwner
  * myVillas: 내가 사는 빌라 모두 (입주한 순서). 지도에서 모두 "우리 빌라"로 표시한다.
  * mine: 예전 화면(배포 전에 열어 둔 탭)용, myVillas 의 첫 번째
  */
-export type CityResponse = { mine: CityMine | null; myVillas: CityMine[]; villas: CityVilla[] };
+export type CityResponse = {
+  mine: CityMine | null;
+  myVillas: CityMine[];
+  villas: CityVilla[];
+  /** 내가 보낸, 아직 기다리는 입주 신청 (없으면 null). 예전 서버 응답에는 없다 */
+  myApplication?: MyApplication | null;
+};
 
 /** 지도에 한 번에 보내는 빌라 수 (자리 번호 순) */
 export const CITY_LIMIT = 200;

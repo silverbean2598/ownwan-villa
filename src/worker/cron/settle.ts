@@ -7,6 +7,7 @@ import { CERTIFIED_PHOTO, certifiedInVilla } from "../cert/certified";
 import { logEvents, type NewEvent } from "../events/log";
 import { tagVilla } from "../villa/membership";
 import { purgeExpiredKakao } from "../auth/kakao";
+import { purgeApplications } from "../recruit/service";
 
 /** 사용자 한 명: 어느 빌라든(또는 빌라 없이) 사진 인증한 날로 센 연속 기록 */
 type UserRow = { id: string; streak: number; missRun: number; certified: number };
@@ -54,6 +55,12 @@ export async function settleThrough(env: Env, target: string): Promise<string[]>
     await purgeExpiredKakao(env);
   } catch (e) {
     console.warn("kakao purge failed", e);
+  }
+  // 입주 신청: 7일 지난 신청 만료 · 오래된 기록 정리 (정산 · 카카오 정리와 따로, 실패해도 결과는 그대로)
+  try {
+    await purgeApplications(env);
+  } catch (e) {
+    console.warn("application purge failed", e);
   }
   return done;
 }

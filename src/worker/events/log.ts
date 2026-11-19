@@ -17,7 +17,11 @@ export type EventType =
   | "owner_changed"
   | "dissolved"
   | "cheered"
-  | "commented";
+  | "commented"
+  // 빈방 모집 · 입주 신청: 방장에게 신청 옴(토스트), 신청한 사람에게 거절(카드) · 신청이 끝남(모집 끔 · 꽉 참 · 해체 · 만료, 토스트)
+  | "application_received"
+  | "application_rejected"
+  | "application_closed";
 
 /**
  * key: 한 번만 생겨야 하는 일은 고정 키(예: "certified:{user}:{day}")를 준다. 같은 키는 INSERT OR IGNORE 로 무시돼

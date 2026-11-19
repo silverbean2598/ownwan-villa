@@ -59,11 +59,11 @@ describe("badges", () => {
     await join(b.cookie, token);
     expect((await req("/api/recover/request", "POST", undefined, { username: a.username })).status).toBe(201);
     expect((await req("/api/recover/request", "POST", undefined, { username: b.username })).status).toBe(201);
-    expect(await (await req("/api/badges", "GET", owner.cookie)).json()).toEqual({ recoveryApprovals: 2 });
-    expect(await (await req("/api/badges", "GET", a.cookie)).json()).toEqual({ recoveryApprovals: 0 });
+    expect(await (await req("/api/badges", "GET", owner.cookie)).json()).toEqual({ recoveryApprovals: 2, applications: 0 });
+    expect(await (await req("/api/badges", "GET", a.cookie)).json()).toEqual({ recoveryApprovals: 0, applications: 0 });
     const list = await (await req("/api/recover/pending", "GET", owner.cookie)).json<any[]>();
     await req(`/api/recover/${list[0].id}/approve`, "POST", owner.cookie);
-    expect(await (await req("/api/badges", "GET", owner.cookie)).json()).toEqual({ recoveryApprovals: 1 });
+    expect(await (await req("/api/badges", "GET", owner.cookie)).json()).toEqual({ recoveryApprovals: 1, applications: 0 });
   });
 
   it("requires_login", async () => {

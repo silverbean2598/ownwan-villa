@@ -7,6 +7,10 @@ import { myActive } from "../villa/membership";
 import { kstDay } from "../../shared/rules/day";
 import { displayFloor } from "../../shared/rules/streak";
 import { CITY_LIMIT, type CityMine, type CityResponse, type CityVilla } from "../../shared/city";
+import { VILLA_CAPACITY } from "../../shared/villa";
+import { parseSports } from "../../shared/recruit";
+import { myApplication } from "../recruit/routes";
+import { closeIfHidden } from "../recruit/service";
 
 export const city = new Hono<AppEnv>();
 
@@ -27,7 +31,7 @@ city.get("/api/city", requireUser, async (c) => {
   const userId = c.get("userId");
   const today = kstDay(now());
   // 한 번에 묻는다: 내 빌라 · 지도 빌라 · 지도 빌라 입주민의 (층, 연속 기록, 오늘 인증) 만
-  const [mineRes, villasRes, membersRes] = await c.env.DB.batch([
+  const [mineRes, villasRes, membersRes, bansRes] = await c.env.DB.batch([
     c.env.DB.prepare(
       `SELECT v.id AS villaId, v.name, v.public, v.owner_id = ?1 AS isOwner
        FROM ${myActive("?1")} ORDER BY m.joined_at ASC, m.rowid ASC`,
@@ -35,8 +39,10 @@ city.get("/api/city", requireUser, async (c) => {
     c.env.DB.prepare(
       `SELECT v.id, v.name, v.map_slot AS slot,
          (SELECT u.nickname FROM users u JOIN memberships pm ON pm.user_id = u.id
-          WHERE u.id = v.penthouse_user_id AND pm.villa_id = v.id AND pm.left_at IS NULL) AS penthouseNickname
-       FROM villas v WHERE v.id IN (${SHOWN}) ORDER BY v.map_slot`,
+          WHERE u.id = v.penthouse_user_id AND pm.villa_id = v.id AND pm.left_at IS NULL) AS penthouseNickname,
+         r.intro AS recruitIntro, r.sports AS recruitSports
+       FROM villas v LEFT JOIN villa_recruits r ON r.villa_id = v.id AND r.open = 1
+       WHERE v.id IN (${SHOWN}) ORDER BY v.map_slot`,
     ),
     c.env.DB.prepare(
       // 빌라마다: 그 빌라에 오늘 올린 사진 인증이 있는 입주민만 불이 켜지고, 층도 그 빌라 기준
@@ -44,7 +50,10 @@ city.get("/api/city", requireUser, async (c) => {
        FROM memberships m
        WHERE m.left_at IS NULL AND m.villa_id IN (${SHOWN})`,
     ).bind(today),
+    // 내가 입주 금지된 빌라 (그 빌라 모집 카드에서 신청 버튼을 숨긴다. 금지 사실 자체는 말하지 않는다)
+    c.env.DB.prepare("SELECT villa_id AS villaId FROM villa_bans WHERE user_id = ?").bind(userId),
   ]);
+  const blocked = new Set((bansRes.results as { villaId: string }[]).map((r) => r.villaId));
 
   const agg = new Map<string, { memberCount: number; litCount: number; topFloor: number }>();
   for (const r of membersRes.results as { villaId: string; floor: number; streak: number; lit: number }[]) {
@@ -54,16 +63,26 @@ city.get("/api/city", requireUser, async (c) => {
     a.topFloor = Math.max(a.topFloor, displayFloor(r.floor, r.streak, !!r.lit));
     agg.set(r.villaId, a);
   }
-  const villas: CityVilla[] = (villasRes.results as { id: string; name: string; slot: number; penthouseNickname: string | null }[]).map(
-    (v) => ({ ...v, ...(agg.get(v.id) ?? { memberCount: 0, litCount: 0, topFloor: 1 }) }),
-  );
+  type Row = { id: string; name: string; slot: number; penthouseNickname: string | null; recruitIntro: string | null; recruitSports: string | null };
+  const villas: CityVilla[] = (villasRes.results as Row[]).map(({ recruitIntro, recruitSports, ...v }) => {
+    const a = agg.get(v.id) ?? { memberCount: 0, litCount: 0, topFloor: 1 };
+    // 모집 글은 모집 중이고 빈방이 있을 때만 (꽉 차면 숨긴다). 모집 글 · 빈방 수 말고는 더 보내지 않는다
+    const recruiting = recruitIntro !== null && a.memberCount < VILLA_CAPACITY;
+    return {
+      ...v,
+      ...a,
+      ...(recruiting
+        ? { recruit: { intro: recruitIntro, sports: parseSports(recruitSports), vacancies: VILLA_CAPACITY - a.memberCount, ...(blocked.has(v.id) ? { blocked: true as const } : {}) } }
+        : {}),
+    };
+  });
   const myVillas: CityMine[] = (mineRes.results as { villaId: string; name: string; public: number; isOwner: number }[]).map((m) => ({
     villaId: m.villaId,
     name: m.name,
     public: !!m.public,
     isOwner: !!m.isOwner,
   }));
-  return c.json({ mine: myVillas[0] ?? null, myVillas, villas } satisfies CityResponse);
+  return c.json({ mine: myVillas[0] ?? null, myVillas, villas, myApplication: await myApplication(c.env, userId) } satisfies CityResponse);
 });
 
 /** 방장이 도시 지도 공개를 켜고 끈다. 켤 때 자리가 없으면 비어 있는 가장 작은 자리를 받는다 (끌 때는 자리를 지킨다) */
@@ -92,5 +111,7 @@ city.put("/api/villas/:id/public", requireUser, async (c) => {
     }
   }
   if (changes !== 1) return jsonError(c, 409, "방장이 바뀌었거나 빌라가 없어졌어요. 다시 열어 주세요");
+  // 지도에서 내리면 빈방 모집도 끄고 기다리던 신청을 취소한다 (지금도 내려가 있을 때만)
+  if (!b.public) await closeIfHidden(c.env, id);
   return c.json({ public: b.public });
 });
