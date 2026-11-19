@@ -18,9 +18,9 @@ function Figure({ x, y, className, ...p }: { x: number; y: number; className?: s
   );
 }
 
-/** 소품을 쥔 주먹을 소품 위에 다시 그린다 (팔은 소품 뒤, 주먹은 앞) */
+/** 소품을 쥔 손(벙어리장갑)을 소품 위에 다시 그린다 (팔은 소품 뒤, 손은 앞). 외곽선은 팔다리와 같은 굵기로 바깥에만 */
 function Fist({ at, skin }: { at: [number, number]; skin: string }) {
-  return <circle cx={at[0]} cy={at[1]} r="4.7" fill={skin} stroke={INK} strokeWidth="1.5" />;
+  return <circle cx={at[0]} cy={at[1]} r="5.8" fill={skin} stroke={INK} strokeWidth="3.2" paintOrder="stroke" />;
 }
 
 const add = (p: [number, number], x: number, y: number): [number, number] => [p[0] + x, p[1] + y];

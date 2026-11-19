@@ -57,7 +57,7 @@ const LYING = "translate(36 -42) rotate(-90 60 100)";
 const base = { elbL: 0, elbR: 0, torso: 0, headTilt: 0, offsetY: 0 };
 
 export const POSES: Record<Pose, PoseDef> = {
-  idle: { ...base, armL: 14, armR: -14, legL: 3, legR: -3, face: "smile" },
+  idle: { ...base, armL: 24, armR: -24, legL: 4, legR: -4, face: "smile" },
   sleep: { ...base, armL: 6, armR: -6, legL: 2, legR: -2, headTilt: 7, face: "sleep" },
   gym: { ...base, armL: 100, armR: -100, elbL: 80, elbR: -80, legL: 7, legR: -7, face: "effort", fore: 26, armsFront: true },
   running: { ...base, armL: 30, armR: -30, elbL: -95, elbR: 95, legL: 20, legR: -20, face: "happy" },

@@ -1,7 +1,7 @@
 import { AVATAR_OPTIONS, DEFAULT_AVATAR, parseAvatar, type AvatarSpec } from "../../shared/avatar";
 import { Arm, Barbell, Dummy, FaceFeatures, FaceOverHair, Head, Joint, Leg, PIVOT, Torso, INK, type Uniform } from "./avatar/parts";
 import { HairBack, HairFront } from "./avatar/hair";
-import { Earphones, Glasses, Headwear, Towel, isOutfit } from "./avatar/wear";
+import { Earphones, Glasses, Headwear, Shoulders, Towel, isOutfit } from "./avatar/wear";
 import { POSES, type Face, type Pose, type PoseDef } from "./avatar/poses";
 import "./avatar/avatar.css";
 
@@ -31,7 +31,8 @@ const BAR_Y = 61.3;
 const DUMMY_AT = "translate(127 74) rotate(-30) scale(1.35)";
 
 /**
- * 컷아웃 리그 캐릭터. 머리 · 몸통 · 팔(위팔+아래팔) · 다리가 각자 관절 축을 가진 그룹이고,
+ * 리그 캐릭터. 머리 · 몸통 · 팔(위팔+아래팔) · 다리가 각자 관절 축을 가진 그룹이고,
+ * 팔 · 다리 · 몸통은 각각 한 덩어리 외곽선으로 그려 관절 이음선이 보이지 않는다(parts.tsx Limb).
  * 자세는 POSES의 관절 각도로만 정한다. 움직임은 avatar.css가 관절 그룹에 건다.
  */
 export function Avatar({ spec, size, pose = "idle", className, face, joints, label = "캐릭터" }: Props) {
@@ -48,10 +49,12 @@ export function Avatar({ spec, size, pose = "idle", className, face, joints, lab
   const glasses = acc.has("glasses") && p.face !== "cool";
   const wristband = acc.has("wristbands");
 
+  // 팔은 몸통 앞에. 그 위에 어깨(소매)를 채색만 다시 덮어 어깨선 없이 팔 윗부분을 가린다
   const arms = (
     <>
       <Arm side="L" a={p.armL} elb={p.elbL} fore={p.fore} skin={skin} shirt={shirt} uniform={uniform} wristband={wristband} />
       <Arm side="R" a={p.armR} elb={p.elbR} fore={p.fore} skin={skin} shirt={shirt} uniform={uniform} wristband={wristband} />
+      <Shoulders m="fill" uniform={uniform} skin={skin} shirt={shirt} aL={p.armL} aR={p.armR} />
     </>
   );
 
@@ -76,7 +79,7 @@ export function Avatar({ spec, size, pose = "idle", className, face, joints, lab
             <Joint part="hairBack" at={PIVOT.neck} a={p.headTilt}>
               <HairBack hair={s.hair} />
             </Joint>
-            <Torso skin={skin} shirt={shirt} uniform={uniform} />
+            <Torso skin={skin} shirt={shirt} uniform={uniform} aL={p.armL} aR={p.armR} legL={p.legL} legR={p.legR} torso={p.torso} />
             {acc.has("earphones") && <Earphones />}
             {!p.armsFront && arms}
             {acc.has("towel") && <Towel />}

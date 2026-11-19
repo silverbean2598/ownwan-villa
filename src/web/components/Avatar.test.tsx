@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { Avatar, POSES, type Pose } from "./Avatar";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR, type AvatarSpec } from "../../shared/avatar";
 import { OUTFITS } from "../../shared/catalog";
-import { BUN, SW } from "./avatar/parts";
+import { BUN, SW, handAt } from "./avatar/parts";
 
 // 2D 아핀 행렬 [a b c d e f] (SVG matrix 순서)
 type M = [number, number, number, number, number, number];
@@ -196,5 +196,30 @@ describe("Avatar", () => {
     const svg = parse({ ...DEFAULT_AVATAR, hair: "beanie", shirt: 0 });
     expect(svg.querySelector('[data-part="beanie"] path')!.getAttribute("fill")).toBe(AVATAR_OPTIONS.shirt[0]);
   });
-});
 
+  it("hand_at_matches_drawn_mitten_center", () => {
+    // 축하 장면은 handAt으로 소품 · 주먹을 손에 맞춘다
+    const cases: [number, number, number][] = [[-128, 0, 13], [-28, 0, 13], [60, 110, 13], [-100, -80, 26]];
+    for (const [a, elb, fore] of cases) {
+      const html = renderToStaticMarkup(<Avatar spec={DEFAULT_AVATAR} size={120} joints={{ armR: a, elbR: elb, fore }} />);
+      const svg = new DOMParser().parseFromString(html, "image/svg+xml").documentElement;
+      const hands = [...svg.querySelectorAll('[data-part="foreR"] ellipse')];
+      expect(hands.length, `${a}`).toBe(2); // ink · fill 두 단계
+      const el = hands[1];
+      const m = ctm(el);
+      const cx = Number(el.getAttribute("cx")), cy = Number(el.getAttribute("cy"));
+      const [hx, hy] = handAt("R", a, elb, fore);
+      expect(m[0] * cx + m[2] * cy + m[4]).toBeCloseTo(hx, 4);
+      expect(m[1] * cx + m[3] * cy + m[5]).toBeCloseTo(hy, 4);
+    }
+  });
+
+  it("limbs_are_drawn_as_one_silhouette_ink_then_fill", () => {
+    // 팔 하나 = 외곽선 단계 그룹 + 채색 단계 그룹. 채색 단계에는 굵은 외곽선이 없다
+    const svg = parse(DEFAULT_AVATAR);
+    const arm = svg.querySelector('[data-part="armL"]:not([data-part="torso"] *)')!;
+    const [ink, fill] = [...arm.children];
+    expect(ink.querySelector("rect")!.getAttribute("stroke-width")).toBe("3.2");
+    expect(fill.querySelector("rect")!.getAttribute("stroke")).toBeNull();
+  });
+});

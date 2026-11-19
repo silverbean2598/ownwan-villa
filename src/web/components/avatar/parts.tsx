@@ -1,31 +1,26 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { Face } from "./poses";
 
-import { ELBOW_DY, HAIR, HAIR_HI, INK, PIVOT, SHORTS, SW, line } from "./ink";
-import { OutfitForearm, OutfitLeg, OutfitTorso, OutfitUpperArm, Wristband, isOutfit, longPants, type OutfitId } from "./wear";
+import { ELBOW_DY, HAIR, HAIR_HI, HAND, INK, PIVOT, SW, line, type Mode } from "./ink";
+import { paint } from "./ink";
+import { BODY, Bottoms, Forearm, LegShape, Rot, Shoulders, Top, UpperArm, bareBody, type Uniform } from "./wear";
 
 export { INK, SW, PIVOT };
-const GI = "#FFFFFF";
-const GI_SHADE = "#E6E9F0";
-const BELT = { gi: "#2F6FD0", dobok: "#25252D" } as const;
-const V_TRIM = "#2A2A33";
-
-/** 옷: 반팔 티 / 주짓수 도복(두꺼운 깃 · 파란 띠) / 태권도 도복(V넥 · 검은 띠) / 상점에서 산 옷(wear.tsx) */
-export type Uniform = "tee" | "gi" | "dobok" | OutfitId;
-const SHOE_SOLE = "#E4DEDC";
-
+export type { Uniform };
 
 /** 축(x, y)을 중심으로 a도 돌린 관절 그룹. CSS 애니메이션은 --a를 기준으로 움직인다. */
-export function Joint({ part, at, a, children }: { part: string; at: readonly [number, number]; a: number; children: ReactNode }) {
-  const style = {
-    transformOrigin: `${at[0]}px ${at[1]}px`,
-    transform: `rotate(${a}deg)`,
-    "--a": `${a}deg`,
-  } as CSSProperties;
+export const Joint = Rot;
+
+/**
+ * 한 덩어리 외곽선으로 그리는 부위. children을 ink 단계(진한 색 + 굵은 선)와 fill 단계(채색만)로 두 번 부른다.
+ * 안쪽 관절 그룹(Joint)도 두 단계에 같은 data-part · 각도로 들어가므로 CSS 움직임이 함께 맞는다.
+ */
+export function Limb({ children }: { children: (m: Mode) => ReactNode }) {
   return (
-    <g data-part={part} style={style}>
-      {children}
-    </g>
+    <>
+      <g>{children("ink")}</g>
+      <g>{children("fill")}</g>
+    </>
   );
 }
 
@@ -364,47 +359,29 @@ export function FaceOverHair({ face }: { face: Face }) {
 }
 
 // ---------- 몸통 ----------
-function Belt({ color }: { color: string }) {
-  return (
-    <>
-      <rect x="40.8" y="114" width="38.4" height="6.5" rx="1.5" fill={color} {...line} strokeWidth={1.1} />
-      <path d="M57 120 L53 131 L56.5 131.5 L60 121 L63.5 131.5 L67 131 L63 120 Z" fill={color} {...line} strokeWidth={1.1} />
-      <rect x="56.5" y="113.5" width="7" height="7.5" rx="1.5" fill={color} {...line} strokeWidth={1.1} />
-    </>
-  );
-}
+type TorsoProps = { skin: string; shirt: string; uniform: Uniform; aL: number; aR: number; legL: number; legR: number; torso: number };
 
-const JACKET = "M44 87 Q60 83.5 76 87 L79.5 131 Q60 134 40.5 131 Z";
-
-export function Torso({ skin, shirt, uniform }: { skin: string; shirt: string; uniform: Uniform }) {
+/**
+ * 목 · 아래옷 · 윗옷 · 어깨(소매)를 한 덩어리로 그린다. 어깨는 팔 각도를 따라 돌아서 어깨 이음선이 없다.
+ * 팔을 그린 뒤 Avatar가 <Shoulders m="fill">로 어깨를 다시 덮는다.
+ */
+export function Torso({ skin, shirt, uniform, aL, aR, legL, legR, torso }: TorsoProps) {
   return (
     <g data-part="torso">
-      <rect x="55.5" y="78" width="9" height="12" fill={skin} {...line} />
-      {uniform === "gi" ? (
-        <g data-part="gi">
-          <path d={JACKET} fill={GI} {...line} />
-          <path d="M53 86 L67 115 M67 86 L57.5 106" fill="none" {...line} strokeWidth={4.2} stroke={GI_SHADE} />
-          <path d="M53 86 L67 115 M67 86 L57.5 106" fill="none" {...line} strokeWidth={1} />
-          <Belt color={BELT.gi} />
-        </g>
-      ) : uniform === "dobok" ? (
-        <g data-part="dobok">
-          <path d={JACKET} fill={GI} {...line} />
-          <path d="M54 87 L60 99 L66 87 Z" fill={skin} />
-          <path d="M52.5 86.5 L60 100.5 L67.5 86.5" fill="none" stroke={V_TRIM} strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
-          <Belt color={BELT.dobok} />
-        </g>
-      ) : isOutfit(uniform) ? (
-        <OutfitTorso id={uniform} skin={skin} shirt={shirt} />
-      ) : (
-        <>
-          <path d="M42.5 117 L77.5 117 L79 129 Q60 131 41 129 Z" fill={SHORTS} {...line} />
-          <line x1="60" y1="124" x2="60" y2="130" {...line} strokeWidth={1} />
-          <path data-part="tee" d="M45 88 Q60 84.5 75 88 L78 121.5 Q60 124.5 42 121.5 Z" fill={shirt} {...line} />
-          <path d="M54 87.3 Q60 92.5 66 87.3" fill="none" {...line} strokeWidth={1.1} />
-          <path d="M48 98 L47.5 116 M72 98 L72.5 116" stroke="#fff" strokeWidth="1" opacity="0.35" strokeLinecap="round" />
-        </>
-      )}
+      <Limb>
+        {(m) => (
+          <>
+            <rect x="55" y="78" width="10" height="12" {...paint(m, skin)} />
+            {bareBody(uniform) && <path d={BODY} {...paint(m, skin)} />}
+            {(m === "ink" || uniform === "hoodie") && <Shoulders m={m} uniform={uniform} skin={skin} shirt={shirt} aL={aL} aR={aR} />}
+            <g data-part={m === "fill" && uniform !== "tee" && uniform !== "gi" && uniform !== "dobok" ? `outfit-${uniform}` : undefined}>
+              <Bottoms m={m} uniform={uniform} legL={legL} legR={legR} torso={torso} />
+              <Top m={m} uniform={uniform} skin={skin} shirt={shirt} />
+            </g>
+            {m === "fill" && uniform !== "hoodie" && <Shoulders m={m} uniform={uniform} skin={skin} shirt={shirt} aL={aL} aR={aR} />}
+          </>
+        )}
+      </Limb>
     </g>
   );
 }
@@ -412,65 +389,33 @@ export function Torso({ skin, shirt, uniform }: { skin: string; shirt: string; u
 // ---------- 팔 ----------
 type ArmProps = { side: "L" | "R"; a: number; elb: number; fore?: number; skin: string; shirt: string; uniform: Uniform; wristband?: boolean };
 
+/** 위팔 · 아래팔 · 벙어리장갑 손을 한 덩어리로. 팔꿈치 · 손목 이음선이 없다 */
 export function Arm({ side, a, elb, fore = 13, skin, shirt, uniform, wristband }: ArmProps) {
-  const gi = uniform === "gi" || uniform === "dobok";
-  const outfit = isOutfit(uniform) ? uniform : null;
   const [x, y] = side === "L" ? PIVOT.shoulderL : PIVOT.shoulderR;
   const ey = y + ELBOW_DY;
   const hy = ey + fore;
-  const sleeveEnd = gi ? ey + 6 : y + 12;
   return (
     <Joint part={`arm${side}`} at={[x, y]} a={a}>
-      <Joint part={`fore${side}`} at={[x, ey]} a={elb}>
-        <rect x={x - 3.7} y={ey - 3} width="7.4" height={hy - ey + 3} rx="3.7" fill={skin} {...line} />
-        {gi && fore > 8 && <rect x={x - 4.6} y={ey - 3} width="9.2" height={fore - 4} rx="2" fill={GI} {...line} />}
-        {outfit && <OutfitForearm id={outfit} x={x} ey={ey} hy={hy} side={side} shirt={shirt} />}
-        {wristband && <Wristband x={x} hy={hy} />}
-        <circle cx={x} cy={hy} r="4.7" fill={skin} {...line} />
-      </Joint>
-      {outfit ? (
-        <OutfitUpperArm id={outfit} x={x} y={y} ey={ey} side={side} skin={skin} shirt={shirt} />
-      ) : (
-        <path
-          d={`M${x - 6} ${y - 2} Q${x} ${y - 6} ${x + 6} ${y - 2} L${x + 7.4} ${sleeveEnd} Q${x} ${sleeveEnd + 2.4} ${x - 7.4} ${sleeveEnd} Z`}
-          fill={gi ? GI : shirt}
-          {...line}
-        />
-      )}
+      <Limb>
+        {(m) => (
+          <>
+            <UpperArm m={m} uniform={uniform} x={x} y={y} skin={skin} shirt={shirt} />
+            <Joint part={`fore${side}`} at={[x, ey]} a={elb}>
+              <Forearm m={m} uniform={uniform} side={side} x={x} ey={ey} hy={hy} skin={skin} shirt={shirt} wristband={wristband} />
+            </Joint>
+          </>
+        )}
+      </Limb>
     </Joint>
   );
 }
 
 // ---------- 다리 ----------
+/** 통통한 다리 + 동글동글 운동화를 한 덩어리로 (도복이면 흰 바지 + 맨발). 반바지 · 긴 바지는 몸통 쪽에서 덮는다 */
 export function Leg({ side, a, skin, uniform }: { side: "L" | "R"; a: number; skin: string; uniform: Uniform }) {
-  const gi = uniform === "gi" || uniform === "dobok";
-  const outfit = isOutfit(uniform) ? uniform : null;
-  const [x] = side === "L" ? PIVOT.hipL : PIVOT.hipR;
-  const out = side === "L" ? -1 : 1;
   return (
     <Joint part={`leg${side}`} at={side === "L" ? PIVOT.hipL : PIVOT.hipR} a={a}>
-      {gi ? (
-        <>
-          <ellipse cx={x + out * 1.2} cy="152.5" rx="6" ry="3.2" fill={skin} {...line} />
-          <path d={`M${x - 7.5} 120 L${x + 7.5} 120 L${x + 7} 150 Q${x} 151.5 ${x - 7} 150 Z`} fill={GI} {...line} />
-        </>
-      ) : (
-        <>
-          {!(outfit && longPants(outfit)) && <rect x={x - 3.8} y="128" width="7.6" height="20" fill={skin} {...line} />}
-          <path
-            d={`M${x - 6.5 + out * 0.8} 155 Q${x - 7.5 + out * 0.8} 147.5 ${x - 2.5} 146.5 L${x + 2.5} 146.5 Q${x + 7.5 + out * 0.8} 147.5 ${x + 6.5 + out * 0.8} 155 Z`}
-            fill="#fff"
-            {...line}
-          />
-          <path d={`M${x - 6.4 + out * 0.8} 152.8 H${x + 6.4 + out * 0.8}`} stroke={SHOE_SOLE} strokeWidth="1.6" />
-          <path d={`M${x - 2} 149.3 L${x + 2} 149.3`} stroke="#B9B1AF" strokeWidth="0.9" strokeLinecap="round" />
-          {outfit ? (
-            <OutfitLeg id={outfit} x={x} out={out} />
-          ) : (
-            <path d={`M${x - 7.5} 120 L${x + 7.5} 120 L${x + 8} 134 Q${x} 135.5 ${x - 8} 134 Z`} fill={SHORTS} {...line} />
-          )}
-        </>
-      )}
+      <Limb>{(m) => <LegShape m={m} uniform={uniform} side={side} skin={skin} />}</Limb>
     </Joint>
   );
 }
@@ -508,15 +453,17 @@ export function Dummy({ transform }: { transform?: string }) {
 }
 
 /**
- * 팔 각도로 손(주먹 원) 중심의 리그 좌표를 구한다. 축하 장면에서 트로피 · 상자 같은 소품을 손에 맞춰 놓을 때 쓴다.
+ * 팔 각도로 손(벙어리장갑) 중심의 리그 좌표를 구한다. 축하 장면에서 트로피 · 상자 같은 소품을 손에 맞춰 놓을 때 쓴다.
  * 몸통 회전(torso)은 0이라고 보고, 리그 전체 offsetY만 더한다.
  */
 export function handAt(side: "L" | "R", a: number, elb: number, fore = 13, offsetY = 0): [number, number] {
   const [sx, sy] = side === "L" ? PIVOT.shoulderL : PIVOT.shoulderR;
   const rad = (d: number) => (d * Math.PI) / 180;
-  // 팔꿈치 기준 아래팔 끝
-  const fx = -fore * Math.sin(rad(elb));
-  const fy = ELBOW_DY + fore * Math.cos(rad(elb));
+  // 팔꿈치 기준 손 중심 (아래팔 끝에서 바깥쪽 HAND.dx, 아래로 HAND.dy)
+  const lx = (side === "L" ? -1 : 1) * HAND.dx;
+  const ly = fore + HAND.dy;
+  const fx = lx * Math.cos(rad(elb)) - ly * Math.sin(rad(elb));
+  const fy = ELBOW_DY + lx * Math.sin(rad(elb)) + ly * Math.cos(rad(elb));
   // 어깨 기준으로 위팔 각도만큼
   const x = sx + fx * Math.cos(rad(a)) - fy * Math.sin(rad(a));
   const y = sy + fx * Math.sin(rad(a)) + fy * Math.cos(rad(a));
