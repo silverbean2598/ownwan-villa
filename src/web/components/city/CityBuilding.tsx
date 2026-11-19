@@ -14,7 +14,23 @@ export const shortName = (s: string, max = 8) => (Array.from(s).length > max ? `
 
 /** 화면 낭독기용 설명 */
 export const buildingLabel = (v: CityVilla, mine: boolean) =>
-  `${mine ? "우리 빌라, " : ""}${v.name}, 오늘 불 켜진 방 ${v.litCount}개`;
+  `${mine ? "우리 빌라, " : ""}${v.name}, 오늘 불 켜진 방 ${v.litCount}개${v.recruit ? ", 입주자 모집 중" : ""}`;
+
+const FLAG = "#FF7A59";
+
+/** 빈방 모집 깃발: 지붕 오른쪽 모서리에 세운 깃대 + "모집 중" 깃발. (x, y) = 깃대 아래 끝 */
+export function RecruitFlag({ x, y }: { x: number; y: number }) {
+  return (
+    <g className="cb-flag" transform={`translate(${x} ${y})`} aria-hidden="true">
+      <rect x="-1.4" y="-40" width="2.8" height="40" rx="1.2" fill="#E9E7F2" stroke={INK} strokeWidth="1" />
+      <circle cx="0" cy="-41" r="2.6" fill={GOLD} stroke={INK} strokeWidth="1" />
+      <g className="cb-flag-cloth">
+        <path d="M1.4 -38 H44 L38 -29 L44 -20 H1.4 Z" fill={FLAG} stroke={INK} strokeWidth="1.2" strokeLinejoin="round" />
+        <text x="21" y="-25.6" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#fff">모집 중</text>
+      </g>
+    </g>
+  );
+}
 
 function Window({ x, y, w, h, state, wall, arched }: { x: number; y: number; w: number; h: number; state: WindowState; wall: string; arched: boolean }) {
   const r = arched ? w / 2 : 1.5;
@@ -88,6 +104,7 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
       onKeyDown={onKey}
       data-lit={villa.litCount}
       data-stories={shape.stories}
+      data-recruit={villa.recruit ? "1" : undefined}
     >
       {/* 누르기 쉬운 넓은 영역 + 포커스 테두리 */}
       <rect className="cb-ring" x={-W / 2 - 8} y={phTop - 14} width={W + 16} height={-phTop + 20} rx="12" />
@@ -134,6 +151,8 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
         <Bush x={-W / 2 + 10} y={roof} s={0.85} />
         <Bush x={W / 2 - 10} y={roof} s={0.85} />
       </g>
+
+      {villa.recruit && <RecruitFlag x={W / 2 - 6} y={roof} />}
 
       {mine && (
         <g className="cb-mine" transform={`translate(0 ${phTop - 12})`}>

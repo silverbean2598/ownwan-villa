@@ -40,6 +40,9 @@ function mockApi(ownerId: string, bans: unknown[] = []) {
       if (path === "/api/recover/pending") return body([]);
       if (path === "/api/shop") return body({ owned: [] });
       if (path === "/api/villas/v1/bans" && method === "GET") return body(bans);
+      if (path === "/api/villas/v1/recruit" && method === "GET") return body({ open: false, intro: "", sports: [], updatedAt: null, public: false, memberCount: 2 });
+      if (path === "/api/villas/v1/applications" && method === "GET") return body([]);
+      if (path === "/api/me/application") return body({ pending: null });
       return body({ ok: true });
     }),
   );

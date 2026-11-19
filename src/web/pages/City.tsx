@@ -6,12 +6,26 @@ import { colsFor } from "../components/city/layout";
 import { VILLA_CAPACITY } from "../../shared/villa";
 import type { CityMine, CityResponse, CityVilla } from "../../shared/city";
 import { topicParticle } from "../events/plan";
+import { RecruitCard } from "../components/city/RecruitCard";
+import type { MyApplication } from "../../shared/recruit";
 
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
 const width = () => (typeof window === "undefined" ? 390 : Math.min(window.innerWidth, 1100));
 
-/** 누른 빌라의 작은 카드: 이름 · 입주 인원 · 오늘 불 켜진 방 · 펜트하우스 주인 (사진 · 루틴 · 입주민 목록은 없다) */
-function VillaCard({ v, mine, onClose }: { v: CityVilla; mine: boolean; onClose: () => void }) {
+/**
+ * 누른 빌라의 작은 카드: 이름 · 입주 인원 · 오늘 불 켜진 방 · 펜트하우스 주인 (사진 · 루틴 · 입주민 목록은 없다).
+ * 빈방 모집 중이면 모집 글과 [입주 신청]
+ */
+function VillaCard({
+  v, mine, myApp, villaCount, onChanged, onClose,
+}: {
+  v: CityVilla;
+  mine: boolean;
+  myApp: MyApplication | null;
+  villaCount: number;
+  onChanged: () => Promise<void>;
+  onClose: () => void;
+}) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // 닫으면 누른 건물로 포커스를 돌려준다
@@ -38,6 +52,7 @@ function VillaCard({ v, mine, onClose }: { v: CityVilla; mine: boolean; onClose:
           <li className="ph">펜트하우스 주인<b>{v.penthouseNickname ?? "아직 없어요"}</b></li>
           <li>가장 높은 층<b>{v.topFloor}층</b></li>
         </ul>
+        <RecruitCard key={v.id} v={v} mine={mine} myApp={myApp} villaCount={villaCount} onChanged={onChanged} />
         {!mine && <p className="note">사진과 루틴은 그 빌라 입주민끼리만 봐요.</p>}
       </div>
     </div>
@@ -115,6 +130,7 @@ export function City() {
         <p>
           {villas.length ? `공개한 빌라 ${villas.length}곳이 모여 있어요. ` : "아직 공개한 빌라가 없어요. "}
           불 켜진 창문은 오늘 운동한 사람이에요.
+          {villas.some((v) => v.recruit) && " 깃발이 꽂힌 빌라는 입주자를 모집하고 있어요."}
         </p>
       </header>
 
@@ -141,6 +157,16 @@ export function City() {
             )}
           </div>
         ))}
+      {data.myApplication && (
+        <div className="city-hint apply-hint" role="status">
+          <span>
+            <b>{data.myApplication.villaName}</b>에 입주 신청했어요. 방장의 답을 기다리는 중이에요.
+          </span>
+          {villas.some((v) => v.id === data.myApplication!.villaId) && (
+            <button type="button" className="btn ghost" onClick={() => setSelected(data.myApplication!.villaId)}>보기</button>
+          )}
+        </div>
+      )}
       {hintErr && <p className="error" role="alert" style={{ margin: "0 16px 12px" }}>{hintErr}</p>}
 
       <div className="city-frame">
@@ -153,7 +179,16 @@ export function City() {
         />
       </div>
 
-      {sel && <VillaCard v={sel} mine={mineIds.includes(sel.id)} onClose={() => setSelected(null)} />}
+      {sel && (
+        <VillaCard
+          v={sel}
+          mine={mineIds.includes(sel.id)}
+          myApp={data.myApplication ?? null}
+          villaCount={mineAll.length}
+          onChanged={load}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </main>
   );
 }

@@ -4,12 +4,21 @@ import { Avatar } from "./Avatar";
 import { SPORT_LABEL, type Sport } from "../../shared/sports";
 import type { AvatarSpec } from "../../shared/avatar";
 import { objParticle } from "../events/plan";
+import { Badge } from "./Badge";
+import { parseAvatar, DEFAULT_AVATAR } from "../../shared/avatar";
+import type { ReceivedApplication } from "../../shared/recruit";
 
 export type Member = { userId: string; nickname: string; sport: Sport | null; avatar: AvatarSpec };
 type Ban = { userId: string; nickname: string; createdAt: number };
 type Ask = { kind: "kick" | "transfer"; m: Member } | { kind: "dissolve" } | null;
 
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
+
+/** 신청한 날 (한국 시간 "11월 19일") */
+export const appliedDay = (ms: number) => {
+  const d = new Date(ms + 9 * 3600_000);
+  return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
+};
 
 /** 얼굴만 잘라 보이는 작은 캐릭터 */
 export function MemberHead({ spec }: { spec: AvatarSpec }) {
@@ -57,6 +66,16 @@ export function MemberManage({
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok?: string; err?: string }>({});
+  const [apps, setApps] = useState<ReceivedApplication[]>([]);
+  const [appNote, setAppNote] = useState<{ ok?: string; err?: string }>({});
+
+  // 받은 입주 신청 (방장만). 방장을 넘겨받으면 새 방장에게 보인다
+  const loadApps = useCallback(async () => {
+    setApps(await api<ReceivedApplication[]>(`/api/villas/${villa.id}/applications`));
+  }, [villa.id]);
+  useEffect(() => {
+    loadApps().catch(() => {});
+  }, [loadApps]);
 
   const loadBans = useCallback(async () => {
     setBans(await api<Ban[]>(`/api/villas/${villa.id}/bans`));
@@ -85,6 +104,23 @@ export function MemberManage({
     }
   }
 
+  /** 승인 · 거절: 실패해도(그 사이 꽉 참 · 3곳 · 만료) 목록을 다시 받아 끝난 신청을 치운다 */
+  async function decide(a: ReceivedApplication, approve: boolean) {
+    setBusy(true);
+    setAppNote({});
+    try {
+      await api(`/api/villas/${villa.id}/applications/${a.id}/${approve ? "approve" : "reject"}`, { method: "POST" });
+      setAppNote({ ok: approve ? `${a.nickname} 님이 입주했어요` : `${a.nickname} 님의 신청을 거절했어요` });
+      if (approve) await onChanged();
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) return onAuthLost();
+      setAppNote({ err: msg(e) });
+    } finally {
+      await loadApps().catch(() => {});
+      setBusy(false);
+    }
+  }
+
   const kick = (m: Member) =>
     act(`${m.nickname} 님을 내보냈어요`, async () => {
       await api(`/api/villas/${villa.id}/members/${m.userId}/kick`, { method: "POST" });
@@ -109,8 +145,40 @@ export function MemberManage({
     });
 
   return (
-    <section className="settings-section">
+    <section className="settings-section" id="members">
       <h2>입주민 관리</h2>
+      <h3 className="sub-title" style={{ marginTop: 4 }}>입주 신청<Badge count={apps.length} /></h3>
+      {apps.length === 0 ? (
+        <p className="muted small">기다리는 입주 신청이 없어요. 빈방 모집을 켜면 도시 지도에서 신청을 받을 수 있어요.</p>
+      ) : (
+        <ul className="apply-list" aria-label="받은 입주 신청">
+          {apps.map((a) => (
+            <li className="apply-row" key={a.id}>
+              <div className="apply-top">
+                <MemberHead spec={parseAvatar(a.avatar) ?? DEFAULT_AVATAR} />
+                <div className="member-info">
+                  <span className="member-name">{a.nickname}</span>
+                  <span className="member-sub">
+                    <span className="streak-chip">연속 {a.streak}일</span>
+                    <span>{a.sport ? SPORT_LABEL[a.sport] : "종목 없음"}</span>
+                    <span>· {appliedDay(a.createdAt)} 신청</span>
+                  </span>
+                </div>
+              </div>
+              {a.message && <p className="apply-msg">{a.message}</p>}
+              <div className="apply-actions">
+                <button className="btn small" type="button" disabled={busy} aria-label={`${a.nickname} 님 승인`} onClick={() => decide(a, true)}>승인</button>
+                <button className="btn ghost small" type="button" disabled={busy} aria-label={`${a.nickname} 님 거절`} onClick={() => decide(a, false)}>거절</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {apps.length > 0 && <p className="muted small">승인하면 바로 입주해요. 거절해도 이유는 알리지 않아요.</p>}
+      {appNote.ok && <p className="ok" role="status">{appNote.ok}</p>}
+      {appNote.err && <p className="error" role="alert">{appNote.err}</p>}
+
+      <h3 className="sub-title">입주민 {villa.members.length}명</h3>
       <ul className="member-list">
         {villa.members.map((m) => (
           <li className="member-row" key={m.userId}>

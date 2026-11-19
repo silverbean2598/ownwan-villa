@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { api } from "../api";
 import { DEFAULT_AVATAR, parseAvatar, type AvatarSpec } from "../../shared/avatar";
 import { kstDay } from "../../shared/rules/day";
-import { eventCopy, isCard, planEvents, shouldNightRemind, type AppEvent, type CardType, type ToastType } from "../events/plan";
+import { cardButton, eventCopy, isCard, planEvents, shouldNightRemind, type AppEvent, type CardType, type ToastType } from "../events/plan";
 import { EVENTS_POKE } from "../events/poke";
 import { CardArt, ToastArt } from "./celebrate/CelebrationArt";
 import "./celebrate/celebrate.css";
@@ -152,7 +152,7 @@ function Card({ event, type, spec, onClose }: { event: AppEvent; type: CardType;
         <CardArt type={type} spec={spec} />
         <p id={`cel-${event.id}`}>{text}</p>
         <button ref={btn} type="button" className="btn" onClick={onClose}>
-          좋아요
+          {cardButton(type)}
         </button>
       </div>
     </div>
@@ -167,7 +167,8 @@ function Toast({ event, spec, onShown, onDone }: { event: AppEvent; spec: Avatar
     // 보여 줄 때 한 번만
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const friend = event.type === "friend_joined" || event.type === "owner_changed" ? parseAvatar(event.payload.avatar) : null;
+  const friend =
+    event.type === "friend_joined" || event.type === "owner_changed" || event.type === "application_received" ? parseAvatar(event.payload.avatar) : null;
   return (
     <div className="toast" role="status" onClick={() => onDone(event.id)}>
       <ToastArt type={event.type as ToastType} spec={spec} friend={friend} />

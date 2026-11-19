@@ -4,7 +4,7 @@ import { Avatar, type Face } from "../Avatar";
 import { INK, handAt } from "../avatar/parts";
 import type { CardType, ToastType } from "../../events/plan";
 import {
-  Box, Bubbles, Burst, ClapLines, Confetti, Crown, Heart, Key, MiniVilla, Moon, Plant, PlusOne, Shadow, Sparkle, Stairs, Trophy, UpArrow,
+  Box, Bubbles, Burst, ClapLines, Confetti, Crown, Heart, Key, Letter, MiniVilla, Moon, Plant, PlusOne, Shadow, Sparkle, Stairs, Trophy, UpArrow,
 } from "./props";
 
 type AvatarProps = Parameters<typeof Avatar>[0];
@@ -181,6 +181,23 @@ export function CardArt({ type, spec }: { type: CardType; spec: AvatarSpec }) {
       );
       break;
     }
+    case "application_rejected": {
+      // 답장 편지를 받고 아쉽지만 괜찮다는 듯 살짝 웃는다. 멀리 다른 빌라들
+      const X = 48, Y = 24;
+      const hand = add(handAt("R", -40, -20), X, Y);
+      body = (
+        <>
+          <MiniVilla x={196} y={150} w={40} floors={2} />
+          <MiniVilla x={222} y={162} w={30} floors={2} />
+          <Shadow x={108} y={181} />
+          <Figure x={X} y={Y} spec={s} face="shy" joints={{ armR: -40, elbR: -20, armL: 14 }} />
+          <Letter x={hand[0] + 10} y={hand[1] - 8} rot={-12} />
+          <Fist at={hand} skin={skin} />
+          <Heart x={172} y={70} s={0.8} />
+        </>
+      );
+      break;
+    }
   }
   return (
     <svg className={`cel-art cel-${type}`} viewBox="0 0 240 200" width="100%" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -254,6 +271,25 @@ export function ToastArt({ type, spec, friend }: { type: ToastType; spec: Avatar
         </svg>
       );
     }
+    case "application_received": {
+      // 신청한 사람이 편지를 내민다
+      const f = parseAvatar(friend) ?? DEFAULT_AVATAR;
+      return (
+        <svg className="toast-art wide" viewBox="16 18 152 104" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+          <Avatar size={120} spec={spec} face="happy" joints={{ armR: -8, armL: 8 }} />
+          <g transform="translate(68 0)">
+            <Avatar size={120} spec={f} face="shy" joints={{ armL: 70, armR: -8 }} />
+          </g>
+          <Letter x={92} y={66} s={0.8} rot={-10} />
+        </svg>
+      );
+    }
+    case "application_closed":
+      return (
+        <Head spec={spec} face="shy">
+          <Letter x={98} y={36} s={0.55} rot={14} />
+        </Head>
+      );
     case "friend_joined": {
       const f = parseAvatar(friend) ?? DEFAULT_AVATAR;
       return (

@@ -64,7 +64,11 @@ export function Villa() {
         }
         retried.current = false;
         if (alive) setState({ me, villas, villa });
-        api<{ recoveryApprovals: number }>("/api/badges").then((b) => alive && setBadge(b.recoveryApprovals), () => {});
+        // 설정 배지 = 계정 복구 승인 요청 + 받은 입주 신청
+        api<{ recoveryApprovals: number; applications?: number }>("/api/badges").then(
+          (b) => alive && setBadge(b.recoveryApprovals + (b.applications ?? 0)),
+          () => {},
+        );
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) return nav(`/login?next=${encodeURIComponent(id ? villaPath(id) : "/villa")}`, { replace: true });
         if (alive) setError(e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
@@ -83,8 +87,9 @@ export function Villa() {
     return (
       <main className="page">
         <h1>아직 입주한 빌라가 없어요</h1>
-        <p className="muted">빌라를 만들어 친구를 초대해 보세요.</p>
+        <p className="muted">빌라를 만들어 친구를 초대하거나, 도시에서 입주자를 모집하는 빌라에 신청해 보세요.</p>
         <Link className="btn" to="/villa/new">빌라 만들기</Link>
+        <Link className="btn ghost" to="/city" style={{ marginTop: 10 }}>도시에서 빈방 찾기</Link>
       </main>
     );
   }

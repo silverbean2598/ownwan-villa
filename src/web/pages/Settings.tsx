@@ -12,6 +12,9 @@ import type { MyVilla } from "../../shared/villa";
 import { KakaoSection, type KakaoStatus } from "../components/kakao/KakaoSection";
 import { DEFAULT_AVATAR, type AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
+import { RecruitSettings } from "../components/RecruitSettings";
+import { daysLeft } from "../components/city/RecruitCard";
+import type { MyApplication } from "../../shared/recruit";
 
 type Me = { id: string; username: string; nickname: string; sport: Sport | null; avatar: AvatarSpec };
 type VillaInfo = { id: string; name: string; ownerId: string; inviteToken?: string; public?: boolean; members: Member[] } | null;
@@ -53,6 +56,8 @@ export function Settings() {
   const [busyCity, setBusyCity] = useState(false);
   // 카카오 연결 상태 (따로 불러온다: 실패해도 나머지 설정은 그대로 쓴다)
   const [kakao, setKakao] = useState<KakaoStatus | null>(null);
+  // 내가 보낸, 기다리는 입주 신청 (따로 불러온다)
+  const [myApp, setMyApp] = useState<MyApplication | null>(null);
   const kakaoNotice = useSearchParams()[0].get("kakao");
   const passwordless = kakao?.hasPassword === false;
 
@@ -124,6 +129,10 @@ export function Settings() {
     api<KakaoStatus>("/api/auth/kakao/status").then(setKakao, () => {});
   }, []);
 
+  useEffect(() => {
+    api<{ pending: MyApplication | null }>("/api/me/application").then((r) => setMyApp(r.pending), () => {});
+  }, []);
+
   // 상점의 [꾸미러 가기](/settings#avatar)로 오면 캐릭터 꾸미기로 내려간다
   useEffect(() => {
     if (me && location.hash === "#avatar") document.getElementById("avatar")?.scrollIntoView();
@@ -159,6 +168,26 @@ export function Settings() {
               </button>
             </div>
           ))}
+        </Section>
+      )}
+
+      {myApp && (
+        <Section title="내 입주 신청" note={notes.apply}>
+          <div className="my-apply" role="status">
+            <span>
+              <b>{myApp.villaName}</b>에 입주 신청했어요. 방장이 승인하면 바로 입주해요. ({daysLeft(myApp.expiresAt)}일 뒤 만료)
+            </span>
+            <button
+              className="btn ghost small"
+              type="button"
+              onClick={() => run("apply", "신청을 취소했어요", async () => {
+                await api(`/api/applications/${myApp.id}/cancel`, { method: "POST" });
+                setMyApp(null);
+              })}
+            >
+              신청 취소
+            </button>
+          </div>
         </Section>
       )}
 
@@ -248,7 +277,7 @@ export function Settings() {
       {villas.length > 1 && villa && (
         <section className="settings-section" aria-label="빌라 고르기">
           <h2>빌라별 설정</h2>
-          <p className="muted small">아래 방장 메뉴 · 도시 지도 공개 · 빌라 나가기는 고른 빌라에만 적용돼요.</p>
+          <p className="muted small">아래 방장 메뉴 · 도시 지도 공개 · 빈방 모집 · 빌라 나가기는 고른 빌라에만 적용돼요.</p>
           <VillaSwitcher
             villas={villas}
             currentId={villa.id}
@@ -324,6 +353,16 @@ export function Settings() {
             </p>
           )}
         </Section>
+      )}
+
+      {villa && (
+        <RecruitSettings
+          villa={villa}
+          isOwner={isOwner}
+          title={villas.length > 1 ? `${villa.name} 빈방 모집` : "빈방 모집"}
+          onPublished={() => setVilla({ ...villa, public: true })}
+          onAuthLost={() => nav("/login?next=/settings", { replace: true })}
+        />
       )}
 
       {villa && isOwner && (

@@ -223,3 +223,14 @@ export function MiniVilla({ x, y, w = 56, floors = 3 }: { x: number; y: number; 
     </g>
   );
 }
+
+/** 편지 봉투 (입주 신청). (x, y) = 가운데, 하트 봉인 */
+export function Letter({ x, y, s = 1, rot = 0 }: { x: number; y: number; s?: number; rot?: number }) {
+  return (
+    <g data-part="letter" transform={`translate(${x} ${y}) rotate(${rot}) scale(${s})`}>
+      <rect x="-15" y="-10" width="30" height="20" rx="2.5" fill="#FFFDF7" {...line} strokeWidth={1.3} />
+      <path d="M-14 -8.5 L0 2 L14 -8.5" fill="none" {...line} strokeWidth={1.2} />
+      <path d="M0 4.5 C-3.6 2 -3 -1.2 0 0.4 C3 -1.2 3.6 2 0 4.5 Z" fill="#F9A3B5" stroke="#E77F97" strokeWidth="0.8" />
+    </g>
+  );
+}

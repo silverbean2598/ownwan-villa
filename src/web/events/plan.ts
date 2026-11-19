@@ -4,9 +4,14 @@ import { kstDay } from "../../shared/rules/day";
 export type AppEvent = { id: string; type: string; payload: Record<string, unknown>; createdAt: number };
 
 /** 전체 화면 카드 (그림 + 한 줄 + [좋아요]) */
-export const CARD_TYPES = ["streak7", "floor_up", "penthouse_in", "penthouse_out", "floor_down", "welcome", "kicked", "owner_in", "dissolved"] as const;
+export const CARD_TYPES = [
+  "streak7", "floor_up", "penthouse_in", "penthouse_out", "floor_down", "welcome", "kicked", "owner_in", "dissolved", "application_rejected",
+] as const;
 /** 위쪽 토스트 (3초 뒤 사라짐) */
-export const TOAST_TYPES = ["certified", "streak6", "bought", "friend_joined", "owner_changed", "night_reminder", "cheered", "commented"] as const;
+export const TOAST_TYPES = [
+  "certified", "streak6", "bought", "friend_joined", "owner_changed", "night_reminder", "cheered", "commented",
+  "application_received", "application_closed",
+] as const;
 export type CardType = (typeof CARD_TYPES)[number];
 export type ToastType = (typeof TOAST_TYPES)[number];
 
@@ -85,7 +90,8 @@ export function eventCopy(e: AppEvent): string {
     case "floor_down":
       return villa ? `어제 ${villa}에 올리지 않아서 ${str(p.floor)}층으로 내려왔어요` : `어제 쉬어서 ${str(p.floor)}층으로 내려왔어요`;
     case "welcome":
-      return `${str(p.villaName, "빌라")}에 입주했어요`;
+      // 빈방 모집 신청이 승인돼 들어온 경우
+      return p.via === "recruit" ? `입주 신청이 승인됐어요! ${str(p.villaName, "빌라")}에 입주했어요` : `${str(p.villaName, "빌라")}에 입주했어요`;
     case "certified":
       return `불이 켜졌어요 +${str(p.points, "0")}P`;
     case "streak6":
@@ -112,10 +118,35 @@ export function eventCopy(e: AppEvent): string {
       return `${str(p.nickname, "이웃")} 님이 응원했어요`;
     case "commented":
       return `${str(p.nickname, "이웃")} 님: ${preview(str(p.body))}`;
+    case "application_received":
+      return villa ? `${villa}에 ${str(p.nickname, "누군가")} 님의 입주 신청이 왔어요` : `${str(p.nickname, "누군가")} 님의 입주 신청이 왔어요`;
+    case "application_rejected":
+      return `이번에는 ${str(p.villaName, "그 빌라")}에 함께하지 못하게 됐어요. 다른 빌라도 둘러봐요`;
+    case "application_closed":
+      return closedCopy(str(p.villaName, "빌라"), str(p.reason));
     default:
       return "";
   }
 }
+
+/** 기다리던 입주 신청이 빌라 쪽 일로 끝났을 때 (신청한 사람에게, 부드럽게) */
+function closedCopy(name: string, reason: string): string {
+  switch (reason) {
+    case "full":
+      return `${name}${subjParticle(name)} 꽉 차서 입주 신청이 취소됐어요`;
+    case "dissolved":
+      return `${name}${subjParticle(name)} 문을 닫아서 입주 신청이 취소됐어요`;
+    case "expired":
+      return `${name} 입주 신청이 7일이 지나 만료됐어요`;
+    case "limit":
+      return `빌라 3곳에 살고 있어서 ${name} 입주 신청이 취소됐어요`;
+    default:
+      return `${name} 빈방 모집이 끝나서 입주 신청이 취소됐어요`;
+  }
+}
+
+/** 카드 버튼 문구 (기본 "좋아요") */
+export const cardButton = (type: string) => (type === "application_rejected" ? "알겠어요" : "좋아요");
 
 /**
  * 받아 온 이벤트를 카드 · 토스트로 나눈다 (순서 유지).

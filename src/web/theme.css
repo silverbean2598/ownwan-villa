@@ -141,3 +141,45 @@ body {
 .add-more-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
 .add-more-row .btn { width: auto; padding: 9px 14px; font-size: 14px; flex: 0 0 auto; }
 .limit-box { background: #fafafa; border-radius: 12px; padding: 16px; margin: 16px 0; font-size: 15px; line-height: 1.55; }
+
+/* 빈방 모집 · 입주 신청 */
+.recruit-box { margin-top: 12px; padding: 12px 14px; border: 1px solid #FFD9CC; border-radius: 14px; background: #FFF8F5; }
+.recruit-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.recruit-flag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; background: #FF7A59; color: #fff; font-size: 12px; font-weight: 700; }
+.recruit-flag::before { content: ""; width: 0; height: 0; border-left: 6px solid #fff; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+.recruit-post { display: flex; flex-direction: column; gap: 8px; }
+.recruit-intro { margin: 0; font-size: 15px; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+.recruit-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.recruit-tag { padding: 3px 9px; border-radius: 999px; background: #fff; border: 1px solid #F2D6CC; font-size: 12.5px; color: #7A4A3A; }
+.recruit-tag.any { color: #6b6b6b; border-color: var(--line); }
+.recruit-tag.room { background: #EAF0FF; border-color: #D5E0FF; color: #2F5BEA; font-weight: 700; }
+.recruit-state { margin: 10px 0 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13.5px; line-height: 1.5; color: #555; word-break: keep-all; }
+.recruit-state.waiting b { color: #C2512F; margin-right: 4px; }
+.recruit-state .btn { flex: none; width: auto; }
+.btn.small { padding: 8px 12px; font-size: 13.5px; border-radius: 10px; }
+.btn.recruit-apply { margin-top: 12px; background: #FF7A59; border-color: #FF7A59; }
+.recruit-form { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.recruit-form label { font-size: 13.5px; font-weight: 600; }
+.recruit-form textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #F2D6CC; border-radius: 10px; font: inherit; font-size: 15px; resize: none; background: #fff; }
+.recruit-form .row { margin: 4px 0 0; gap: 8px; }
+.recruit-form .row .btn { flex: 1; padding: 12px; }
+.recruit-form .muted.small { margin: 2px 0 0; font-size: 12px; }
+.counter { align-self: flex-end; font-size: 12px; color: #8a8a8a; font-variant-numeric: tabular-nums; }
+.counter.over { color: #c62828; font-weight: 700; }
+.sport-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 4px; }
+.sport-chip { padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+.sport-chip[aria-pressed="true"] { border-color: #FF7A59; background: #FFF1EC; color: #C2512F; font-weight: 700; }
+.sport-chip:focus-visible { outline: 3px solid #2F5BEA; outline-offset: 2px; }
+.recruit-hint { padding: 12px 14px; border-radius: 14px; background: #F7F8FA; font-size: 14px; line-height: 1.5; word-break: keep-all; }
+.recruit-hint .btn { margin-top: 10px; }
+.switch.recruit.on { background: #FF7A59; }
+.apply-list { list-style: none; margin: 0 0 6px; padding: 0; }
+.apply-row { padding: 12px 0; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.apply-row:last-child { border-bottom: 0; }
+.apply-top { display: flex; align-items: center; gap: 10px; }
+.apply-msg { margin: 0; padding: 9px 12px; border-radius: 4px 12px 12px 12px; background: #F7F8FA; font-size: 14px; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+.apply-actions { display: flex; gap: 8px; }
+.apply-actions .btn { flex: 1; }
+.streak-chip { color: #C2512F; font-weight: 700; }
+.my-apply { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid #FFD9CC; border-radius: 14px; background: #FFF8F5; font-size: 14px; line-height: 1.5; }
+.my-apply .btn { align-self: flex-start; }
