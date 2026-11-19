@@ -130,7 +130,7 @@ export function Settings() {
   }, []);
 
   useEffect(() => {
-    api<{ pending: MyApplication | null }>("/api/me/application").then((r) => setMyApp(r.pending), () => {});
+    api<{ pending: MyApplication | null }>("/api/me/application").then((r) => setMyApp(r?.pending ?? null), () => {});
   }, []);
 
   // 상점의 [꾸미러 가기](/settings#avatar)로 오면 캐릭터 꾸미기로 내려간다

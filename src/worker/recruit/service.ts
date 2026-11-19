@@ -85,10 +85,15 @@ export async function purgeApplications(env: Env): Promise<{ expired: number; de
   const rows = exp.results as { id: string; villaId: string; userId: string }[];
   if (rows.length) {
     const ids = [...new Set(rows.map((r) => r.villaId))];
-    const { results } = await env.DB.prepare(`SELECT id, name FROM villas WHERE id IN (${ids.map(() => "?").join(",")})`)
-      .bind(...ids)
-      .all<{ id: string; name: string }>();
-    const names = new Map(results.map((r) => [r.id, r.name]));
+    // D1 은 한 문장에 바인딩 100개까지라 90개씩 나눠 이름을 찾는다
+    const names = new Map<string, string>();
+    for (let i = 0; i < ids.length; i += 90) {
+      const chunk = ids.slice(i, i + 90);
+      const { results } = await env.DB.prepare(`SELECT id, name FROM villas WHERE id IN (${chunk.map(() => "?").join(",")})`)
+        .bind(...chunk)
+        .all<{ id: string; name: string }>();
+      for (const r of results) names.set(r.id, r.name);
+    }
     await logEvents(
       env,
       rows.map((r) => ({

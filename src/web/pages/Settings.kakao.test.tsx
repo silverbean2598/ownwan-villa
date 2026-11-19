@@ -22,6 +22,7 @@ function mockApi(status: { configured: boolean; linked: boolean; hasPassword: bo
       if (path === "/api/me") return body(ME);
       if (path === "/api/villas/mine") return body(null);
       if (path === "/api/me/villas") return body([]);
+      if (path === "/api/me/application") return body({ pending: null });
       if (path === "/api/shop") return body({ owned: [] });
       if (path === "/api/auth/kakao/status") return body(status);
       return body({ ok: true });
