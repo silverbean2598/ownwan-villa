@@ -84,7 +84,7 @@ function leaveStatements(env: Env, villaId: string, userId: string, t: number, g
        WHERE id = ? AND owner_id = ? AND NOT EXISTS (${STILL_IN})`,
     ).bind(villaId, villaId, userId, villaId, userId),
     env.DB.prepare(
-      `UPDATE villas SET dissolved_at = ?, penthouse_user_id = NULL
+      `UPDATE villas SET dissolved_at = ?, penthouse_user_id = NULL, map_slot = NULL
        WHERE id = ? AND dissolved_at IS NULL AND NOT EXISTS (${ACTIVE}) AND NOT EXISTS (${STILL_IN})`,
     ).bind(t, villaId, villaId, villaId, userId),
   ];
@@ -173,7 +173,7 @@ export async function transferOwner(env: Env, villaId: string, ownerId: string, 
 
 /**
  * 빌라 해체: 입주민 모두 나가기 + 빌라 해체(초대 링크는 해체된 빌라라 못 쓴다) + 내보낸 사람 목록 지우기를 한 batch 로.
- * 빌라 이름이 맞고 아직 방장일 때만 해체되고, 해체가 일어난 경우에만 나머지가 따라간다.
+ * 빌라 이름이 맞고 아직 방장일 때만 해체되고, 해체가 일어난 경우에만 나머지가 따라간다. 도시 지도 자리도 비운다.
  */
 export async function dissolveVilla(env: Env, villaId: string, ownerId: string, confirmName: string): Promise<void> {
   const v = await env.DB.prepare("SELECT name, owner_id FROM villas WHERE id = ? AND dissolved_at IS NULL").bind(villaId).first<{ name: string; owner_id: string }>();
@@ -184,7 +184,7 @@ export async function dissolveVilla(env: Env, villaId: string, ownerId: string, 
   const dissolvedNow = "EXISTS (SELECT 1 FROM villas WHERE id = ? AND dissolved_at = ?)";
   const [res, left] = await env.DB.batch([
     env.DB.prepare(
-      "UPDATE villas SET dissolved_at = ?, penthouse_user_id = NULL WHERE id = ? AND owner_id = ? AND name = ? AND dissolved_at IS NULL",
+      "UPDATE villas SET dissolved_at = ?, penthouse_user_id = NULL, map_slot = NULL WHERE id = ? AND owner_id = ? AND name = ? AND dissolved_at IS NULL",
     ).bind(t, villaId, ownerId, v.name),
     env.DB.prepare(`UPDATE memberships SET left_at = ? WHERE villa_id = ? AND left_at IS NULL AND ${dissolvedNow} RETURNING user_id AS userId`).bind(
       t, villaId, villaId, t,

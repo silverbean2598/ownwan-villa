@@ -186,3 +186,7 @@
 .comment-count { flex: none; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .comment-send { flex: none; padding: 9px 12px; border: none; border-radius: 10px; background: var(--ink); color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
 .comment-send:disabled { opacity: .35; cursor: not-allowed; }
+/* 빌라 이름 옆 [도시 보기] */
+.villa-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.villa-title h1 { min-width: 0; overflow-wrap: anywhere; }
+.villa-title .city-link { flex: none; width: auto; padding: 8px 12px; font-size: 14px; border-radius: 999px; }

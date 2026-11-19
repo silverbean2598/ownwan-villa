@@ -67,12 +67,12 @@ villa.post("/api/villas", requireUser, async (c) => {
 villa.get("/api/villas/mine", requireUser, async (c) => {
   const userId = c.get("userId");
   const v = await c.env.DB.prepare(
-    `SELECT v.id, v.name, v.owner_id AS ownerId, v.penthouse_user_id AS penthouseUserId, v.invite_token AS inviteToken
+    `SELECT v.id, v.name, v.owner_id AS ownerId, v.penthouse_user_id AS penthouseUserId, v.invite_token AS inviteToken, v.public
      FROM memberships m JOIN villas v ON v.id = m.villa_id
      WHERE m.user_id = ? AND m.left_at IS NULL AND v.dissolved_at IS NULL`,
   )
     .bind(userId)
-    .first<{ id: string; name: string; ownerId: string; penthouseUserId: string | null; inviteToken: string }>();
+    .first<{ id: string; name: string; ownerId: string; penthouseUserId: string | null; inviteToken: string; public: number }>();
   if (!v) return c.json(null);
   const { results } = await c.env.DB.prepare(
     `SELECT u.id AS userId, u.nickname, u.sport, u.avatar, m.floor, u.streak,
@@ -101,7 +101,7 @@ villa.get("/api/villas/mine", requireUser, async (c) => {
   });
   // 초대 링크는 방장만 받는다
   const { inviteToken, ...rest } = v;
-  return c.json({ ...rest, ...(v.ownerId === userId ? { inviteToken } : {}), members });
+  return c.json({ ...rest, public: !!v.public, ...(v.ownerId === userId ? { inviteToken } : {}), members });
 });
 
 villa.post("/api/villas/leave", requireUser, async (c) => {

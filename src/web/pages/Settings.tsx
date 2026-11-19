@@ -10,7 +10,7 @@ import { DEFAULT_AVATAR, type AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
 
 type Me = { id: string; username: string; nickname: string; sport: Sport | null; avatar: AvatarSpec };
-type VillaInfo = { id: string; name: string; ownerId: string; inviteToken?: string; members: Member[] } | null;
+type VillaInfo = { id: string; name: string; ownerId: string; inviteToken?: string; public?: boolean; members: Member[] } | null;
 type Pending = { id: string; nickname: string }[];
 type Note = { ok?: string; err?: string };
 
@@ -44,6 +44,7 @@ export function Settings() {
   const [villaName, setVillaName] = useState("");
   const [confirm, setConfirm] = useState<"" | "leave" | "delete">("");
   const [typed, setTyped] = useState("");
+  const [busyCity, setBusyCity] = useState(false);
 
   const note = (k: string, n: Note) => setNotes((p) => ({ ...p, [k]: n }));
   async function run(k: string, ok: string, fn: () => Promise<unknown>) {
@@ -230,6 +231,45 @@ export function Settings() {
             </button>
           </div>
           {inviteUrl && <textarea className="invite-fallback" readOnly rows={2} value={inviteUrl} aria-label="초대 링크" onFocus={(e) => e.currentTarget.select()} />}
+        </Section>
+      )}
+
+      {villa && (
+        <Section title="도시 지도에 공개" note={notes.city}>
+          {isOwner ? (
+            <>
+              <label className="switch-row">
+                <span>
+                  <b>{villa.public ? "지도에 나와요" : "지도에 나오지 않아요"}</b>
+                  <span className="muted small">켜면 다른 빌라도 빌라 이름 · 건물 · 불 켜진 방 수를 볼 수 있어요. 사진과 루틴은 계속 우리끼리만 봐요.</span>
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  className={`switch${villa.public ? " on" : ""}`}
+                  aria-checked={!!villa.public}
+                  aria-label="도시 지도에 공개"
+                  disabled={busyCity}
+                  onClick={async () => {
+                    const next = !villa.public;
+                    setBusyCity(true);
+                    await run("city", next ? "지도에 공개했어요" : "지도에서 내렸어요", async () => {
+                      await api(`/api/villas/${villa.id}/public`, { method: "PUT", body: JSON.stringify({ public: next }) });
+                      setVilla({ ...villa, public: next });
+                    });
+                    setBusyCity(false);
+                  }}
+                >
+                  <span className="knob" />
+                </button>
+              </label>
+              <Link className="text-link" to="/city">도시 보러 가기</Link>
+            </>
+          ) : (
+            <p className="muted small">
+              {villa.public ? "우리 빌라는 지도에 나와요." : "우리 빌라는 지도에 나오지 않아요."} 공개 설정은 방장이 해요.
+            </p>
+          )}
         </Section>
       )}
 

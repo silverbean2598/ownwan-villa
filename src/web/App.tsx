@@ -13,6 +13,7 @@ import { Room } from "./pages/Room";
 import { RoomBoard } from "./pages/RoomBoard";
 import { Shop } from "./pages/Shop";
 import { Settings } from "./pages/Settings";
+import { City } from "./pages/City";
 import { Terms } from "./pages/Terms";
 import { Privacy } from "./pages/Privacy";
 import { EventCenter } from "./components/EventCenter";
@@ -35,6 +36,7 @@ export function App() {
         <Route path="/room/:userId/board" element={<RoomBoard />} />
         <Route path="/shop" element={<Shop />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/city" element={<City />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
       </Routes>

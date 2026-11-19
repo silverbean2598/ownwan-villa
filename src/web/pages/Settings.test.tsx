@@ -145,3 +145,30 @@ describe("Settings 입주민 관리", () => {
     expect(calls).toContainEqual({ path: "/api/villas/v1/dissolve", method: "POST", body: { confirmName: "땀빌라" } });
   });
 });
+
+describe("Settings 도시 지도 공개", () => {
+  const sw = () => host.querySelector('[role="switch"]') as HTMLButtonElement | null;
+
+  it("owner_toggles_on_then_off", async () => {
+    mockApi("me");
+    await mount();
+    expect(headings()).toContain("도시 지도에 공개");
+    expect(sw()?.getAttribute("aria-checked")).toBe("false");
+    expect(host.textContent).toContain("지도에 나오지 않아요");
+    await click(sw());
+    expect(calls).toContainEqual({ path: "/api/villas/v1/public", method: "PUT", body: { public: true } });
+    expect(sw()?.getAttribute("aria-checked")).toBe("true");
+    expect(host.textContent).toContain("지도에 공개했어요");
+    await click(sw());
+    expect(calls).toContainEqual({ path: "/api/villas/v1/public", method: "PUT", body: { public: false } });
+    expect(sw()?.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("non_owner_sees_read_only_state", async () => {
+    mockApi("b");
+    await mount();
+    expect(headings()).toContain("도시 지도에 공개");
+    expect(sw()).toBeNull();
+    expect(host.textContent).toContain("공개 설정은 방장이 해요");
+  });
+});

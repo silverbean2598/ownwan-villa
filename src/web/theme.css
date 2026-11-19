@@ -95,3 +95,15 @@ body {
 .acc-slots { display: flex; flex-direction: column; gap: 6px; }
 .acc-row { margin: 0; align-items: center; flex-wrap: wrap; }
 .acc-slot { width: 36px; font-size: 13px; color: var(--muted); }
+/* 켜고 끄는 스위치 (설정 → 도시 지도에 공개) */
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.switch-row > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.switch-row .muted.small { margin: 0; }
+.switch { flex: none; position: relative; width: 52px; height: 30px; padding: 0; border: 0; border-radius: 999px; background: #D5D8DF; cursor: pointer; transition: background .15s; }
+.switch .knob { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s; }
+.switch.on { background: #2F5BEA; }
+.switch.on .knob { transform: translateX(22px); }
+.switch:disabled { opacity: .6; cursor: wait; }
+.switch:focus-visible { outline: 3px solid #2F5BEA; outline-offset: 2px; }
+.text-link { display: inline-block; margin-top: 10px; font-size: 14px; color: #2F5BEA; }
+@media (prefers-reduced-motion: reduce) { .switch, .switch .knob { transition: none; } }

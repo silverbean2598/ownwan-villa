@@ -1,0 +1,36 @@
+/* 도시 지도: 화면은 흰색, 지도만 밤 풍경 */
+.city-page { max-width: 1100px; margin: 0 auto; padding: 20px 0 48px; --accent:#2F5BEA; --muted:#6B7280; }
+.city-head { padding: 0 16px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.city-head .back { color: var(--muted); text-decoration: none; font-size: 14px; }
+.city-head h1 { margin: 0; font-size: 24px; }
+.city-head p { margin: 0; font-size: 13.5px; color: var(--muted); line-height: 1.5; word-break: keep-all; }
+.city-hint { margin: 0 16px 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: #FAFAFC;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; line-height: 1.45; word-break: keep-all; }
+.city-hint .btn { width: auto; flex: none; padding: 9px 12px; font-size: 14px; border-radius: 10px; }
+.city-frame { position: relative; overflow: hidden; background: #16214A; }
+@media (min-width: 600px) { .city-frame { margin: 0 16px; border-radius: 18px; } }
+.city-map { display: block; width: 100%; height: auto; font-family: inherit; user-select: none; -webkit-tap-highlight-color: transparent; }
+.city-bldg { cursor: pointer; outline: none; }
+.city-bldg .cb-ring { fill: #fff; opacity: 0; transition: opacity .15s; }
+.city-bldg:hover .cb-ring { opacity: .06; }
+.city-bldg:focus-visible .cb-ring { opacity: .14; stroke: #FFE08A; stroke-width: 2; }
+.city-bldg.selected .cb-ring { opacity: .16; stroke: #FFE08A; stroke-width: 2; stroke-dasharray: 5 4; }
+@media (prefers-reduced-motion: no-preference) {
+  .city-star { animation: city-twinkle 3.2s ease-in-out infinite; }
+}
+@keyframes city-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* 빌라 카드 (아래에서 올라오는 작은 창) */
+.city-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 800; display: flex; justify-content: center; padding: 0 12px 12px; pointer-events: none; }
+.city-card { pointer-events: auto; width: min(420px, 100%); background: #fff; border-radius: 20px; padding: 16px 18px 18px;
+  box-shadow: 0 -6px 30px rgba(20, 24, 50, .28); outline: none; }
+.city-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.city-card h2 { margin: 0; font-size: 19px; word-break: keep-all; overflow-wrap: anywhere; }
+.city-card .mine-tag { display: inline-block; margin-bottom: 4px; padding: 1px 8px; border-radius: 999px; background: #EAF0FF; color: var(--accent); font-size: 12px; font-weight: 700; }
+.city-card .x { flex: none; width: 36px; height: 36px; border: 0; border-radius: 50%; background: #F3F4F7; font-size: 18px; cursor: pointer; color: #444; }
+.city-facts { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.city-facts li { padding: 10px 12px; border-radius: 12px; background: #F7F8FA; display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: var(--muted); }
+.city-facts b { color: var(--ink); font-size: 16px; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.city-facts .lit b { color: #B07A00; }
+.city-facts .ph b { color: #9A6B00; }
+.city-card .note { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); }

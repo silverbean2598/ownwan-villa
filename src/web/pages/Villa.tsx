@@ -73,7 +73,10 @@ export function Villa() {
   return (
     <main className="villa-page">
       <header className="villa-head">
-        <h1>{villa.name}</h1>
+        <div className="villa-title">
+          <h1>{villa.name}</h1>
+          <Link className="btn ghost city-link" to="/city">도시 보기</Link>
+        </div>
         <div className="stats">
           <span className="chip"><span>입주 <b>{villa.members.length}</b>/{CAPACITY}명</span></span>
           <span className="chip"><span>오늘 완료 <b>{done}</b>명</span></span>
