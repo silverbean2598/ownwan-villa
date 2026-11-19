@@ -2,10 +2,14 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { safeNext } from "../next";
+import { KAKAO_NOTICE, KakaoButton } from "../components/kakao/KakaoButton";
 
 export function Login() {
   const nav = useNavigate();
-  const nextParam = useSearchParams()[0].get("next");
+  const [params] = useSearchParams();
+  const nextParam = params.get("next");
+  // 카카오에서 실패해 돌아오면 (?kakao=코드) 안내한다
+  const kakaoErr = KAKAO_NOTICE[params.get("kakao") ?? ""]?.err;
   // 기본은 빌라 화면 (빌라가 없으면 그 화면이 빌라 만들기를 안내한다)
   const next = nextParam ? safeNext(nextParam) : "/villa";
   const [username, setUsername] = useState("");
@@ -34,6 +38,9 @@ export function Login() {
   return (
     <main className="page">
       <h1>로그인</h1>
+      {kakaoErr && <p className="error" role="alert">{kakaoErr}</p>}
+      <div style={{ marginTop: 16 }}><KakaoButton next={nextParam ? next : null} label="카카오로 로그인" /></div>
+      <div className="or-line">또는 아이디로 로그인</div>
       <form onSubmit={submit} noValidate>
         <div className="field">
           <label htmlFor="username">아이디</label>

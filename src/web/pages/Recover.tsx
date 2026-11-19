@@ -64,6 +64,7 @@ export function Recover() {
           <button className="btn ghost" type="button" onClick={() => go("request")}>복구 코드도 없어요</button>
           <button className="btn ghost" type="button" onClick={() => go("complete")}>요청 번호가 있어요</button>
         </div>
+        <p className="muted small" style={{ marginTop: 20 }}>카카오로 가입했다면 비밀번호가 없어요. 카카오로 로그인하면 돼요.</p>
         <p className="muted" style={{ marginTop: 20 }}><Link to="/login">로그인으로 돌아가기</Link></p>
       </main>
     );

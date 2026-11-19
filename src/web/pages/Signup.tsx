@@ -2,12 +2,14 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { safeNext } from "../next";
+import { KakaoButton } from "../components/kakao/KakaoButton";
 
 type Errors = Partial<Record<"username" | "password" | "password2" | "nickname" | "agree" | "form", string>>;
 
 export function Signup() {
   const nav = useNavigate();
-  const next = safeNext(useSearchParams()[0].get("next"));
+  const nextParam = useSearchParams()[0].get("next");
+  const next = safeNext(nextParam);
   const [f, setF] = useState({ username: "", password: "", password2: "", nickname: "" });
   const [over14, setOver14] = useState(false);
   const [agree, setAgree] = useState(false);
@@ -45,6 +47,9 @@ export function Signup() {
   return (
     <main className="page">
       <h1>가입하기</h1>
+      <p className="muted">카카오로 시작하면 아이디 · 비밀번호 없이 닉네임만 정하면 돼요.</p>
+      <KakaoButton next={nextParam ? next : null} />
+      <div className="or-line">또는 아이디로 가입하기</div>
       <form onSubmit={submit} noValidate>
         <div className="field">
           <label htmlFor="username">아이디</label>

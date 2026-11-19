@@ -5,6 +5,7 @@ import { Login } from "./pages/Login";
 import { Recover } from "./pages/Recover";
 import { RecoveryCode } from "./pages/RecoveryCode";
 import { Signup } from "./pages/Signup";
+import { KakaoNickname } from "./pages/KakaoNickname";
 import { Onboard } from "./pages/Onboard";
 import { Villa } from "./pages/Villa";
 import { VillaNew } from "./pages/VillaNew";
@@ -26,6 +27,7 @@ export function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/signup/code" element={<RecoveryCode />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/kakao/nickname" element={<KakaoNickname />} />
         <Route path="/recover" element={<Recover />} />
         <Route path="/villa/new" element={<VillaNew />} />
         <Route path="/join/:token" element={<Join />} />
