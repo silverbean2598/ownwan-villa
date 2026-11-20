@@ -3,11 +3,11 @@ import { SpriteAvatar } from "./avatar2/SpriteAvatar";
 import { spriteBox } from "./avatar2/layers";
 import type { AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
-import { Box, Cork, Frame, Moonbeam, PALETTE, Pendant, Window } from "./room/Box";
+import { Box, Cork, Frame, Moonbeam, PALETTE, Pendant, Window, floorPt } from "./room/Box";
 import { Equipment } from "./room/Equipment";
 import { Chandelier, PenthouseDecor } from "./room/Penthouse";
 import { Furniture, furnitureBox } from "./furniture";
-import { anchorTransform, sceneGeom, slotAnchors, type Anchor } from "./furniture/layout";
+import { DETAIL_STAND, anchorTransform, sceneGeom, slotAnchors, type Anchor } from "./furniture/layout";
 import { isSlot } from "../../shared/catalog";
 
 type Props = {
@@ -37,8 +37,10 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
 
   // 캐릭터 크기와 발 위치
   const size = 42 * du;
-  const fx = g.bx0 + bw * (penthouse ? (detail ? 0.34 : 0.42) : detail ? 0.45 : 0.5);
-  const fy = g.by1 + (g.H - g.by1) * (detail ? 0.5 : 0.62);
+  // 방 상세: 넓은 바닥 한가운데(펜트하우스는 소파 · 화분을 비켜 조금 왼쪽)
+  const [fx, fy] = detail
+    ? floorPt(g, penthouse ? DETAIL_STAND.aPenthouse : DETAIL_STAND.a, DETAIL_STAND.f)
+    : [g.bx0 + bw * (penthouse ? 0.42 : 0.5), g.by1 + (g.H - g.by1) * 0.62];
   const k = size / 42; // 기구 배율
   // 잘 때는 기구 옆에 눕는다
   const ex = lit ? fx : fx - bw * 0.16;
@@ -82,7 +84,7 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
       </g>
     );
 
-  const lampX = penthouse ? g.bx0 + bw * 0.4 : g.bx0 + bw * 0.42;
+  const lampX = g.bx0 + bw * (detail ? (penthouse ? 0.42 : 0.5) : penthouse ? 0.4 : 0.42);
 
   return (
     <div className={`scene ${variant} s-${sport}${penthouse ? " ph-scene" : ""}`}>
@@ -102,9 +104,9 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
         {/* 방 상세는 왼쪽 벽에 진짜 게시판(HTML)을 붙인다. 게시판 없이 그릴 때(공유 카드)는 코르크판 그림 */}
         {(!detail || !board) && <Cork g={g} sw={sw * 0.8} ink={c.ink} lit={lit} />}
         {win && <Window {...win} lit={lit} sw={sw * 0.8} ink={c.ink} />}
-        {penthouse && <PenthouseDecor g={g} u={du} lit={lit} ink={c.ink} sw={sw} />}
+        {penthouse && <PenthouseDecor g={g} u={du} lit={lit} ink={c.ink} sw={sw} detail={detail} res={detail ? "full" : "sm"} />}
         {penthouse ? (
-          <Chandelier x={lampX} top={g.by0} u={du} lit={lit} ink={c.ink} />
+          <Chandelier x={lampX} top={g.by0} u={u} lit={lit} res={detail ? "full" : "sm"} />
         ) : (
           <Pendant x={lampX} top={g.by0 - 4 * u} len={10 * u} u={u} lit={lit} sw={sw} ink={c.ink} floorY={g.by1 + 6 * u} />
         )}

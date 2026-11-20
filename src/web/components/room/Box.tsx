@@ -5,8 +5,8 @@ export type Geom = { W: number; H: number; bx0: number; bx1: number; by0: number
 export const GEOM = {
   tile: { W: 150, H: 100, bx0: 30, bx1: 120, by0: 16, by1: 68 },
   phTile: { W: 240, H: 100, bx0: 36, bx1: 204, by0: 14, by1: 70 },
-  // 방 상세: 게시판을 붙일 왼쪽 벽을 넓게
-  detail: { W: 300, H: 360, bx0: 120, bx1: 252, by0: 46, by1: 252 },
+  // 방 상세: 가로가 조금 긴 넓은 방(6:5). 뒷벽을 넓고 얕게 해 바닥이 넓어 보이게, 왼쪽 벽은 게시판 자리
+  detail: { W: 360, H: 300, bx0: 112, bx1: 296, by0: 34, by1: 184 },
 } satisfies Record<string, Geom>;
 
 export type Palette = {
@@ -42,7 +42,7 @@ export function leftWallPt(g: Geom, x: number, t: number) {
 }
 
 /** 바닥 위 점: 뒤(f=0, 뒷벽 밑) ~ 앞(f=1, 화면 아래) 사이, 가로 위치 a(0..1) */
-function floorPt(g: Geom, a: number, f: number) {
+export function floorPt(g: Geom, a: number, f: number) {
   const y = g.by1 + (g.H - g.by1) * f;
   const x0 = g.bx0 * (1 - f);
   const x1 = g.bx1 + (g.W - g.bx1) * f;

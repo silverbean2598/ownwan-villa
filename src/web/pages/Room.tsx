@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { SPORT_LABEL } from "../../shared/sports";
@@ -36,8 +36,10 @@ function slotStyle(p: Anchor): CSSProperties {
   const w = wall ? 34 * (p.skew ? p.sx : p.s) : 46 * p.s;
   const h = wall ? 30 * p.s : 30 * p.s;
   const top = wall ? p.y - h / 2 : p.y - h + 4 * p.s;
+  // 앞 구석 자리가 방 테두리 밖으로 나가지 않게
+  const left = Math.min(Math.max(p.x - w / 2, 4), g.W - 4 - w);
   return {
-    left: `${((p.x - w / 2) / g.W) * 100}%`,
+    left: `${(left / g.W) * 100}%`,
     top: `${(top / g.H) * 100}%`,
     width: `${(w / g.W) * 100}%`,
     height: `${(h / g.H) * 100}%`,
@@ -102,7 +104,12 @@ export function Room() {
   const [boardError, setBoardError] = useState("");
   const [placements, setPlacements] = useState<Placement[]>([]);
   const [shop, setShop] = useState<ShopData | null>(null);
+  // 방 꾸미기: 보기(점선 자리 없음) ↔ 편집 중(점선 자리를 눌러 가구 놓기). 남의 방은 읽기 전용이라 버튼이 없다
+  const [editing, setEditing] = useState(false);
   const [picking, setPicking] = useState<Slot | null>(null);
+  const editBtn = useRef<HTMLButtonElement>(null);
+  const firstSlot = useRef<HTMLButtonElement>(null);
+  const focusAfter = useRef<"slot" | "edit" | null>(null);
   const [placeError, setPlaceError] = useState("");
   const [busy, setBusy] = useState(false);
   const isMe = !!state?.member && state.me.id === state.member.userId;
@@ -110,6 +117,20 @@ export function Room() {
   useEffect(() => {
     if (state?.member) setPlacements(state.member.placements);
   }, [state?.member]);
+
+  // 다른 방으로 옮기면 보기로 돌아간다
+  useEffect(() => {
+    setEditing(false);
+    setPicking(null);
+  }, [userId]);
+
+  // 버튼이 바뀌어 사라져도 키보드 초점을 잃지 않게: 꾸미기 시작 → 첫 자리, 완료 → 방 꾸미기 버튼
+  useEffect(() => {
+    const to = focusAfter.current;
+    focusAfter.current = null;
+    if (to === "slot") firstSlot.current?.focus();
+    if (to === "edit") editBtn.current?.focus();
+  }, [editing]);
 
   useEffect(() => {
     if (!isMe) return;
@@ -149,9 +170,20 @@ export function Room() {
   const anchors = slotAnchors("detail", penthouse);
   const placedIn = (slot: Slot) => placements.find((p) => p.slot === slot);
 
-  function openPicker(slot?: Slot) {
+  function openPicker(slot: Slot) {
     setPlaceError("");
-    setPicking(slot ?? SLOTS.find((s) => !placedIn(s)) ?? "wall1");
+    setPicking(slot);
+  }
+
+  function startEdit() {
+    focusAfter.current = "slot";
+    setEditing(true);
+  }
+
+  function finishEdit() {
+    focusAfter.current = "edit";
+    setPicking(null);
+    setEditing(false);
   }
 
   async function place(slot: Slot, itemId: string | null) {
@@ -186,7 +218,7 @@ export function Room() {
         </div>
         {isMe && <CertifyButton certifiedToday={member.certifiedToday} certifiedElsewhere={multi && !!member.certifiedAnywhere} villaId={villaId} />}
       </header>
-      <div className={`room-stage ${member.certifiedToday ? "on" : "off"}`}>
+      <div className={`room-stage ${member.certifiedToday ? "on" : "off"}${isMe && editing ? " editing" : ""}`}>
         <div className={`room ${member.certifiedToday ? "on" : "off"} big`}>
           <RoomScene
             sport={member.sport}
@@ -204,13 +236,15 @@ export function Room() {
             }
           />
         </div>
-        {isMe && (
-          <div className="slots">
-            {SLOTS.map((s) => {
+        {/* 점선 자리는 꾸미는 중에만 그린다(보기에서는 화면에도, 보조기기에도 없다) */}
+        {isMe && editing && (
+          <div className="slots" role="group" aria-label="가구 자리">
+            {SLOTS.map((s, i) => {
               const item = findItem(placedIn(s)?.itemId);
               return (
                 <button
                   key={s}
+                  ref={i === 0 ? firstSlot : undefined}
                   type="button"
                   className={`slot ${slotType(s)}${item ? " filled" : ""}${picking === s ? " picking" : ""}`}
                   data-slot={s}
@@ -240,9 +274,22 @@ export function Room() {
           onClose={() => setPicking(null)}
         />
       )}
+      {isMe && editing && !picking && (
+        <p className="edit-hint" role="status">
+          점선 자리를 눌러 가구를 놓거나 바꿔 보세요
+        </p>
+      )}
       {isMe && !picking && (
         <div className="room-actions">
-          <button type="button" className="btn" onClick={() => openPicker()}>가구 놓기</button>
+          {editing ? (
+            <button type="button" className="btn done" onClick={finishEdit}>
+              완료
+            </button>
+          ) : (
+            <button ref={editBtn} type="button" className="btn" onClick={startEdit}>
+              방 꾸미기
+            </button>
+          )}
           <Link className="btn ghost" to="/shop">가구 상점</Link>
         </div>
       )}

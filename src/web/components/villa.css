@@ -53,7 +53,7 @@
 
 .scene { position: relative; width: 100%; aspect-ratio: 150 / 100; }
 .scene.ph-scene { aspect-ratio: 240 / 100; }
-.scene.detail { aspect-ratio: 300 / 360; }
+.scene.detail { aspect-ratio: 360 / 300; }
 .scene-bg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -68,7 +68,7 @@
 .room-head .btn.primary { width: auto; align-self: flex-start; padding: 12px 16px; font-size: 15px; background: var(--accent); border-color: var(--accent); }
 .room-head .btn.cert-more { width: auto; align-self: flex-start; padding: 12px 16px; font-size: 15px; }
 /* 방 상세: 왼쪽 벽에 비스듬히 붙은 게시판 */
-.wall-board { position: absolute; left: 4%; top: 21%; width: 40%; height: 52%; transform-origin: left center; transform: perspective(520px) rotateY(34deg); }
+.wall-board { position: absolute; left: 3.5%; top: 15%; width: 33%; height: 52%; transform-origin: left center; transform: perspective(520px) rotateY(34deg); }
 .left-wall { height: 100%; }
 .wall-board .board { height: 100%; min-height: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 6px; border-width: 5px; border-color: #9C6A45; background: #C99463; box-shadow: 0 0 0 1.5px #5B4640; overflow: hidden; }
 .wall-board .polaroid { padding: 3px 3px 1px; min-height: 0; display: flex; flex-direction: column; }
@@ -95,14 +95,18 @@
 .room.big { cursor: default; border-radius: 12px; border: none; box-shadow: none; }
 .room.big:hover { transform: none; }
 .slots { position: absolute; inset: 0; pointer-events: none; }
-.slot { position: absolute; pointer-events: auto; padding: 0; background: transparent; border: 2px dashed rgba(91,70,64,.45); border-radius: 8px; color: rgba(91,70,64,.6); font-size: 18px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.slot { position: absolute; pointer-events: auto; padding: 0; min-height: 0; /* 빌라 .wall(min-height) 이름이 겹쳐 벽 자리가 길어지지 않게 */ background: transparent; border: 2px dashed rgba(91,70,64,.45); border-radius: 8px; color: rgba(91,70,64,.6); font-size: 18px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .slot.floor { border-radius: 50% / 40%; }
-.slot.filled { border-color: transparent; }
+/* 꾸미는 중에만 보이는 자리: 빈 자리는 진한 점선 + "+", 놓인 자리는 옅은 점선(눌러서 바꾸기) */
+.slot.filled { border-color: rgba(91,70,64,.28); }
 .slot:focus-visible, .slot.picking { border-color: var(--accent); border-style: solid; background: rgba(47,91,234,.08); outline: none; }
 .room-stage.off .slot { border-color: rgba(220,231,255,.45); color: rgba(220,231,255,.7); }
-.room-stage.off .slot.filled { border-color: transparent; }
+.room-stage.off .slot.filled { border-color: rgba(220,231,255,.3); }
+.room-stage.editing .room.big { box-shadow: 0 0 0 3px var(--accent); }
+.edit-hint { max-width: 460px; margin: 10px auto 0; text-align: center; font-size: 14px; color: var(--muted); }
 .room-actions { display: flex; gap: 8px; max-width: 460px; margin: 12px auto 0; }
 .room-actions .btn { padding: 12px; font-size: 15px; }
+.room-actions .btn.done { background: var(--accent); border-color: var(--accent); color: #fff; }
 .picker { max-width: 460px; margin: 12px auto 0; border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #fff; }
 .picker-head { display: flex; justify-content: space-between; align-items: center; }
 .picker-head h2 { margin: 0; font-size: 17px; }
