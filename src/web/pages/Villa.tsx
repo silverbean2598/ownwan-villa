@@ -3,10 +3,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { Badge } from "../components/Badge";
 import { CertifyButton } from "../components/CertifyButton";
-import { Building, CAPACITY, type Member } from "../components/Building";
+import { Building, type Member } from "../components/Building";
 import { VillaSwitcher } from "../components/VillaSwitcher";
 import { loadMyVillas, pickVilla, villaPath, writeCurrentVilla } from "../villa/current";
-import type { MyVilla } from "../../shared/villa";
+import { capacityOf, kindLabel, type MyVilla, type VillaKind } from "../../shared/villa";
 import type { BattleView } from "../../shared/price";
 import { PriceTag } from "../components/price/PriceTag";
 import { formatDelta } from "../../shared/rules/price";
@@ -19,6 +19,9 @@ type VillaData = {
   penthouseUserId: string | null;
   inviteToken?: string;
   members: Member[];
+  /** 건물 종류 · 정원 (예전 서버 응답에는 없다 → 빌라 · 20명) */
+  kind?: VillaKind;
+  capacity?: number;
   /** 집값 대결 (예전 서버 응답에는 없다) */
   price?: number | null;
   priceChange?: number | null;
@@ -129,11 +132,11 @@ export function Villa() {
       />
       <header className="villa-head">
         <div className="villa-title">
-          <h1>{villa.name}</h1>
+          <h1>{villa.name}{villa.kind === "apartment" && <span className="kind-badge">아파트</span>}</h1>
           <Link className="btn ghost city-link" to="/city">도시 보기</Link>
         </div>
         <div className="stats">
-          <span className="chip"><span>입주 <b>{villa.members.length}</b>/{CAPACITY}명</span></span>
+          <span className="chip"><span>입주 <b>{villa.members.length}</b>/{capacityOf(villa)}명</span></span>
           <span className="chip"><span>오늘 완료 <b>{done}</b>명</span></span>
         </div>
         {"price" in villa && <VillaPriceRows villa={villa} />}
@@ -153,7 +156,15 @@ export function Villa() {
           <textarea ref={linkRef} className="invite-fallback" readOnly rows={2} value={inviteUrl} aria-label="초대 링크" onFocus={(e) => e.currentTarget.select()} />
         )}
       </header>
-      <Building members={villa.members} penthouseUserId={villa.penthouseUserId} ownerId={villa.ownerId} meId={me.id} villaId={villa.id} />
+      <Building
+        members={villa.members}
+        penthouseUserId={villa.penthouseUserId}
+        ownerId={villa.ownerId}
+        meId={me.id}
+        villaId={villa.id}
+        capacity={capacityOf(villa)}
+        kind={villa.kind}
+      />
     </main>
   );
 }
@@ -180,7 +191,7 @@ function VillaPriceRows({ villa }: { villa: VillaData }) {
     <div className="villa-price">
       <Link className="vp-row" to="/ranking">
         <span className="vp-left">
-          <span className="lbl">우리 빌라 집값</span>
+          <span className="lbl">우리 {kindLabel(villa.kind)} 집값</span>
           <PriceTag price={villa.price} change={villa.priceChange} />
         </span>
         <span className="go">순위 보기 ›</span>

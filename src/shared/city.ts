@@ -1,5 +1,6 @@
 import type { CityRecruit, MyApplication } from "./recruit";
 import type { Trophy } from "./price";
+import type { VillaKind } from "./villa";
 
 /** 도시 지도: 서버(GET /api/city)가 보내고 화면이 그리는 빌라 한 채. 다른 빌라 입주민의 사진 · 루틴 · 목록 · id 는 없다 */
 export type CityVilla = {
@@ -10,6 +11,9 @@ export type CityVilla = {
   /** 가장 높은 층 (빌라 화면과 같은 기준: 오늘 7일째를 채우면 바로 한 층 위) */
   topFloor: number;
   memberCount: number;
+  /** 건물 종류 · 정원 (예전 서버 응답에는 없다 → 빌라 · 20명). 아파트는 지도에서 높은 아파트 건물로 그린다 */
+  kind?: VillaKind;
+  capacity?: number;
   /** 오늘 인증한 입주민 수 = 불 켜진 창문 수 */
   litCount: number;
   penthouseNickname: string | null;

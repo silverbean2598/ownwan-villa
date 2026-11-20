@@ -88,6 +88,7 @@ export function Ranking() {
                     <span className="rank-name">
                       {mine && <span className="mine-tag">우리 빌라</span>}
                       <span className="nm">{v.name}</span>
+                      {v.kind === "apartment" && <span className="kind-badge">아파트</span>}
                     </span>
                     <span className="rank-sub">
                       입주 {v.memberCount}명

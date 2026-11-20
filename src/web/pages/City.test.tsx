@@ -122,4 +122,14 @@ describe("City", () => {
     // 빌라가 하나도 없어도 지도(소품)는 그린다
     expect(host.querySelector(".city-map")).not.toBeNull();
   });
+
+  it("apartment_card_shows_its_own_capacity_and_badge", async () => {
+    const A = { ...W, id: "a1", name: "하늘", memberCount: 31, kind: "apartment" as const, capacity: 50 };
+    mockApi({ mine: { villaId: "v1", public: true, isOwner: true }, villas: [V, A] });
+    await mount();
+    await click(host.querySelector('[aria-label="하늘, 아파트, 오늘 불 켜진 방 7개"]'));
+    const card = host.querySelector(".city-card")!;
+    expect(card.querySelector(".kind-badge")?.textContent).toBe("아파트");
+    expect(card.textContent).toContain("31/50명");
+  });
 });

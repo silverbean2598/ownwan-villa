@@ -10,6 +10,12 @@ export const ACTIVE_COUNT = (param: string) =>
   `(SELECT COUNT(*) FROM memberships cm JOIN villas cv ON cv.id = cm.villa_id AND cv.dissolved_at IS NULL
     WHERE cm.user_id = ${param} AND cm.left_at IS NULL)`;
 
+/**
+ * 이 빌라의 정원 (villas.capacity: 빌라 20명 · 아파트 50명). villa = 빌라 id 자리(예: "?3", "v.id").
+ * 입주 · 신청 · 승인 · 모집 문장 안에서 입주민 수와 비교한다 (정원을 미리 읽어 두지 않아 승격과 겹쳐도 그때의 값으로 본다)
+ */
+export const CAPACITY_OF = (villa: string) => `(SELECT capacity FROM villas WHERE id = ${villa})`;
+
 /** 내가 사는 빌라 id, 입주한 순서 */
 export async function myVillaIds(env: Env, userId: string): Promise<string[]> {
   const { results } = await env.DB.prepare(`SELECT m.villa_id AS id FROM ${myActive("?1")} ORDER BY m.joined_at ASC, m.rowid ASC`)

@@ -2,7 +2,7 @@ import type { Env } from "../env";
 import { now } from "../clock";
 import { logEvents } from "../events/log";
 import { APPLY_KEEP_MS, APPLY_TTL_MS } from "../../shared/recruit";
-import { VILLA_CAPACITY } from "../../shared/villa";
+import { CAPACITY_OF } from "../villa/membership";
 
 /**
  * 빈방 모집 · 입주 신청 [확정 — 기획자 결정, 2026-11-19]: 빌라 쪽 일(해체 · 내보내기 · 정원 참 · 모집 끔)에 따라
@@ -46,13 +46,13 @@ export async function closeApplications(env: Env, villaId: string, reason: Close
   return results.length;
 }
 
-/** 정원이 찼으면 모집을 끄고 기다리는 신청을 취소한다 (초대 링크 입주 · 신청 승인 뒤) */
+/** 정원(빌라마다: 빌라 20명 · 아파트 50명)이 찼으면 모집을 끄고 기다리는 신청을 취소한다 (초대 링크 입주 · 신청 승인 뒤) */
 export async function closeIfFull(env: Env, villaId: string): Promise<void> {
-  const full = `${MEMBER_COUNT("?")} >= ?`;
+  const full = `${MEMBER_COUNT("?")} >= ${CAPACITY_OF("?")}`;
   await env.DB.prepare(`UPDATE villa_recruits SET open = 0, updated_at = ? WHERE villa_id = ? AND open = 1 AND ${full}`)
-    .bind(now(), villaId, villaId, VILLA_CAPACITY)
+    .bind(now(), villaId, villaId, villaId)
     .run();
-  await closeApplications(env, villaId, "full", ` AND ${full}`, [villaId, VILLA_CAPACITY]);
+  await closeApplications(env, villaId, "full", ` AND ${full}`, [villaId, villaId]);
 }
 
 /** 빌라가 해체됐으면(방장 해체 · 마지막 입주민이 나감 · 탈퇴) 모집을 끄고 기다리는 신청을 취소한다 */

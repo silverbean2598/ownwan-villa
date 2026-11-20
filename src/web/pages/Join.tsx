@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { MAX_VILLAS_PER_USER, VILLA_CAPACITY, VILLA_LIMIT_MSG } from "../../shared/villa";
+import { MAX_VILLAS_PER_USER, VILLA_LIMIT_MSG, capacityOf, type VillaKind } from "../../shared/villa";
 import { villaPath, writeCurrentVilla } from "../villa/current";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 
 // 로그인한 상태면 alreadyMember(+ villaId) · myVillaCount · atLimit 이 함께 온다
-type Preview = { villaName: string; memberCount: number; alreadyMember?: boolean; villaId?: string; myVillaCount?: number; atLimit?: boolean };
+type Preview = { villaName: string; memberCount: number; kind?: VillaKind; capacity?: number; alreadyMember?: boolean; villaId?: string; myVillaCount?: number; atLimit?: boolean };
 
 export function Join() {
   const { token = "" } = useParams();
@@ -60,7 +60,7 @@ export function Join() {
       <h1>빌라 초대</h1>
       {preview && (
         <p>
-          <strong>{preview.villaName}</strong> · 입주민 {preview.memberCount}/{VILLA_CAPACITY}명
+          <strong>{preview.villaName}</strong>{preview.kind === "apartment" && <span className="kind-badge">아파트</span>} · 입주민 {preview.memberCount}/{capacityOf(preview)}명
         </p>
       )}
       {error && <p className="error" role="alert">{error}</p>}

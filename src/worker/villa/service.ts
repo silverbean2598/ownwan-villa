@@ -1,5 +1,5 @@
 import type { Env } from "../env";
-import { VILLA_CAPACITY } from "../../shared/villa";
+import { APARTMENT_CAPACITY } from "../../shared/villa";
 import { now } from "../clock";
 import { certifiedInVilla, firstCertInVilla } from "../cert/certified";
 import { kstDay } from "../../shared/rules/day";
@@ -9,8 +9,6 @@ import { logEvents } from "../events/log";
 import { myVillaIds, tagVilla } from "./membership";
 import { closeApplications, closeIfDissolved } from "../recruit/service";
 import { cancelGoneBattles } from "../price/service";
-
-export const MAX_MEMBERS = VILLA_CAPACITY;
 
 export function newInviteToken(): string {
   const raw = crypto.getRandomValues(new Uint8Array(16));
@@ -128,6 +126,12 @@ export class NotOwnerError extends Error {}
 export class NotMemberError extends Error {}
 export class NameMismatchError extends Error {}
 export class VillaGoneError extends Error {}
+/** 아파트로 바꿀 수 없는 이유: 이미 아파트 · 아직 정원이 안 참 */
+export class PromoteError extends Error {
+  constructor(readonly reason: "already" | "not_full", readonly memberCount: number, readonly capacity: number) {
+    super(reason);
+  }
+}
 
 /** 이 사람이 지금 이 (해체되지 않은) 빌라의 방장일 때만 참. batch 안 문장의 조건으로 붙인다 (?, ? = villaId, ownerId) */
 const IS_OWNER = "EXISTS (SELECT 1 FROM villas WHERE id = ? AND owner_id = ? AND dissolved_at IS NULL)";
@@ -240,4 +244,42 @@ export async function dissolveVilla(env: Env, villaId: string, ownerId: string, 
   await env.DB.prepare("UPDATE villa_recruits SET open = 0, updated_at = ? WHERE villa_id = ?").bind(t, villaId).run();
   await closeApplications(env, villaId, "dissolved");
   await cancelGoneBattles(env, villaId).catch((e) => console.error("battle cleanup failed", e));
+}
+
+/**
+ * 아파트 승격 [제안 — 기획자 확인 필요, 2026-11-20]: 정원이 다 찬 빌라를 방장이 아파트(정원 50명)로 바꾼다. 되돌릴 수 없다.
+ * 한 batch: ① 아직 빌라 · 해체 안 됨 · 아직 방장 · 지금 입주민 수 ≥ 정원일 때만 바꾼다 (두 번 눌러도 · 넘기기 · 나가기와 겹쳐도 한 번만)
+ * ② 바꿨을 때만(changes() = 1) 그때 사는 입주민 모두에게 축하 카드를 고정 키(apartment:{빌라}:{사람})로 쓴다.
+ * 축하 카드에는 tagVilla 와 같은 villaId · villaName · multi 를 붙인다 (빌라 여러 곳에 사는 사람에게만 이름이 보인다)
+ */
+export async function promoteVilla(env: Env, villaId: string, ownerId: string): Promise<{ capacity: number }> {
+  const t = now();
+  const [res] = await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE villas SET kind = 'apartment', capacity = ?1
+       WHERE id = ?2 AND kind = 'villa' AND dissolved_at IS NULL AND owner_id = ?3
+         AND (SELECT COUNT(*) FROM memberships WHERE villa_id = ?2 AND left_at IS NULL) >= capacity`,
+    ).bind(APARTMENT_CAPACITY, villaId, ownerId),
+    env.DB.prepare(
+      `INSERT OR IGNORE INTO events (id, user_id, type, payload, created_at)
+       SELECT 'apartment:' || v.id || ':' || m.user_id, m.user_id, 'apartment_promoted',
+         json_object('villaId', v.id, 'villaName', v.name, 'capacity', v.capacity,
+           'multi', json(CASE WHEN (SELECT COUNT(*) FROM memberships cm JOIN villas cv ON cv.id = cm.villa_id AND cv.dissolved_at IS NULL
+                                    WHERE cm.user_id = m.user_id AND cm.left_at IS NULL) > 1 THEN 'true' ELSE 'false' END)),
+         ?2
+       FROM memberships m JOIN villas v ON v.id = m.villa_id
+       WHERE m.villa_id = ?1 AND m.left_at IS NULL AND v.kind = 'apartment' AND changes() = 1`,
+    ).bind(villaId, t),
+  ]);
+  if (res.meta.changes === 1) return { capacity: APARTMENT_CAPACITY };
+  const v = await env.DB.prepare(
+    `SELECT owner_id AS ownerId, kind, capacity, (SELECT COUNT(*) FROM memberships WHERE villa_id = villas.id AND left_at IS NULL) AS memberCount
+     FROM villas WHERE id = ? AND dissolved_at IS NULL`,
+  )
+    .bind(villaId)
+    .first<{ ownerId: string; kind: string; capacity: number; memberCount: number }>();
+  if (!v) throw new VillaGoneError();
+  if (v.ownerId !== ownerId) throw new NotOwnerError();
+  if (v.kind !== "villa") throw new PromoteError("already", v.memberCount, v.capacity);
+  throw new PromoteError("not_full", v.memberCount, v.capacity);
 }

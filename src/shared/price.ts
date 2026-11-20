@@ -1,4 +1,5 @@
 import { MIN_MEMBERS_FOR_COMPETITION, MIN_MEMBERS_MSG } from "./rules/price";
+import type { VillaKind } from "./villa";
 
 /** 집값 대결 [확정 — 기획자 결정, 2026-11-20]: 서버가 보내고 화면이 그리는 모양. 값은 모두 0.1억 단위 정수 */
 
@@ -15,6 +16,8 @@ export type RankingRow = {
   /** 전날보다 얼마나 (전날 값이 없으면 null) */
   change: number | null;
   memberCount: number;
+  /** 건물 종류 (예전 서버 응답에는 없다 → 빌라) */
+  kind?: VillaKind;
   /** 가장 최근 주간 리그 1 · 2 · 3위 */
   trophy?: Trophy;
   /** 7일 안에 1:1 대결에서 이겼다 */

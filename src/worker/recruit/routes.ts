@@ -3,14 +3,14 @@ import type { AppEnv } from "../env";
 import { now } from "../clock";
 import { jsonError, requireUser } from "../http";
 import { logEvents } from "../events/log";
-import { ACTIVE_COUNT, isMember, myVillaIds, tagVilla } from "../villa/membership";
+import { ACTIVE_COUNT, CAPACITY_OF, isMember, myVillaIds, tagVilla } from "../villa/membership";
 import { recomputePenthouse } from "../villa/service";
 import { CERTIFIED_PHOTO } from "../cert/certified";
 import { kstDay } from "../../shared/rules/day";
 import { displayStreak } from "../../shared/rules/streak";
 import { afterJoin, logJoinEvents, safeAvatar } from "../villa/routes";
 import { FRESH, MEMBER_COUNT, closeApplications, closeIfFull, cutoffOf } from "./service";
-import { MAX_VILLAS_PER_USER, VILLA_CAPACITY, VILLA_LIMIT_MSG } from "../../shared/villa";
+import { MAX_VILLAS_PER_USER, VILLA_LIMIT_MSG, kindLabel, type VillaKind } from "../../shared/villa";
 import {
   APPLY_BLOCKED_MSG, APPLY_MESSAGE_MAX, APPLY_ONE_AT_A_TIME_MSG, APPLY_TTL_MS, RECRUIT_INTRO_MAX, RECRUIT_NEED_PUBLIC_MSG,
   charLen, cleanSports, parseSports, type MyApplication, type ReceivedApplication, type RecruitPost,
@@ -28,7 +28,8 @@ export const recruit = new Hono<AppEnv>();
 const NO_VILLA = "빌라를 찾을 수 없어요";
 const OWNER_ONLY = "방장만 할 수 있어요";
 const NOT_MEMBER = "이 빌라에 사는 입주민이 아니에요";
-const FULL = "빌라가 꽉 찼어요";
+/** 꽉 참 (그 건물을 부르는 말로: 빌라가 · 아파트가) */
+const fullMsg = (kind: VillaKind) => `${kindLabel(kind)}가 꽉 찼어요`;
 const NOT_RECRUITING = "지금은 입주자를 모집하지 않는 빌라예요";
 const NO_APPLICATION = "신청을 찾을 수 없어요";
 const DONE = "이미 처리된 신청이에요";
@@ -38,10 +39,11 @@ type Bindings = AppEnv["Bindings"];
 
 const villaOf = (env: Bindings, id: string) =>
   env.DB.prepare(
-    `SELECT v.name, v.owner_id AS ownerId, v.public, ${MEMBER_COUNT("v.id")} AS memberCount FROM villas v WHERE v.id = ? AND v.dissolved_at IS NULL`,
+    `SELECT v.name, v.owner_id AS ownerId, v.public, v.kind, v.capacity, ${MEMBER_COUNT("v.id")} AS memberCount
+     FROM villas v WHERE v.id = ? AND v.dissolved_at IS NULL`,
   )
     .bind(id)
-    .first<{ name: string; ownerId: string; public: number; memberCount: number }>();
+    .first<{ name: string; ownerId: string; public: number; kind: VillaKind; capacity: number; memberCount: number }>();
 
 /** 방장인지 먼저 본다 (쓰는 문장이 한 번 더 조건으로 확인한다). 문제가 있으면 응답, 없으면 null */
 async function ownerGate(c: Context<AppEnv>, id: string) {
@@ -68,12 +70,14 @@ recruit.get("/api/villas/:id/recruit", requireUser, async (c) => {
     .first<{ open: number; intro: string; sports: string; updatedAt: number }>();
   const post: RecruitPost = {
     // 꽉 찼거나 지도에서 내렸으면 꺼진 것으로 보인다 (서버도 그때 끈다)
-    open: !!r?.open && !!v.public && v.memberCount < VILLA_CAPACITY,
+    open: !!r?.open && !!v.public && v.memberCount < v.capacity,
     intro: r?.intro ?? "",
     sports: parseSports(r?.sports),
     updatedAt: r?.updatedAt ?? null,
     public: !!v.public,
     memberCount: v.memberCount,
+    kind: v.kind,
+    capacity: v.capacity,
     ...(v.ownerId === me ? { pendingCount: await pendingCount(c.env, id) } : {}),
   };
   return c.json(post);
@@ -100,17 +104,17 @@ recruit.put("/api/villas/:id/recruit", requireUser, async (c) => {
   const res = await c.env.DB.prepare(
     `INSERT INTO villa_recruits (villa_id, open, intro, sports, updated_at)
      SELECT ?1, ?2, ?3, ?4, ?5 WHERE EXISTS (SELECT 1 FROM villas WHERE id = ?1 AND owner_id = ?6 AND dissolved_at IS NULL AND (?2 = 0 OR public = 1))
-       AND (?2 = 0 OR ${MEMBER_COUNT("?1")} < ?7)
+       AND (?2 = 0 OR ${MEMBER_COUNT("?1")} < ${CAPACITY_OF("?1")})
      ON CONFLICT(villa_id) DO UPDATE SET open = excluded.open, intro = excluded.intro, sports = excluded.sports, updated_at = excluded.updated_at`,
   )
-    .bind(id, b.open ? 1 : 0, intro, JSON.stringify(sports), t, me, VILLA_CAPACITY)
+    .bind(id, b.open ? 1 : 0, intro, JSON.stringify(sports), t, me)
     .run();
   if (res.meta.changes !== 1) {
     const v = await villaOf(c.env, id);
     if (!v) return jsonError(c, 404, NO_VILLA);
     if (v.ownerId !== me) return jsonError(c, 403, OWNER_ONLY);
     if (!v.public) return jsonError(c, 409, RECRUIT_NEED_PUBLIC_MSG);
-    return jsonError(c, 409, "빌라가 꽉 차서 지금은 모집할 수 없어요");
+    return jsonError(c, 409, `${kindLabel(v.kind)}가 꽉 차서 지금은 모집할 수 없어요`);
   }
   // 모집이 지금 꺼져 있을 때만 기다리던 신청을 취소한다 (그 사이 다시 켰으면 그대로)
   if (!b.open) await closeApplications(c.env, id, "recruit_off", " AND NOT EXISTS (SELECT 1 FROM villa_recruits WHERE villa_id = ? AND open = 1)", [id]);
@@ -174,12 +178,12 @@ recruit.post("/api/villas/:id/apply", requireUser, async (c) => {
          SELECT ?1, ?2, ?3, ?4, 'pending', ?5
          WHERE EXISTS (SELECT 1 FROM villas v JOIN villa_recruits r ON r.villa_id = v.id
                        WHERE v.id = ?2 AND v.dissolved_at IS NULL AND v.public = 1 AND r.open = 1)
-           AND ${MEMBER_COUNT("?2")} < ?6
+           AND ${MEMBER_COUNT("?2")} < ${CAPACITY_OF("?2")}
            AND NOT EXISTS (SELECT 1 FROM memberships WHERE villa_id = ?2 AND user_id = ?3 AND left_at IS NULL)
            AND NOT EXISTS (SELECT 1 FROM villa_bans WHERE villa_id = ?2 AND user_id = ?3)
-           AND ${ACTIVE_COUNT("?3")} < ?7
+           AND ${ACTIVE_COUNT("?3")} < ?6
            AND NOT EXISTS (SELECT 1 FROM villa_applications WHERE user_id = ?3 AND status = 'pending')`,
-      ).bind(appId, id, me, message, t, VILLA_CAPACITY, MAX_VILLAS_PER_USER),
+      ).bind(appId, id, me, message, t, MAX_VILLAS_PER_USER),
     ]);
     changes = ins.meta.changes;
   } catch (e) {
@@ -218,7 +222,7 @@ async function applyRefusal(c: Context<AppEnv>, id: string, me: string) {
   if (banned) return jsonError(c, 403, APPLY_BLOCKED_MSG);
   const open = await c.env.DB.prepare("SELECT open FROM villa_recruits WHERE villa_id = ?").bind(id).first<{ open: number }>();
   if (!open?.open || !v.public) return jsonError(c, 409, NOT_RECRUITING);
-  if (v.memberCount >= VILLA_CAPACITY) return jsonError(c, 409, FULL);
+  if (v.memberCount >= v.capacity) return jsonError(c, 409, fullMsg(v.kind));
   if ((await myVillaIds(c.env, me)).length >= MAX_VILLAS_PER_USER) return jsonError(c, 409, VILLA_LIMIT_MSG);
   const mine = await myApplication(c.env, me);
   if (mine?.villaId === id) return jsonError(c, 409, "이미 이 빌라에 신청했어요. 방장의 답을 기다려 주세요");
@@ -276,11 +280,11 @@ recruit.post("/api/villas/:id/applications/:appId/approve", requireUser, async (
          SELECT ?1, a.user_id, a.villa_id, 1, ?4, ?4 FROM villa_applications a
          WHERE a.id = ?2 AND a.villa_id = ?3 AND ${FRESH("a", "?5")}
            AND EXISTS (SELECT 1 FROM villas WHERE id = ?3 AND owner_id = ?6 AND dissolved_at IS NULL)
-           AND ${MEMBER_COUNT("?3")} < ?7
+           AND ${MEMBER_COUNT("?3")} < ${CAPACITY_OF("?3")}
            AND NOT EXISTS (SELECT 1 FROM villa_bans b WHERE b.villa_id = ?3 AND b.user_id = a.user_id)
            AND NOT EXISTS (SELECT 1 FROM memberships x WHERE x.villa_id = ?3 AND x.user_id = a.user_id AND x.left_at IS NULL)
-           AND ${ACTIVE_COUNT("a.user_id")} < ?8`,
-      ).bind(membershipId, appId, id, t, cutoffOf(t), me, VILLA_CAPACITY, MAX_VILLAS_PER_USER),
+           AND ${ACTIVE_COUNT("a.user_id")} < ?7`,
+      ).bind(membershipId, appId, id, t, cutoffOf(t), me, MAX_VILLAS_PER_USER),
       c.env.DB.prepare(
         "UPDATE villa_applications SET status = 'approved', decided_at = ? WHERE id = ? AND status = 'pending' AND EXISTS (SELECT 1 FROM memberships WHERE id = ?)",
       ).bind(t, appId, membershipId),
@@ -321,10 +325,10 @@ async function approveRefusal(c: Context<AppEnv>, id: string, appId: string, me:
     await settleApp(c.env, appId, "rejected", "banned");
     return jsonError(c, 409, "내보낸 사람이라 승인할 수 없어요. 먼저 다시 받기를 해 주세요");
   }
-  if (v.memberCount >= VILLA_CAPACITY) {
+  if (v.memberCount >= v.capacity) {
     // 정원이 찼으니 모집을 끄고 기다리던 신청을 모두 취소한다 (이 신청 포함, 신청한 사람에게 알림)
     await closeIfFull(c.env, id);
-    return jsonError(c, 409, "빌라가 꽉 차서 승인할 수 없어요");
+    return jsonError(c, 409, `${kindLabel(v.kind)}가 꽉 차서 승인할 수 없어요`);
   }
   if ((await myVillaIds(c.env, app.userId)).length >= MAX_VILLAS_PER_USER) {
     if (await settleApp(c.env, appId, "cancelled", "limit")) {

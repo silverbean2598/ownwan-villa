@@ -1,6 +1,6 @@
 import type { AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
-import { VILLA_CAPACITY } from "../../shared/villa";
+import { VILLA_CAPACITY, kindLabel, type VillaKind } from "../../shared/villa";
 import { RoomTile } from "./RoomTile";
 import "./villa.css";
 
@@ -22,15 +22,17 @@ export type Member = {
   placements: { slot: string; itemId: string }[];
 };
 
-export const CAPACITY = VILLA_CAPACITY;
 const PER_ROW = 3;
 
 export type FloorRow = { floor: number | "PH"; members: Member[]; emptySlots?: number; vacantMore?: number; cont?: boolean };
 export type GapRow = { gap: [number, number] };
 export type Row = FloorRow | GapRow;
 
-/** 위(펜트하우스)에서 아래(1층) 순서의 행. 빈 층 구간은 하나로 접고, 한 행에는 최대 3명. */
-export function layoutFloors(members: Member[], penthouseUserId: string | null): Row[] {
+/**
+ * 위(펜트하우스)에서 아래(1층) 순서의 행. 빈 층 구간은 하나로 접고, 한 행에는 최대 3명.
+ * capacity: 이 건물의 정원 (빌라 20 · 아파트 50). 빈방 수 = 정원 − 입주민
+ */
+export function layoutFloors(members: Member[], penthouseUserId: string | null, capacity = VILLA_CAPACITY): Row[] {
   const rows: Row[] = [];
   const ph = penthouseUserId ? members.find((m) => m.userId === penthouseUserId) : undefined;
   if (ph) rows.push({ floor: "PH", members: [ph] });
@@ -55,7 +57,7 @@ export function layoutFloors(members: Member[], penthouseUserId: string | null):
       if (k > 0) row.cont = true;
       if (f === 1 && k === chunks.length - 1) {
         // 빈방은 최대 한 줄만 그린다: 마지막 줄의 남은 칸, 줄이 꽉 찼으면 새 한 줄. 나머지는 "빈방 n개"로 접는다.
-        const vacant = Math.max(0, CAPACITY - members.length);
+        const vacant = Math.max(0, capacity - members.length);
         const room = c.length === PER_ROW ? PER_ROW : PER_ROW - c.length;
         row.emptySlots = Math.min(vacant, room);
         if (vacant > row.emptySlots) row.vacantMore = vacant - row.emptySlots;
@@ -74,17 +76,22 @@ function VacantRoom() {
   );
 }
 
-type Props = { members: Member[]; penthouseUserId: string | null; ownerId: string; meId: string; villaId?: string };
+type Props = {
+  members: Member[]; penthouseUserId: string | null; ownerId: string; meId: string; villaId?: string;
+  /** 정원 · 종류 (아파트면 지붕에 "아파트" 간판). 없으면 빌라 · 20명 */
+  capacity?: number; kind?: VillaKind;
+};
 
-export function Building({ members, penthouseUserId, ownerId, meId, villaId }: Props) {
-  const rows = layoutFloors(members, penthouseUserId);
+export function Building({ members, penthouseUserId, ownerId, meId, villaId, capacity = VILLA_CAPACITY, kind = "villa" }: Props) {
+  const rows = layoutFloors(members, penthouseUserId, capacity);
+  const apt = kind === "apartment";
   const tile = (m: Member, penthouse = false) => (
     <RoomTile key={m.userId} member={m} isMe={m.userId === meId} isOwner={m.userId === ownerId} penthouse={penthouse} villaId={villaId} />
   );
   return (
-    <section className="bldg" aria-label="빌라 단면">
+    <section className={`bldg${apt ? " apt" : ""}`} aria-label={`${kindLabel(kind)} 단면`}>
       <div className="tower">
-        <div className="roof" />
+        <div className="roof">{apt && <span className="roof-sign">아파트</span>}</div>
         {rows.map((r, i) => {
           if ("gap" in r) {
             const [lo, hi] = r.gap;

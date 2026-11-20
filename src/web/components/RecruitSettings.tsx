@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api, ApiError } from "../api";
 import { RecruitPostView } from "./city/RecruitCard";
 import { SPORTS, SPORT_LABEL, type Sport } from "../../shared/sports";
-import { VILLA_CAPACITY } from "../../shared/villa";
+import { capacityOf, kindLabel, type VillaKind } from "../../shared/villa";
 import { RECRUIT_INTRO_MAX, RECRUIT_NEED_PUBLIC_MSG, charLen, type RecruitPost } from "../../shared/recruit";
 
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
@@ -17,7 +17,7 @@ const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생�
 export function RecruitSettings({
   villa, isOwner, title, onPublished, onAuthLost,
 }: {
-  villa: { id: string; public?: boolean; members: unknown[] };
+  villa: { id: string; public?: boolean; members: unknown[]; kind?: VillaKind };
   isOwner: boolean;
   title: string;
   onPublished: () => void;
@@ -47,7 +47,8 @@ export function RecruitSettings({
     return () => {
       alive = false;
     };
-  }, [villa.id, villa.public, memberCount]);
+    // 아파트로 승격하면 정원이 바뀌므로 다시 불러온다
+  }, [villa.id, villa.public, memberCount, villa.kind]);
 
   if (!post) return null;
 
@@ -99,7 +100,7 @@ export function RecruitSettings({
         <p className="muted small">지금 빈방을 모집하고 있어요. 모집 글은 방장이 써요.</p>
         <div className="recruit-box">
           <div className="recruit-head"><span className="recruit-flag">입주자 모집 중</span></div>
-          <RecruitPostView intro={post.intro} sports={post.sports} vacancies={VILLA_CAPACITY - post.memberCount} />
+          <RecruitPostView intro={post.intro} sports={post.sports} vacancies={capacityOf(post) - post.memberCount} />
         </div>
       </>
     ) : (
@@ -113,8 +114,13 @@ export function RecruitSettings({
         <button type="button" className="btn" disabled={busy} onClick={publish}>지도에 공개하기</button>
       </div>
     );
-  } else if (post.memberCount >= VILLA_CAPACITY) {
-    body = <p className="recruit-hint">빌라가 꽉 차서 지금은 모집할 수 없어요 ({post.memberCount}/{VILLA_CAPACITY}명). 빈방이 생기면 다시 켤 수 있어요.</p>;
+  } else if (post.memberCount >= capacityOf(post)) {
+    body = (
+      <p className="recruit-hint">
+        {kindLabel(post.kind)}가 꽉 차서 지금은 모집할 수 없어요 ({post.memberCount}/{capacityOf(post)}명). 빈방이 생기면 다시 켤 수 있어요.
+        {post.kind !== "apartment" && " 아파트로 승격하면 정원이 늘어요."}
+      </p>
+    );
   } else {
     body = (
       <>

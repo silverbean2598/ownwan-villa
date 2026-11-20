@@ -184,3 +184,17 @@ body {
 .my-apply { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid #FFD9CC; border-radius: 14px; background: #FFF8F5; font-size: 14px; line-height: 1.5; }
 .my-apply .btn { align-self: flex-start; }
 .recruit-intro-input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: 16px; line-height: 1.45; resize: none; }
+
+/* 아파트 표시 (빌라 화면 제목 · 도시 카드 · 집값 순위 · 설정). 승격한 건물만 붙는다 */
+.kind-badge { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #F4ECFF; color: #6A3FB8;
+  border: 1px solid #DCCBF5; font-size: 12px; font-weight: 800; line-height: 1.4; letter-spacing: .5px; white-space: nowrap; }
+h1 .kind-badge { font-size: 13px; position: relative; top: -2px; }
+
+/* 설정 → 아파트 승격 */
+.promote-progress { height: 8px; border-radius: 999px; background: #EEF0F4; overflow: hidden; margin: 4px 0 8px; }
+.promote-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #B7A1EA, #7E5BD0); }
+.promote-done { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; font-size: 14px; }
+.promote-done .kind-badge { margin-left: 0; }
+.promote-confirm { border: 1px solid #DCCBF5; background: #FBF8FF; border-radius: 12px; padding: 12px 14px; }
+.promote-confirm p { margin: 0 0 6px; }
+.promote-confirm ul { margin: 0 0 10px; padding-left: 18px; line-height: 1.6; }

@@ -8,6 +8,8 @@ export const CARD_TYPES = [
   "streak7", "floor_up", "penthouse_in", "penthouse_out", "floor_down", "welcome", "kicked", "owner_in", "dissolved", "application_rejected",
   // 집값 대결: 리그 1~3위 · 대결 신청 받음(방장) · 대결 결과
   "league_rank", "battle_challenged", "battle_result",
+  // 아파트 승격: 그때 사는 입주민 모두
+  "apartment_promoted",
 ] as const;
 /** 위쪽 토스트 (3초 뒤 사라짐) */
 export const TOAST_TYPES = [
@@ -160,6 +162,12 @@ export function eventCopy(e: AppEvent): string {
       if (p.reason === "no_price") return `${other}${withParticle(other)} 대결이 집값 계산 문제로 취소됐어요`;
       if (p.reason === "members") return `입주민이 3명보다 적어져 ${other}${withParticle(other)} 대결이 취소됐어요`;
       return `${other}${withParticle(other)} 대결이 취소됐어요`;
+    }
+    case "apartment_promoted": {
+      // 빌라 1곳에 사는 사람에게는 "우리 빌라가", 여러 곳에 사는 사람에게는 그 빌라 이름
+      const who = villa ? `${villa}${subjParticle(villa)}` : "우리 빌라가";
+      const cap = typeof p.capacity === "number" ? p.capacity : 50;
+      return `${who} 아파트가 됐어요! 이제 ${cap}명까지 함께 살 수 있어요`;
     }
     default:
       return "";

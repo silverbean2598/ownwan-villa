@@ -7,13 +7,13 @@ import { DEFAULT_AVATAR, parseAvatar } from "../../shared/avatar";
 import { kstDay } from "../../shared/rules/day";
 import { displayFloor } from "../../shared/rules/streak";
 import {
-  MAX_MEMBERS, NameMismatchError, NotInVillaError, NotMemberError, NotOwnerError, VillaGoneError,
-  dissolveVilla, kickMember, leaveVilla, newInviteToken, recomputePenthouse, transferOwner,
+  NameMismatchError, NotInVillaError, NotMemberError, NotOwnerError, PromoteError, VillaGoneError,
+  dissolveVilla, kickMember, leaveVilla, newInviteToken, promoteVilla, recomputePenthouse, transferOwner,
 } from "./service";
 import { CERTIFIED_PHOTO, certifiedInVilla } from "../cert/certified";
 import { logEvents } from "../events/log";
-import { ACTIVE_COUNT, myActive, isMember, myVillaIds, tagVilla } from "./membership";
-import { MAX_VILLAS_PER_USER, VILLA_LIMIT_MSG, type MyVilla } from "../../shared/villa";
+import { ACTIVE_COUNT, CAPACITY_OF, myActive, isMember, myVillaIds, tagVilla } from "./membership";
+import { MAX_VILLAS_PER_USER, VILLA_LIMIT_MSG, kindLabel, type MyVilla, type VillaKind } from "../../shared/villa";
 import { closeIfFull } from "../recruit/service";
 import { villaPrice } from "../price/routes";
 import { battleView, currentBattleRow } from "../price/service";
@@ -69,7 +69,7 @@ villa.post("/api/villas", requireUser, async (c) => {
 villa.get("/api/me/villas", requireUser, async (c) => {
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare(
-    `SELECT v.id, v.name, v.owner_id AS ownerId, v.public, m.joined_at AS joinedAt,
+    `SELECT v.id, v.name, v.owner_id AS ownerId, v.public, v.kind, v.capacity, m.joined_at AS joinedAt,
        (SELECT COUNT(*) FROM memberships o WHERE o.villa_id = v.id AND o.left_at IS NULL) AS memberCount,
        ${certifiedInVilla("m.user_id", "?2", "m.villa_id")} AS certifiedToday
      FROM ${myActive("?1")} ORDER BY m.joined_at ASC, m.rowid ASC`,
@@ -86,11 +86,14 @@ villa.get("/api/me/villas", requireUser, async (c) => {
  */
 async function villaDetail(env: AppEnv["Bindings"], villaId: string, userId: string) {
   const v = await env.DB.prepare(
-    `SELECT v.id, v.name, v.owner_id AS ownerId, v.penthouse_user_id AS penthouseUserId, v.invite_token AS inviteToken, v.public
+    `SELECT v.id, v.name, v.owner_id AS ownerId, v.penthouse_user_id AS penthouseUserId, v.invite_token AS inviteToken, v.public,
+       v.kind, v.capacity
      FROM ${myActive("?1")} AND m.villa_id = ?2`,
   )
     .bind(userId, villaId)
-    .first<{ id: string; name: string; ownerId: string; penthouseUserId: string | null; inviteToken: string; public: number }>();
+    .first<{
+      id: string; name: string; ownerId: string; penthouseUserId: string | null; inviteToken: string; public: number; kind: VillaKind; capacity: number;
+    }>();
   if (!v) return null;
   const day = kstDay(now());
   const { results } = await env.DB.prepare(
@@ -218,12 +221,12 @@ const isBanned = async (env: AppEnv["Bindings"], villaId: string, userId: string
 
 villa.get("/api/invite/:token", async (c) => {
   const row = await c.env.DB.prepare(
-    `SELECT v.id, v.name AS villaName,
+    `SELECT v.id, v.name AS villaName, v.kind, v.capacity,
        (SELECT COUNT(*) FROM memberships m WHERE m.villa_id = v.id AND m.left_at IS NULL) AS memberCount
      FROM villas v WHERE v.invite_token = ? AND v.dissolved_at IS NULL`,
   )
     .bind(c.req.param("token"))
-    .first<{ id: string; villaName: string; memberCount: number }>();
+    .first<{ id: string; villaName: string; kind: VillaKind; capacity: number; memberCount: number }>();
   if (!row) return jsonError(c, 404, EXPIRED);
   const { id, ...preview } = row;
   // 로그인한 사람에게는 이미 이 빌라 입주민인지 / 빌라 3곳이 다 찼는지도 알려 준다
@@ -259,12 +262,12 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
     // 정원 · 해체 · 입주 금지 · 내 빌라 3곳 제한을 한 문장 안에서 본다 (동시에 입주해도 넘치지 않게)
     const res = await c.env.DB.prepare(
       `INSERT INTO memberships (id, user_id, villa_id, floor, floor_reached_at, joined_at)
-       SELECT ?1, ?2, ?3, 1, ?4, ?4 WHERE (SELECT COUNT(*) FROM memberships WHERE villa_id = ?3 AND left_at IS NULL) < ?5
+       SELECT ?1, ?2, ?3, 1, ?4, ?4 WHERE (SELECT COUNT(*) FROM memberships WHERE villa_id = ?3 AND left_at IS NULL) < ${CAPACITY_OF("?3")}
          AND EXISTS (SELECT 1 FROM villas WHERE id = ?3 AND dissolved_at IS NULL)
          AND NOT EXISTS (SELECT 1 FROM villa_bans WHERE villa_id = ?3 AND user_id = ?2)
-         AND ${ACTIVE_COUNT("?2")} < ?6`,
+         AND ${ACTIVE_COUNT("?2")} < ?5`,
     )
-      .bind(membershipId, userId, v.id, t, MAX_MEMBERS, MAX_VILLAS_PER_USER)
+      .bind(membershipId, userId, v.id, t, MAX_VILLAS_PER_USER)
       .run();
     changes = res.meta.changes;
   } catch (e) {
@@ -277,7 +280,8 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
     const alive = await c.env.DB.prepare("SELECT 1 AS x FROM villas WHERE id = ? AND dissolved_at IS NULL").bind(v.id).first();
     if (!alive) return jsonError(c, 404, EXPIRED);
     if ((await myVillaIds(c.env, userId)).length >= MAX_VILLAS_PER_USER) return jsonError(c, 409, VILLA_LIMIT_MSG);
-    return jsonError(c, 409, "빌라가 꽉 찼어요");
+    const k = await c.env.DB.prepare("SELECT kind FROM villas WHERE id = ?").bind(v.id).first<{ kind: VillaKind }>();
+    return jsonError(c, 409, `${kindLabel(k?.kind)}가 꽉 찼어요`);
   }
   await logJoinEvents(c.env, userId, v.id, membershipId).catch((e) => console.error("join events failed", e));
   await recomputePenthouse(c.env, v.id);
@@ -370,6 +374,23 @@ villa.post("/api/villas/:id/transfer", requireUser, async (c) => {
     return ownerError(c, e);
   }
   return c.json({ ok: true });
+});
+
+/**
+ * 아파트로 승격 [제안 — 기획자 확인 필요, 2026-11-20]: 방장만, 정원이 다 찬 빌라만, 한 번만 (되돌릴 수 없다).
+ * 409 의 reason: "already"(이미 아파트) · "not_full"(아직 정원이 안 참, memberCount · capacity 를 함께 보낸다)
+ */
+villa.post("/api/villas/:id/promote", requireUser, async (c) => {
+  try {
+    const r = await promoteVilla(c.env, c.req.param("id"), c.get("userId"));
+    return c.json({ ok: true, kind: "apartment" satisfies VillaKind, capacity: r.capacity });
+  } catch (e) {
+    if (e instanceof PromoteError) {
+      const error = e.reason === "already" ? "이미 아파트예요" : `입주민이 ${e.capacity}명 모여야 아파트로 바꿀 수 있어요 (지금 ${e.memberCount}명)`;
+      return c.json({ error, reason: e.reason, memberCount: e.memberCount, capacity: e.capacity }, 409);
+    }
+    return ownerError(c, e);
+  }
 });
 
 villa.post("/api/villas/:id/dissolve", requireUser, async (c) => {

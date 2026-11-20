@@ -1,7 +1,8 @@
 import type { KeyboardEvent } from "react";
 import type { CityVilla } from "../../../shared/city";
 import { INK, shade } from "../avatar/ink";
-import { buildingShape, dims, hash, wallColor, type WindowState } from "./layout";
+import { dims, hash, shapeOf, wallColor, type WindowState } from "./layout";
+import { kindLabel } from "../../../shared/villa";
 import { NIGHT, Planter, Bush } from "./CityProps";
 
 const ln = { stroke: INK, strokeWidth: 1.5, strokeLinejoin: "round" as const };
@@ -14,7 +15,7 @@ export const shortName = (s: string, max = 8) => (Array.from(s).length > max ? `
 
 /** 화면 낭독기용 설명 */
 export const buildingLabel = (v: CityVilla, mine: boolean) =>
-  `${mine ? "우리 빌라, " : ""}${v.name}, 오늘 불 켜진 방 ${v.litCount}개${v.trophy ? `, 지난주 집값 ${v.trophy}위` : ""}${v.battleWin ? ", 대결 승리" : ""}${v.recruit ? ", 입주자 모집 중" : ""}`;
+  `${mine ? `우리 ${kindLabel(v.kind)}, ` : ""}${v.name}${v.kind === "apartment" ? ", 아파트" : ""}, 오늘 불 켜진 방 ${v.litCount}개${v.trophy ? `, 지난주 집값 ${v.trophy}위` : ""}${v.battleWin ? ", 대결 승리" : ""}${v.recruit ? ", 입주자 모집 중" : ""}`;
 
 const CUPS = {
   1: { fill: GOLD, dark: "#C9952A", hi: "#FCE59A" },
@@ -107,14 +108,17 @@ type Props = {
 /** 공개 빌라 한 채. (x, y) = 건물 바닥 가운데. 누르면 카드가 열린다 */
 export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSelect }: Props) {
   const seed = hash(villa.id);
-  const shape = buildingShape(villa.topFloor, villa.memberCount, villa.litCount, seed);
-  const d = dims(shape.tall);
+  const shape = shapeOf(villa, seed);
+  const apt = !!shape.apartment;
+  const d = dims(shape.tall, apt);
   const wall = wallColor(villa.id);
   const W = d.w;
   const bodyTop = -(d.plinth + shape.stories * d.story);
   const roof = bodyTop - d.cornice;
   const phW = Math.round(W * (shape.tall ? 0.52 : 0.46));
   const phTop = roof - d.ph;
+  // 아파트 펜트하우스는 금색 돔을 얹는다 (참고 그림 apartments). 표시 · 누르는 영역은 돔 꼭대기에 맞춘다
+  const top = apt ? phTop - 10 : phTop;
   const pad = shape.tall ? 9 : 10;
   const cellW = (W - pad * 2) / shape.cols;
   const winW = Math.min(shape.tall ? 11 : 14, cellW - 7);
@@ -143,9 +147,10 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
       data-recruit={villa.recruit ? "1" : undefined}
       data-trophy={villa.trophy}
       data-battle-win={villa.battleWin ? "1" : undefined}
+      data-kind={apt ? "apartment" : undefined}
     >
       {/* 누르기 쉬운 넓은 영역 + 포커스 테두리 */}
-      <rect className="cb-ring" x={-W / 2 - 8} y={phTop - 14} width={W + 16} height={-phTop + 20} rx="12" />
+      <rect className="cb-ring" x={-W / 2 - 8} y={top - 14} width={W + 16} height={-top + 20} rx="12" />
       <ellipse cx="0" cy="2" rx={W / 2 + 8} ry="5" fill="#000" opacity=".2" />
 
       {/* 몸통 */}
@@ -177,11 +182,23 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
       <Planter x={-W / 2 + 12} y={0} />
       <Planter x={W / 2 - 12} y={0} />
 
-      {/* 지붕 */}
+      {/* 지붕 (아파트는 높은 띠에 "아파트" 간판) */}
       <rect x={-W / 2 - 3} y={roof} width={W + 6} height={d.cornice} rx="1.5" fill={shade(wall, 0.45)} {...ln} strokeWidth={1.2} />
+      {apt && (
+        <g className="cb-apt-sign" aria-hidden="true">
+          <rect x="-22" y={roof + 2} width="44" height={d.cornice - 4} rx="3" fill="#3E3A6E" stroke={INK} strokeWidth="1" />
+          <text x="0" y={roof + d.cornice / 2 + 3.4} textAnchor="middle" fontSize="9.5" fontWeight="800" letterSpacing="1.5" fill={LIT}>아파트</text>
+        </g>
+      )}
 
       {/* 펜트하우스: 금색 테두리 + 화분 */}
       <g className="cb-ph">
+        {apt && (
+          <>
+            <path d={`M${-phW / 2 + 4} ${phTop} Q0 ${phTop - 18} ${phW / 2 - 4} ${phTop} Z`} fill={GOLD} {...ln} strokeWidth={1.2} />
+            <circle cx="0" cy={top - 1} r="2.6" fill={GOLD} stroke={INK} strokeWidth="1" />
+          </>
+        )}
         <rect x={-phW / 2} y={phTop} width={phW} height={d.ph} fill={shade(wall, 0.3)} {...ln} strokeWidth={1.3} />
         <rect x={-phW / 2 - 3} y={phTop - 4} width={phW + 6} height="5" rx="2" fill={GOLD} {...ln} strokeWidth={1.2} />
         <rect x={-phW / 2 + 5} y={phTop + 6} width="7" height={d.ph - 6} rx="1" fill="#34406A" stroke={INK} strokeWidth="1" />
@@ -196,11 +213,11 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
       {villa.recruit && <RecruitFlag x={W / 2 - 18} y={roof} />}
 
       {mine && (
-        <g className="cb-mine" transform={`translate(0 ${phTop - 12})`}>
-          <rect x="-27" y="-15" width="54" height="17" rx="8.5" fill="#2F5BEA" stroke="#fff" strokeWidth="1.5" />
+        <g className="cb-mine" transform={`translate(0 ${top - 12})`}>
+          <rect x={apt ? -32 : -27} y="-15" width={apt ? 64 : 54} height="17" rx="8.5" fill="#2F5BEA" stroke="#fff" strokeWidth="1.5" />
           <path d="M-4 1.5 L0 6 L4 1.5 Z" fill="#2F5BEA" stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" />
           <path d="M-4 1 L4 1" stroke="#2F5BEA" strokeWidth="2" />
-          <text x="0" y="-3.3" textAnchor="middle" fontSize="10" fontWeight="700" fill="#fff">우리 빌라</text>
+          <text x="0" y="-3.3" textAnchor="middle" fontSize="10" fontWeight="700" fill="#fff">우리 {kindLabel(villa.kind)}</text>
         </g>
       )}
     </g>

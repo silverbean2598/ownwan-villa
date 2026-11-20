@@ -243,3 +243,53 @@ export function Letter({ x, y, s = 1, rot = 0 }: { x: number; y: number; s?: num
     </g>
   );
 }
+
+/**
+ * 아파트 (아파트 승격 카드). 참고 그림 docs/art-reference/v2/apartments.webp 를 집 그림 선으로 다시 그린 것:
+ * 파스텔 벽 · 층마다 띠 · 노란 불 켜진 창(몇 개는 남색) · 금색 돔 펜트하우스 · 아치 현관 · 화분. (x, y) = 바닥 가운데
+ */
+export function MiniApartment({ x, y, w = 58, floors = 8, wall = "#D8CBEA" }: { x: number; y: number; w?: number; floors?: number; wall?: string }) {
+  const fh = 13;
+  const base = 18;
+  const h = base + fh * floors;
+  const l = x - w / 2;
+  const t = y - h;
+  const cols = 3;
+  const cw = (w - 12) / cols;
+  const wins = [];
+  for (let f = 0; f < floors; f++) {
+    for (let c = 0; c < cols; c++) {
+      // 늘 같은 자리가 꺼져 있다 (그림이 매번 같게)
+      const lit = (f * 7 + c * 3) % 5 !== 0;
+      wins.push(
+        <path
+          key={`${f}-${c}`}
+          d={`M${l + 6 + c * cw + cw / 2 - 4} ${t + 5 + f * fh + 8} v-4 a4 4 0 0 1 8 0 v4 z`}
+          fill={lit ? "#FFE08A" : "#3A4466"}
+          stroke={INK}
+          strokeWidth="1"
+        />,
+      );
+    }
+  }
+  return (
+    <g data-part="mini-apartment">
+      {/* 금색 돔 펜트하우스 */}
+      <path d={`M${x - 13} ${t - 2} Q${x} ${t - 20} ${x + 13} ${t - 2} Z`} fill={GOLD} {...line} strokeWidth={1.2} />
+      <circle cx={x} cy={t - 14} r="2.4" fill={GOLD} stroke={INK} strokeWidth="1" />
+      <rect x={l - 3} y={t - 3} width={w + 6} height="5" rx="1.5" fill="#F3ECDF" {...line} strokeWidth={1.2} />
+      <rect x={l} y={t + 2} width={w} height={h - 2} fill={wall} {...line} strokeWidth={1.3} />
+      {Array.from({ length: floors - 1 }, (_, f) => (
+        <path key={f} d={`M${l + 1} ${t + 5 + (f + 1) * fh - 1} H${l + w - 1}`} stroke="#B9A9D6" strokeWidth="1" />
+      ))}
+      {wins}
+      {/* 아치 현관 + 화분 */}
+      <path d={`M${x - 7} ${y} V${y - 9} A7 7 0 0 1 ${x + 7} ${y - 9} V${y} Z`} fill="#C9844E" stroke={INK} strokeWidth="1.2" />
+      <path d={`M${x} ${y} V${y - 14}`} stroke={INK} strokeWidth=".9" />
+      <circle cx={l + 8} cy={y - 7} r="4.5" fill="#8FDCB2" stroke={INK} strokeWidth="1" />
+      <rect x={l + 5} y={y - 4} width="6" height="4" rx="1" fill={KRAFT} stroke={INK} strokeWidth="1" />
+      <circle cx={l + w - 8} cy={y - 7} r="4.5" fill="#8FDCB2" stroke={INK} strokeWidth="1" />
+      <rect x={l + w - 11} y={y - 4} width="6" height="4" rx="1" fill={KRAFT} stroke={INK} strokeWidth="1" />
+    </g>
+  );
+}

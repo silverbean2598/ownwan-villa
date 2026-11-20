@@ -4,7 +4,7 @@ import { Avatar, type Face } from "../Avatar";
 import { INK, handAt } from "../avatar/parts";
 import type { CardType, ToastType } from "../../events/plan";
 import {
-  Box, Bubbles, Burst, ClapLines, Confetti, Crown, Heart, Key, Letter, MiniVilla, Moon, Plant, PlusOne, Shadow, Sparkle, Stairs, Trophy, UpArrow,
+  Box, Bubbles, Burst, ClapLines, Confetti, Crown, Heart, Key, Letter, MiniApartment, MiniVilla, Moon, Plant, PlusOne, Shadow, Sparkle, Stairs, Trophy, UpArrow,
 } from "./props";
 
 type AvatarProps = Parameters<typeof Avatar>[0];
@@ -229,6 +229,23 @@ export function CardArt({ type, spec, variant }: { type: CardType; spec: AvatarS
           <Figure x={X} y={Y} spec={s} face="determined" joints={{ armR: -40, elbR: -20, armL: 14 }} />
           <Letter x={hand[0] + 10} y={hand[1] - 8} rot={-12} />
           <Fist at={hand} skin={skin} />
+        </>
+      );
+      break;
+    }
+    case "apartment_promoted": {
+      // 우리 빌라가 아파트가 됐다: 두 팔 벌려 점프 + 색종이, 뒤에 금색 돔을 얹은 높은 아파트
+      body = (
+        <>
+          <Confetti pieces={CONFETTI} />
+          <MiniApartment x={196} y={182} w={60} floors={9} />
+          <Shadow x={96} y={186} rx={24} className="cel-shadow" />
+          <g className="cel-jump">
+            <Figure x={36} y={6} spec={s} face="happy" joints={{ armL: 128, armR: -128, elbL: 28, elbR: -28, legL: 26, legR: -34 }} />
+          </g>
+          <Sparkle cx={226} cy={34} r={7} />
+          <Sparkle cx={160} cy={30} r={4.5} />
+          <Sparkle cx={22} cy={60} r={5} />
         </>
       );
       break;

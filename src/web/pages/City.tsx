@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { CityMap } from "../components/city/CityMap";
 import { colsFor } from "../components/city/layout";
-import { VILLA_CAPACITY } from "../../shared/villa";
+import { capacityOf, kindLabel } from "../../shared/villa";
 import type { CityMine, CityResponse, CityVilla } from "../../shared/city";
 import { topicParticle } from "../events/plan";
 import { RecruitCard } from "../components/city/RecruitCard";
@@ -46,8 +46,8 @@ function VillaCard({
       <div className="city-card" role="dialog" aria-label={`${v.name} 정보`} tabIndex={-1} ref={box} onKeyDown={onKey}>
         <div className="city-card-top">
           <div>
-            {mine && <span className="mine-tag">우리 빌라</span>}
-            <h2>{v.name}</h2>
+            {mine && <span className="mine-tag">우리 {kindLabel(v.kind)}</span>}
+            <h2>{v.name}{v.kind === "apartment" && <span className="kind-badge">아파트</span>}</h2>
             <PriceBadges trophy={v.trophy} battleWin={v.battleWin} inBattle={v.inBattle} />
           </div>
           <button type="button" className="x" aria-label="닫기" onClick={onClose}>×</button>
@@ -62,7 +62,7 @@ function VillaCard({
           </div>
         )}
         <ul className="city-facts">
-          <li>입주 인원<b>{v.memberCount}/{VILLA_CAPACITY}명</b></li>
+          <li>입주 인원<b>{v.memberCount}/{capacityOf(v)}명</b></li>
           <li className="lit">오늘 불 켜진 방<b>{v.litCount}개</b></li>
           <li className="ph">펜트하우스 주인<b>{v.penthouseNickname ?? "아직 없어요"}</b></li>
           <li>가장 높은 층<b>{v.topFloor}층</b></li>

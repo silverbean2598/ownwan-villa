@@ -8,7 +8,7 @@ import { kstDay, prevDay } from "../../shared/rules/day";
 import type { Trophy } from "../../shared/price";
 import { displayFloor } from "../../shared/rules/streak";
 import { CITY_LIMIT, type CityMine, type CityResponse, type CityVilla } from "../../shared/city";
-import { VILLA_CAPACITY } from "../../shared/villa";
+import type { VillaKind } from "../../shared/villa";
 import { parseSports } from "../../shared/recruit";
 import { myApplication } from "../recruit/routes";
 import { closeIfHidden } from "../recruit/service";
@@ -43,7 +43,7 @@ city.get("/api/city", requireUser, async (c) => {
        FROM ${myActive("?1")} ORDER BY m.joined_at ASC, m.rowid ASC`,
     ).bind(userId, challengeCutoff(t)),
     c.env.DB.prepare(
-      `SELECT v.id, v.name, v.map_slot AS slot,
+      `SELECT v.id, v.name, v.map_slot AS slot, v.kind, v.capacity,
          (SELECT u.nickname FROM users u JOIN memberships pm ON pm.user_id = u.id
           WHERE u.id = v.penthouse_user_id AND pm.villa_id = v.id AND pm.left_at IS NULL) AS penthouseNickname,
          r.intro AS recruitIntro, r.sports AS recruitSports,
@@ -72,13 +72,13 @@ city.get("/api/city", requireUser, async (c) => {
     agg.set(r.villaId, a);
   }
   type Row = {
-    id: string; name: string; slot: number; penthouseNickname: string | null; recruitIntro: string | null; recruitSports: string | null;
+    id: string; name: string; slot: number; kind: VillaKind; capacity: number; penthouseNickname: string | null; recruitIntro: string | null; recruitSports: string | null;
     price: number | null; priceChange: number | null; trophy: number | null; battleWin: number; inBattle: number;
   };
   const villas: CityVilla[] = (villasRes.results as Row[]).map(({ recruitIntro, recruitSports, price, priceChange, trophy, battleWin, inBattle, ...v }) => {
     const a = agg.get(v.id) ?? { memberCount: 0, litCount: 0, topFloor: 1 };
-    // 모집 글은 모집 중이고 빈방이 있을 때만 (꽉 차면 숨긴다). 모집 글 · 빈방 수 말고는 더 보내지 않는다
-    const recruiting = recruitIntro !== null && a.memberCount < VILLA_CAPACITY;
+    // 모집 글은 모집 중이고 빈방이 있을 때만 (빌라마다 정원: 빌라 20 · 아파트 50, 꽉 차면 숨긴다). 모집 글 · 빈방 수 말고는 더 보내지 않는다
+    const recruiting = recruitIntro !== null && a.memberCount < v.capacity;
     return {
       ...v,
       ...a,
@@ -89,7 +89,7 @@ city.get("/api/city", requireUser, async (c) => {
       ...(battleWin ? { battleWin: true } : {}),
       inBattle: !!inBattle,
       ...(recruiting
-        ? { recruit: { intro: recruitIntro, sports: parseSports(recruitSports), vacancies: VILLA_CAPACITY - a.memberCount, ...(blocked.has(v.id) ? { blocked: true as const } : {}) } }
+        ? { recruit: { intro: recruitIntro, sports: parseSports(recruitSports), vacancies: v.capacity - a.memberCount, ...(blocked.has(v.id) ? { blocked: true as const } : {}) } }
         : {}),
     };
   });

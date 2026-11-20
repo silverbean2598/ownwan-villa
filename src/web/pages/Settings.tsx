@@ -8,7 +8,8 @@ import { MemberManage, type Member } from "../components/MemberManage";
 import { pokeEvents } from "../events/poke";
 import { VillaSwitcher } from "../components/VillaSwitcher";
 import { loadMyVillas, pickVilla, writeCurrentVilla } from "../villa/current";
-import type { MyVilla } from "../../shared/villa";
+import type { MyVilla, VillaKind } from "../../shared/villa";
+import { PromoteSettings } from "../components/PromoteSettings";
 import { KakaoSection, type KakaoStatus } from "../components/kakao/KakaoSection";
 import { DEFAULT_AVATAR, type AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
@@ -17,7 +18,11 @@ import { daysLeft } from "../components/city/RecruitCard";
 import type { MyApplication } from "../../shared/recruit";
 
 type Me = { id: string; username: string; nickname: string; sport: Sport | null; avatar: AvatarSpec };
-type VillaInfo = { id: string; name: string; ownerId: string; inviteToken?: string; public?: boolean; members: Member[] } | null;
+type VillaInfo = {
+  id: string; name: string; ownerId: string; inviteToken?: string; public?: boolean; members: Member[];
+  /** 건물 종류 · 정원 (예전 서버 응답에는 없다 → 빌라 · 20명) */
+  kind?: VillaKind; capacity?: number;
+} | null;
 type Pending = { id: string; nickname: string }[];
 type Note = { ok?: string; err?: string };
 
@@ -364,6 +369,21 @@ export function Settings() {
           </p>
           <Link className="text-link" to={`/battle/${villa.id}`} style={{ marginTop: 0 }}>대결 화면 열기</Link>
         </Section>
+      )}
+
+      {villa && (
+        <PromoteSettings
+          key={villa.id}
+          villa={villa}
+          isOwner={isOwner}
+          title={villas.length > 1 ? `${villa.name} 아파트 승격` : "아파트 승격"}
+          onPromoted={(capacity) => {
+            setVilla({ ...villa, kind: "apartment", capacity });
+            // 축하 카드를 바로 보여 준다
+            pokeEvents();
+          }}
+          onAuthLost={() => nav("/login?next=/settings", { replace: true })}
+        />
       )}
 
       {villa && (

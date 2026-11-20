@@ -29,7 +29,9 @@ export type EventType =
   | "battle_declined"
   | "battle_expired"
   | "battle_cancelled"
-  | "battle_result";
+  | "battle_result"
+  // 아파트 승격: 그때 사는 입주민 모두에게 축하 카드 (고정 키 apartment:{빌라}:{사람}, 승격 문장과 같은 batch 에서 쓴다)
+  | "apartment_promoted";
 
 /**
  * key: 한 번만 생겨야 하는 일은 고정 키(예: "certified:{user}:{day}")를 준다. 같은 키는 INSERT OR IGNORE 로 무시돼

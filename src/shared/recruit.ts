@@ -1,4 +1,5 @@
 import { SPORTS, type Sport } from "./sports";
+import type { VillaKind } from "./villa";
 
 /** 빈방 모집 · 입주 신청 [확정 — 기획자 결정, 2026-11-19]. 서버(검사)와 화면(글자 수 · 문구)이 같이 쓴다 */
 
@@ -39,6 +40,9 @@ export type RecruitPost = {
   updatedAt: number | null;
   public: boolean;
   memberCount: number;
+  /** 건물 종류 · 정원 (예전 서버 응답에는 없다 → 빌라 · 20명) */
+  kind?: VillaKind;
+  capacity?: number;
   pendingCount?: number;
 };
 

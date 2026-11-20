@@ -9,7 +9,10 @@ export const TALL_FROM = 6;
 
 /** lit: 오늘 인증한 입주민 · dark: 아직 안 한 입주민 · vacant: 입주민 없는 칸(덧문 닫힘) */
 export type WindowState = "lit" | "dark" | "vacant";
-export type BuildingShape = { stories: number; cols: number; tall: boolean; windows: WindowState[] };
+export type BuildingShape = { stories: number; cols: number; tall: boolean; windows: WindowState[]; /** 아파트로 승격한 건물 (넓고 높은 아파트 모양 + 간판) */ apartment?: boolean };
+
+/** 아파트는 층이 낮아도 최소 이만큼 높게 그린다 (빌라와 한눈에 구별되게) */
+export const APARTMENT_MIN_STORIES = 10;
 
 /** 문자열로 정해지는 32비트 수 (FNV-1a). 같은 빌라는 늘 같은 색 · 같은 창문 배치 */
 export function hash(s: string): number {
@@ -36,10 +39,12 @@ function rng(seed: number) {
  * 건물 한 채: 층 수 = 가장 높은 층(최대 MAX_STORIES), 창문은 입주민 한 명에 하나(칸이 모자라면 칸 수까지).
  * 창문 배열은 맨 위 줄부터 왼→오른쪽. 입주민 창문은 아래층부터 채우고, 불 켜진 창문은 seed 로 섞어 고른다.
  */
-export function buildingShape(topFloor: number, memberCount: number, litCount: number, seed = 0): BuildingShape {
-  const stories = Math.min(MAX_STORIES, Math.max(1, Math.floor(topFloor) || 1));
-  const tall = stories >= TALL_FROM;
-  const cols = Math.min(4, Math.max(3, Math.ceil(memberCount / stories)));
+export function buildingShape(topFloor: number, memberCount: number, litCount: number, seed = 0, apartment = false): BuildingShape {
+  const floor = Math.max(1, Math.floor(topFloor) || 1);
+  // 아파트: 늘 높은 아파트 모양, 최소 10층 · 한 줄 4~5칸 (50명까지 창문이 모자라지 않게)
+  const stories = Math.min(MAX_STORIES, apartment ? Math.max(APARTMENT_MIN_STORIES, floor) : floor);
+  const tall = apartment || stories >= TALL_FROM;
+  const cols = apartment ? Math.min(5, Math.max(4, Math.ceil(memberCount / stories))) : Math.min(4, Math.max(3, Math.ceil(memberCount / stories)));
   const total = stories * cols;
   const members = Math.min(Math.max(0, memberCount), total);
   const lit = Math.min(Math.max(0, litCount), members);
@@ -56,8 +61,11 @@ export function buildingShape(topFloor: number, memberCount: number, litCount: n
   const windows: WindowState[] = Array.from({ length: total }, () => "vacant");
   for (const i of memberIdx) windows[i] = "dark";
   for (const i of shuffled.slice(0, lit)) windows[i] = "lit";
-  return { stories, cols, tall, windows };
+  return { stories, cols, tall, windows, ...(apartment ? { apartment: true } : {}) };
 }
+
+/** 지도 빌라 한 채의 모양 (아파트면 아파트 모양) */
+export const shapeOf = (v: CityVilla, seed = 0) => buildingShape(v.topFloor, v.memberCount, v.litCount, seed, v.kind === "apartment");
 
 /** 참고 그림의 파스텔 벽색: 크림 · 민트 · 피치 · 라벤더 · 하늘 · 버터 */
 export const WALLS = ["#F6EAD0", "#CFE8D3", "#F6CDB6", "#D8CBEA", "#CDE0F1", "#F3E2A9"] as const;
@@ -93,12 +101,14 @@ export type CityLayout = { width: number; height: number; cols: number; lots: Lo
 export const slotToLot = (slot: number) => slot + Math.floor(slot / 4);
 
 /** 건물 그림의 높이 (땅에서 펜트하우스 화분 끝까지) */
-export function buildingHeight(s: Pick<BuildingShape, "stories" | "tall">): number {
-  const d = dims(s.tall);
+export function buildingHeight(s: Pick<BuildingShape, "stories" | "tall" | "apartment">): number {
+  const d = dims(s.tall, s.apartment);
   return d.plinth + s.stories * d.story + d.cornice + d.ph + 12;
 }
 
-export function dims(tall: boolean) {
+export function dims(tall: boolean, apartment = false) {
+  // 아파트: 땅(170) 안에서 더 넓게, 지붕 띠를 높여 "아파트" 간판을 넣는다
+  if (apartment) return { w: 118, story: 16, plinth: 26, cornice: 14, ph: 22 };
   return tall
     ? { w: 88, story: 16, plinth: 24, cornice: 5, ph: 20 }
     : { w: 104, story: 25, plinth: 28, cornice: 6, ph: 22 };
@@ -122,7 +132,7 @@ export function layoutCity(villas: CityVilla[], cols: number, minRows = 4): City
     let h = MIN_ROW_H;
     for (let c = 0; c < cols; c++) {
       const v = byLot.get(r * cols + c);
-      if (v) h = Math.max(h, buildingHeight(buildingShape(v.topFloor, v.memberCount, v.litCount)) + 62);
+      if (v) h = Math.max(h, buildingHeight(shapeOf(v)) + 62);
     }
     rowsY.push({ y, h });
     for (let c = 0; c < cols; c++) {

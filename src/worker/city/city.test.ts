@@ -131,7 +131,7 @@ describe("GET /api/city", () => {
     const res = await cityOf(viewer);
     expect(res.mine).toBeNull();
     const v = find(res, a.id)!;
-    expect(Object.keys(v).sort()).toEqual(["id", "inBattle", "litCount", "memberCount", "name", "penthouseNickname", "price", "priceChange", "slot", "topFloor"]);
+    expect(Object.keys(v).sort()).toEqual(["capacity", "id", "inBattle", "kind", "litCount", "memberCount", "name", "penthouseNickname", "price", "priceChange", "slot", "topFloor"]);
     const raw = JSON.stringify(res);
     for (const u of [a.owner, ...a.others]) expect(raw).not.toContain(u.id);
     expect(raw).not.toContain("스쿼트");

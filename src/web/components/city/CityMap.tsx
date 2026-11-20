@@ -2,7 +2,7 @@ import type { CityVilla } from "../../../shared/city";
 import { INK } from "../avatar/ink";
 import { CityBuilding, NamePlate } from "./CityBuilding";
 import { Bench, Bush, BusStop, Cloud, Lamp, Moon, NIGHT, Star, Store, Tree, Vending } from "./CityProps";
-import { buildingHeight, buildingShape, hash, layoutCity, MARGIN, ROAD, SKY_H, type Lot } from "./layout";
+import { buildingHeight, hash, layoutCity, MARGIN, ROAD, shapeOf, SKY_H, type Lot } from "./layout";
 import "./city.css";
 
 type Props = {
@@ -201,7 +201,7 @@ export function CityMap({ villas, cols, mineId = null, mineIds, selectedId, onSe
       {L.lots.map((lot) =>
         lot.villa ? (
           <g key={lot.villa.id}>
-            <Filler lot={lot} bottom={lot.y + lot.h - 30 - buildingHeight(buildingShape(lot.villa.topFloor, lot.villa.memberCount, lot.villa.litCount)) - 30} />
+            <Filler lot={lot} bottom={lot.y + lot.h - 30 - buildingHeight(shapeOf(lot.villa)) - 30} />
             <Tree x={lot.x + lot.w - 20} y={lot.y + lot.h - 22} s={0.9} />
             <Lamp x={lot.x + 14} y={lot.y + lot.h - 18} />
             <CityBuilding

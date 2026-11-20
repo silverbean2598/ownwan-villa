@@ -7,6 +7,7 @@ import { isMember, myActive, tagVilla } from "../villa/membership";
 import { kstDay, prevDay } from "../../shared/rules/day";
 import { battleDays } from "../../shared/rules/price";
 import type { RankingMine, RankingResponse, RankingRow, Trophy, VillaBattles, VillaPrice } from "../../shared/price";
+import type { VillaKind } from "../../shared/villa";
 import { MIN_MEMBERS_FOR_COMPETITION, MIN_MEMBERS_MSG } from "../../shared/rules/price";
 import {
   BATTLE_WIN, IN_BATTLE, MEMBERS, OPEN, PRICE_AT, TROPHY, badgeSince, battleView, challengeCutoff, currentBattleRow, expireChallenges,
@@ -38,7 +39,7 @@ price.get("/api/ranking", requireUser, async (c) => {
   const day = await lastSettledDay(c.env);
   const [rows, mine, week] = await c.env.DB.batch([
     c.env.DB.prepare(
-      `SELECT v.id, v.name,
+      `SELECT v.id, v.name, v.kind,
          (SELECT COUNT(*) FROM memberships m WHERE m.villa_id = v.id AND m.left_at IS NULL) AS memberCount,
          p.price, p.price - ${PRICE_AT("v.id", "?2")} AS change, p.cert_days AS certDays,
          ${TROPHY("v.id")} AS trophy, ${BATTLE_WIN("v.id", "?3")} AS battleWin, ${IN_BATTLE("v.id", "?4")} AS inBattle
@@ -52,7 +53,7 @@ price.get("/api/ranking", requireUser, async (c) => {
     ).bind(me, challengeCutoff(t)),
     c.env.DB.prepare("SELECT MAX(week) AS week FROM league_results"),
   ]);
-  type Row = { id: string; name: string; memberCount: number; price: number | null; change: number | null; trophy: number | null; battleWin: number; inBattle: number };
+  type Row = { id: string; name: string; kind: VillaKind; memberCount: number; price: number | null; change: number | null; trophy: number | null; battleWin: number; inBattle: number };
   let rank = 0;
   const villas: RankingRow[] = (rows.results as Row[]).map((r) => ({
     id: r.id,
@@ -61,6 +62,7 @@ price.get("/api/ranking", requireUser, async (c) => {
     price: r.price,
     change: r.price === null ? null : r.change,
     memberCount: r.memberCount,
+    kind: r.kind,
     ...(r.trophy ? { trophy: r.trophy as Trophy } : {}),
     ...(r.battleWin ? { battleWin: true } : {}),
     inBattle: !!r.inBattle,

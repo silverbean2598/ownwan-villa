@@ -192,7 +192,7 @@ describe("villa", () => {
     const a = await signup();
     const { id, inviteToken } = await create(a, "미리보기");
     const prev = await send("GET", `/api/invite/${inviteToken}`);
-    expect(await prev.json()).toEqual({ villaName: "미리보기", memberCount: 1 });
+    expect(await prev.json()).toEqual({ villaName: "미리보기", kind: "villa", capacity: 20, memberCount: 1 });
     const b = await signup();
     expect((await send("POST", `/api/villas/${id}/invite/rotate`, undefined, b.cookie)).status).toBe(403);
     const rot = await send("POST", `/api/villas/${id}/invite/rotate`, undefined, a.cookie);
