@@ -86,4 +86,51 @@ describe("RoomScene", () => {
     expect(h).not.toContain('data-item="plant"');
     expect(h).toMatch(/filter="url\(#[^)]+f\)"/);
   });
+  it("normal_room_pendant_is_generated_art_lit_and_unlit", () => {
+    const lit = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} variant="detail" />);
+    expect(lit).toContain('data-part="pendant"');
+    expect(lit).toContain('href="/furniture/room-pendant.webp"');
+    expect(lit).toContain('data-part="lamplight"');
+    expect(lit).toContain("radialGradient");
+    const off = renderToStaticMarkup(<RoomScene sport="gym" lit={false} avatar={DEFAULT_AVATAR} variant="detail" />);
+    expect(off).toContain('href="/furniture/room-pendant-off.webp"');
+    expect(off).not.toContain('data-part="lamplight"');
+    // 빌라 칸은 작은 그림, 펜트하우스는 펜던트 대신 샹들리에
+    expect(renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} />)).toContain('href="/furniture/sm/room-pendant.webp"');
+    expect(renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} penthouse />)).not.toContain('data-part="pendant"');
+  });
+  it("side_wall_items_are_skewed_back_wall_items_face_front", () => {
+    const placements = [
+      { slot: "wall1", itemId: "owunwan-frame" },
+      { slot: "wall2", itemId: "landscape-frame" },
+    ];
+    for (const props of [{}, { variant: "detail" as const }, { penthouse: true }]) {
+      const h = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} placements={placements} {...props} />);
+      const m1 = h.match(/data-slot="wall1" data-plane="right" transform="matrix\(([-\d. ]+)\)"/)!;
+      const [, b1] = m1[1].split(" ").map(Number);
+      expect(b1).not.toBe(0);
+      const m2 = h.match(/data-slot="wall2" data-plane="back" transform="matrix\(([-\d. ]+)\)"/)!;
+      const [a2, b2, c2, d2] = m2[1].split(" ").map(Number);
+      expect([b2, c2]).toEqual([0, 0]);
+      expect(a2).toBe(d2);
+    }
+  });
+  it("floor_items_are_depth_sorted_around_the_character", () => {
+    const placements = [
+      { slot: "floor3", itemId: "bench" },
+      { slot: "floor1", itemId: "plant" },
+      { slot: "floor2", itemId: "aquarium" },
+    ];
+    const h = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} variant="detail" placements={placements} />);
+    // 뒤 구석(floor1 · floor2) → 캐릭터 → 앞 구석(floor3)
+    const at = (s: string) => h.indexOf(s);
+    expect(at('data-slot="floor1"')).toBeGreaterThan(0);
+    expect(at('data-slot="floor2"')).toBeGreaterThan(0);
+    expect(at('data-slot="floor1"')).toBeLessThan(at('class="spr '));
+    expect(at('data-slot="floor2"')).toBeLessThan(at('class="spr '));
+    expect(at('data-slot="floor3"')).toBeGreaterThan(at('class="spr '));
+    // 바닥 가구는 정면 · 같은 비율, 앞 가구가 더 크다
+    const scale = (slot: string) => Number(h.match(new RegExp(`data-slot="${slot}" data-plane="floor" transform="matrix\\(([\\d.]+)`))![1]);
+    expect(scale("floor3")).toBeGreaterThan(scale("floor2"));
+  });
 });

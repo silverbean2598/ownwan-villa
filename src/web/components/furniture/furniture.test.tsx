@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { FURNITURE } from "../../../shared/catalog";
+import { FURNITURE, SLOTS } from "../../../shared/catalog";
 import { DEFAULT_AVATAR } from "../../../shared/avatar";
 import { RoomScene } from "../RoomScene";
 import { FURNITURE_ART, Furniture, FurnitureIcon, furnitureBox, furnitureUrl, hasFurnitureImage } from "./index";
 import { FURNITURE_IMG } from "./art";
 import { GEOM } from "../room/Box";
-import { sceneGeom, slotAnchors } from "./layout";
+import { placeSlot, placedQuad, standPoint } from "./layout";
 
 const PUB = path.join(import.meta.dirname, "../../../../public");
 
@@ -73,22 +73,22 @@ describe("가구 그림(webp)", () => {
     );
   });
 
-  it("wide_front_items_stay_inside_the_box", () => {
+  it("wide_floor_items_stay_inside_the_box", () => {
     for (const [variant, penthouse, g] of [
       ["detail", false, GEOM.detail],
+      ["detail", true, GEOM.detail],
       ["tile", false, GEOM.tile],
       ["tile", true, GEOM.phTile],
     ] as const) {
-      for (const slot of ["floor2", "floor3"]) {
-        const h = renderToStaticMarkup(
-          <RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} variant={variant} penthouse={penthouse} placements={[{ slot, itemId: "reformer" }]} />,
-        );
-        const m = h.match(new RegExp(`data-slot="${slot}" transform="translate\\(([-\\d.]+) [-\\d.]+\\) scale\\(([\\d.]+)\\)"`))!;
-        const x = +m[1];
-        const hw = (FURNITURE_IMG.reformer[0] / 2) * +m[2];
-        expect(x - hw, `${variant} ${penthouse} ${slot}`).toBeGreaterThanOrEqual(0);
-        expect(x + hw, `${variant} ${penthouse} ${slot}`).toBeLessThanOrEqual(g.W);
-      }
+      for (const slot of ["floor1", "floor2", "floor3"] as const)
+        for (const itemId of ["reformer", "rowing-machine", "rug", "bookshelf"]) {
+          const tag = `${variant} ${penthouse} ${slot} ${itemId}`;
+          const q = placedQuad(placeSlot(variant, penthouse, slot, itemId));
+          for (const [x] of q) {
+            expect(x, tag).toBeGreaterThanOrEqual(0);
+            expect(x, tag).toBeLessThanOrEqual(g.W);
+          }
+        }
     }
   });
 
@@ -100,37 +100,64 @@ describe("가구 그림(webp)", () => {
     expect(GEOM.phTile).toEqual({ W: 240, H: 100, bx0: 36, bx1: 204, by0: 14, by1: 70 });
   });
 
-  it("detail_slots_sit_on_their_surfaces_and_floor_slots_do_not_overlap", () => {
-    const g = GEOM.detail;
-    for (const penthouse of [false, true]) {
-      const a = slotAnchors("detail", penthouse);
-      const tag = penthouse ? "penthouse" : "room";
-      // 뒷벽 자리는 뒷벽 안, 오른쪽 벽 자리는 오른쪽 벽 안
-      expect(a.wall2.x, tag).toBeGreaterThan(g.bx0);
-      expect(a.wall2.x, tag).toBeLessThan(g.bx1);
-      expect(a.wall2.y, tag).toBeGreaterThan(g.by0);
-      expect(a.wall2.y, tag).toBeLessThan(g.by1);
-      expect(a.wall1.x, tag).toBeGreaterThan(g.bx1);
-      expect(a.wall1.x, tag).toBeLessThan(g.W);
-      // 바닥 자리: 바닥(뒷벽 밑 ~ 화면 아래) 안, 가구 발자국(폭 46 · 깊이 12 배율)끼리 겹치지 않는다
-      const floors = (["floor1", "floor2", "floor3"] as const).map((s) => a[s]);
-      for (const f of floors) {
-        expect(f.y, `${tag} ${f.slot}`).toBeGreaterThan(g.by1);
-        expect(f.y, `${tag} ${f.slot}`).toBeLessThanOrEqual(g.H);
-        expect(f.x - 23 * f.s, `${tag} ${f.slot}`).toBeGreaterThanOrEqual(0);
-        expect(f.x + 23 * f.s, `${tag} ${f.slot}`).toBeLessThanOrEqual(g.W);
+  it("slots_sit_on_their_planes_and_floor_items_scale_with_depth", () => {
+    for (const [variant, penthouse, g] of [
+      ["detail", false, GEOM.detail],
+      ["detail", true, GEOM.detail],
+      ["tile", false, GEOM.tile],
+      ["tile", true, GEOM.phTile],
+    ] as const) {
+      const tag = `${variant} ${penthouse}`;
+      const { W, H, bx0, bx1, by0, by1 } = g;
+      // 뒷벽 자리: 정면(기울임 없음), 상자 전체가 뒷벽 안
+      const back = placeSlot(variant, penthouse, "wall2", "landscape-frame");
+      expect(back.plane).toBe("back");
+      expect(back.m[1]).toBe(0);
+      for (const [x, y] of placedQuad(back)) {
+        expect(x, tag).toBeGreaterThan(bx0);
+        expect(x, tag).toBeLessThan(bx1);
+        expect(y, tag).toBeGreaterThan(by0);
+        expect(y, tag).toBeLessThan(by1);
       }
-      for (let i = 0; i < floors.length; i++)
-        for (let j = i + 1; j < floors.length; j++) {
-          const [p, q] = [floors[i], floors[j]];
-          const apartX = Math.abs(p.x - q.x) >= 23 * (p.s + q.s);
-          const apartY = Math.abs(p.y - q.y) >= 12 * (p.s + q.s);
-          expect(apartX || apartY, `${tag} ${p.slot}-${q.slot}`).toBe(true);
-        }
-      // 캐릭터가 서는 바닥 가운데 자리는 비워 둔다
-      const stand = sceneGeom("detail", penthouse);
-      const cx = g.bx0 + (g.bx1 - g.bx0) * 0.5;
-      for (const f of floors) expect(Math.abs(f.x - cx) > 20 * stand.k || Math.abs(f.y - (g.by1 + (g.H - g.by1) * 0.5)) > 20 * stand.k, `${tag} ${f.slot}`).toBe(true);
+      // 오른쪽 벽 자리: 벽면 원근대로 기울고(skew), 네 꼭짓점이 오른쪽 벽면(위 · 아래 모서리 사이) 안
+      const side = placeSlot(variant, penthouse, "wall1", "owunwan-frame");
+      expect(side.plane).toBe("right");
+      expect(side.m[1], tag).not.toBe(0);
+      for (const [x, y] of placedQuad(side)) {
+        const d = (x - bx1) / (W - bx1);
+        expect(d, tag).toBeGreaterThan(0);
+        expect(d, tag).toBeLessThan(1);
+        expect(y, tag).toBeGreaterThan(by0 * (1 - d));
+        expect(y, tag).toBeLessThan(by1 + (H - by1) * d);
+      }
+      // 바닥 자리: 바닥에 닿는 점이 바닥 사다리꼴 안, 캐릭터 가운데 자리는 비워 둔다
+      const stand = standPoint(variant, penthouse);
+      const floors = (["floor1", "floor2", "floor3"] as const).map((s) => placeSlot(variant, penthouse, s, "plant"));
+      for (const f of floors) {
+        const y = f.m[5];
+        const t = (y - by1) / (H - by1);
+        expect(t, `${tag} ${f.slot}`).toBeGreaterThan(0);
+        expect(t, `${tag} ${f.slot}`).toBeLessThanOrEqual(1);
+        const [[qx0], [qx1]] = placedQuad(f);
+        expect(qx0, `${tag} ${f.slot}`).toBeGreaterThanOrEqual(bx0 * (1 - t));
+        expect(qx1, `${tag} ${f.slot}`).toBeLessThanOrEqual(bx1 + (W - bx1) * t);
+        expect(qx1 < stand.x || qx0 > stand.x, `${tag} ${f.slot} 캐릭터 자리`).toBe(true);
+      }
+      // 깊이: 뒤 구석 가구는 앞 구석 가구보다 작다(같은 가구, 높이 제한 없는 자리끼리)
+      const backF = placeSlot(variant, penthouse, penthouse ? "floor1" : "floor2", "bench");
+      const frontF = placeSlot(variant, penthouse, "floor3", "bench");
+      expect(backF.m[5], tag).toBeLessThan(frontF.m[5]);
+      expect(backF.m[0], tag).toBeLessThan(frontF.m[0]);
+      expect(backF.front, tag).toBe(false);
+      expect(frontF.front, tag).toBe(true);
+    }
+  });
+
+  it("empty_slots_have_a_box_for_the_edit_overlay", () => {
+    for (const s of SLOTS) {
+      const p = placeSlot("detail", false, s, null);
+      expect(p.box[2], s).toBeGreaterThan(0);
+      expect(p.box[3], s).toBeGreaterThan(0);
     }
   });
 

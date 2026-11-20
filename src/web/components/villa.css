@@ -96,7 +96,7 @@
 .room.big:hover { transform: none; }
 .slots { position: absolute; inset: 0; pointer-events: none; }
 .slot { position: absolute; pointer-events: auto; padding: 0; min-height: 0; /* 빌라 .wall(min-height) 이름이 겹쳐 벽 자리가 길어지지 않게 */ background: transparent; border: 2px dashed rgba(91,70,64,.45); border-radius: 8px; color: rgba(91,70,64,.6); font-size: 18px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.slot.floor { border-radius: 50% / 40%; }
+.slot.floor { border-radius: 10px; }
 /* 꾸미는 중에만 보이는 자리: 빈 자리는 진한 점선 + "+", 놓인 자리는 옅은 점선(눌러서 바꾸기) */
 .slot.filled { border-color: rgba(91,70,64,.28); }
 .slot:focus-visible, .slot.picking { border-color: var(--accent); border-style: solid; background: rgba(47,91,234,.08); outline: none; }

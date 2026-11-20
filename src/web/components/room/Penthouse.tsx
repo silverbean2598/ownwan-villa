@@ -118,8 +118,7 @@ export function Sofa({ x, y, u, res = "full" }: { x: number; y: number; u: numbe
 }
 
 /**
- * 상자 안에 펜트하우스 소품 배치. 오른쪽 뒷벽에 야경 창, 그 앞에 화분 · 소파.
- * detail: 방 상세는 넓은 방이라 소파를 창 아래 뒷벽에 붙이고 화분은 오른쪽 구석에 둔다.
+ * 상자 안에 펜트하우스 소품 배치. 오른쪽 뒷벽에 야경 창, 그 아래 뒷벽에 소파, 뒤 오른쪽 구석에 화분.
  */
 export function PenthouseDecor({ g, u, lit, ink, sw, detail = false, res = "full" }: { g: Geom; u: number; lit: boolean; ink: string; sw: number; detail?: boolean; res?: FurnitureRes }) {
   const bw = g.bx1 - g.bx0;
@@ -139,17 +138,9 @@ export function PenthouseDecor({ g, u, lit, ink, sw, detail = false, res = "full
         </defs>
       )}
       <g filter={lit ? undefined : `url(#${id}d)`}>
-        {detail ? (
-          <>
-            <Plant x={g.bx1 - 6.5 * u} y={g.by1 + fd * 0.05} u={u} res={res} />
-            <Sofa x={wx + ww * 0.42} y={g.by1 + fd * 0.12} u={u} res={res} />
-          </>
-        ) : (
-          <>
-            <Plant x={wx - 6 * u} y={g.by1 + 1 * u} u={u} res={res} />
-            <Sofa x={g.bx1 - 4 * u} y={g.by1 + 14 * u} u={u} res={res} />
-          </>
-        )}
+        {/* 소파는 야경 창 아래 뒷벽에 붙이고 화분은 뒤 오른쪽 구석에 둔다. 앞 바닥은 가구 자리로 비워 둔다 */}
+        <Plant x={g.bx1 - 6.5 * u} y={g.by1 + fd * 0.05} u={u} res={res} />
+        <Sofa x={wx + ww * 0.42} y={g.by1 + fd * (detail ? 0.12 : 0.14)} u={u} res={res} />
       </g>
     </g>
   );

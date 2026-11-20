@@ -3,12 +3,12 @@ import { SpriteAvatar } from "./avatar2/SpriteAvatar";
 import { spriteBox } from "./avatar2/layers";
 import type { AvatarSpec } from "../../shared/avatar";
 import type { Sport } from "../../shared/sports";
-import { Box, Cork, Frame, Moonbeam, PALETTE, Pendant, Window, floorPt } from "./room/Box";
+import { Box, Cork, Frame, Moonbeam, PALETTE, Pendant, Window } from "./room/Box";
 import { Equipment } from "./room/Equipment";
 import { Chandelier, PenthouseDecor } from "./room/Penthouse";
-import { Furniture, furnitureBox } from "./furniture";
-import { DETAIL_STAND, anchorTransform, sceneGeom, slotAnchors, type Anchor } from "./furniture/layout";
-import { isSlot } from "../../shared/catalog";
+import { Furniture } from "./furniture";
+import { depthScale, matrixAttr, placeSlot, sceneGeom, standPoint, type Placed } from "./furniture/layout";
+import { isSlot, type Slot } from "../../shared/catalog";
 
 type Props = {
   sport: Sport;
@@ -35,20 +35,19 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
   const bw = g.bx1 - g.bx0;
   const pose = lit ? sport : "sleep";
 
-  // 캐릭터 크기와 발 위치
+  // 캐릭터 크기와 발 위치. 방 상세는 넓은 바닥 한가운데(펜트하우스는 소파 · 화분을 비켜 조금 왼쪽)
   const size = 42 * du;
-  // 방 상세: 넓은 바닥 한가운데(펜트하우스는 소파 · 화분을 비켜 조금 왼쪽)
-  const [fx, fy] = detail
-    ? floorPt(g, penthouse ? DETAIL_STAND.aPenthouse : DETAIL_STAND.a, DETAIL_STAND.f)
-    : [g.bx0 + bw * (penthouse ? 0.42 : 0.5), g.by1 + (g.H - g.by1) * 0.62];
-  const k = size / 42; // 기구 배율
-  // 잘 때는 기구 옆에 눕는다
-  const ex = lit ? fx : fx - bw * 0.16;
-  const cx = lit ? fx : fx + bw * 0.14;
+  const stand = standPoint(variant, penthouse);
+  const [fx, fy] = [stand.x, stand.y];
+  // 기구 배율: 가구와 같은 깊이 규칙(서 있는 깊이의 배율)
+  const k = depthScale(variant, penthouse, stand.f);
+  // 잘 때는 기구 옆(왼쪽)에 눕는다. 앞 오른쪽 구석 가구에 자는 캐릭터가 가리지 않게 기구를 오른쪽으로 비킨다
+  const ex = lit ? fx : fx + bw * 0.16;
+  const cx = lit ? fx : fx - bw * 0.14;
   // 그림 아래끝(발 · 매트)을 바닥 줄에, 가운데를 cx 에
   const sb = spriteBox(pose, size);
-  // 누워 자는 그림은 가로로 길어, 기구와 겹치지 않게 조금 오른쪽 · 앞(관객 쪽) 바닥에 눕힌다
-  const sleepX = lit ? 0 : bw * 0.06;
+  // 누워 자는 그림은 가로로 길어, 기구와 겹치지 않게 조금 왼쪽 · 앞(관객 쪽) 바닥에 눕힌다
+  const sleepX = lit ? 0 : -bw * 0.06;
   const sleepY = lit ? 0 : (g.H - fy) * 0.3;
   const avX = cx + sleepX - sb.w / 2;
   const avY = fy + sleepY - sb.floor;
@@ -57,34 +56,25 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
   const win = penthouse
     ? null
     : { x: g.bx0 + bw * 0.66, y: g.by0 + (g.by1 - g.by0) * 0.18, w: bw * 0.2, h: (g.by1 - g.by0) * 0.34 };
-  // 가구: 뒤(벽 · 안쪽 바닥)는 기구보다 먼저, 앞 바닥은 캐릭터 다음에 그린다
-  const anchors = slotAnchors(variant, penthouse);
+  // 가구: 벽 · 바닥 면에 맞춰 놓고(옆벽은 벽면 원근대로 기울임, 바닥은 깊이에 따라 크기), 뒤에서 앞 순서로 그린다.
+  // 캐릭터보다 뒤(발 위치보다 안쪽) 가구는 기구 · 캐릭터 전에, 앞 가구는 캐릭터 다음에
   const placed = placements
     .filter((p) => isSlot(p.slot))
-    .map((p) => {
-      const a = anchors[p.slot as keyof typeof anchors];
-      // 넓은 가구가 상자 테두리 밖으로 나가지 않게 가로 위치를 안쪽으로 당긴다 (바닥 자리)
-      const box = a.skew ? null : furnitureBox(p.itemId);
-      if (!box) return { ...a, itemId: p.itemId };
-      const m = sw * 4;
-      const hw = (box[2] / 2) * a.s;
-      const x = hw * 2 > g.W - 2 * m ? g.W / 2 : Math.min(Math.max(a.x, m + hw), g.W - m - hw);
-      return { ...a, x, itemId: p.itemId };
-    })
-    .sort((a, b) => a.y - b.y);
+    .map((p) => ({ ...placeSlot(variant, penthouse, p.slot as Slot, p.itemId), itemId: p.itemId }))
+    .sort((a, b) => a.depth - b.depth);
   const fid = useId().replace(/:/g, "");
-  const furniture = (items: (Anchor & { itemId: string })[], filter: string) =>
+  const furniture = (items: (Placed & { itemId: string })[], filter: string) =>
     items.length > 0 && (
       <g filter={lit ? undefined : `url(#${filter})`}>
         {items.map((p) => (
-          <g key={p.slot} data-slot={p.slot} transform={anchorTransform(p)}>
+          <g key={p.slot} data-slot={p.slot} data-plane={p.plane} transform={matrixAttr(p.m)}>
             <Furniture itemId={p.itemId} res={detail ? "full" : "sm"} />
           </g>
         ))}
       </g>
     );
 
-  const lampX = g.bx0 + bw * (detail ? (penthouse ? 0.42 : 0.5) : penthouse ? 0.4 : 0.42);
+  const lampX = g.bx0 + bw * (detail ? 0.5 : penthouse ? 0.4 : 0.42);
 
   return (
     <div className={`scene ${variant} s-${sport}${penthouse ? " ph-scene" : ""}`}>
@@ -108,7 +98,7 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
         {penthouse ? (
           <Chandelier x={lampX} top={g.by0} u={u} lit={lit} res={detail ? "full" : "sm"} />
         ) : (
-          <Pendant x={lampX} top={g.by0 - 4 * u} len={10 * u} u={u} lit={lit} sw={sw} ink={c.ink} floorY={g.by1 + 6 * u} />
+          <Pendant x={lampX} top={g.by0 - 3 * u} w={10 * u} lit={lit} floorY={g.by1 + 6 * u} res={detail ? "full" : "sm"} />
         )}
         {furniture(placed.filter((p) => !p.front), `${fid}b`)}
         {showEquip && (

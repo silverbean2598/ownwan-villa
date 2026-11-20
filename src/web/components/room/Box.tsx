@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { furnitureUrl, type FurnitureRes } from "../furniture";
 // 한 점 투시 인형의 집 상자(뒷벽 · 옆벽 · 천장 · 나무 바닥). 좌표는 viewBox 단위.
 export type Geom = { W: number; H: number; bx0: number; bx1: number; by0: number; by1: number };
 
@@ -186,20 +187,44 @@ export function Window({ x, y, w, h, lit, sw, ink }: { x: number; y: number; w: 
   );
 }
 
-/** 천장에 매달린 펜던트 조명 + 불빛(켜짐) */
-export function Pendant({ x, top, len, u, lit, sw, ink, floorY }: { x: number; top: number; len: number; u: number; lit: boolean; sw: number; ink: string; floorY: number }) {
-  const y = top + len;
+/** 펜던트 조명 그림(줄 포함, 가로:세로)과 그림 안에서 전등갓 아래끝 · 전구 가운데 높이(비율) */
+const PENDANT_RATIO = 144 / 256;
+const PENDANT_SHADE_BOTTOM = 0.93;
+const PENDANT_BULB = 0.9;
+
+/**
+ * 천장에 줄로 매달린 펜던트 조명(생성 그림, public/furniture/room-pendant*.webp).
+ * 켜지면 전구가 빛나는 그림 + 전구 둘레 따뜻한 빛 + 바닥으로 퍼지는 빛기둥, 꺼지면 전구가 꺼진 그림만.
+ * (x, top) = 줄이 천장에 닿는 점, w = 전등갓 폭
+ */
+export function Pendant({ x, top, w, lit, floorY, res = "full" }: { x: number; top: number; w: number; lit: boolean; floorY: number; res?: FurnitureRes }) {
+  const id = useId().replace(/:/g, "");
+  const h = w / PENDANT_RATIO;
+  const sy = top + h * PENDANT_SHADE_BOTTOM;
+  const by = top + h * PENDANT_BULB;
   return (
-    <g>
+    <g data-part="pendant">
       {lit && (
-        <g data-part="lamplight" fill="#FFE07A">
-          <polygon points={pts([[x - 4 * u, y + 2 * u], [x + 4 * u, y + 2 * u], [x + 22 * u, floorY], [x - 22 * u, floorY]])} opacity="0.18" />
-          <polygon points={pts([[x - 3 * u, y + 2 * u], [x + 3 * u, y + 2 * u], [x + 13 * u, floorY - 6 * u], [x - 13 * u, floorY - 6 * u]])} opacity="0.22" />
-        </g>
+        <>
+          <defs>
+            <radialGradient id={`${id}g`}>
+              <stop offset="0" stopColor="#FFF1B8" stopOpacity="0.8" />
+              <stop offset="0.45" stopColor="#FFE38F" stopOpacity="0.3" />
+              <stop offset="1" stopColor="#FFE38F" stopOpacity="0" />
+            </radialGradient>
+            <linearGradient id={`${id}c`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#FFE07A" stopOpacity="0.34" />
+              <stop offset="1" stopColor="#FFE07A" stopOpacity="0.08" />
+            </linearGradient>
+          </defs>
+          <g data-part="lamplight">
+            <polygon points={pts([[x - w * 0.36, sy], [x + w * 0.36, sy], [x + w * 1.9, floorY], [x - w * 1.9, floorY]])} fill={`url(#${id}c)`} />
+            <polygon points={pts([[x - w * 0.3, sy], [x + w * 0.3, sy], [x + w * 1.1, floorY], [x - w * 1.1, floorY]])} fill={`url(#${id}c)`} opacity="0.8" />
+            <circle cx={x} cy={by} r={w * 1.15} fill={`url(#${id}g)`} />
+          </g>
+        </>
       )}
-      <line x1={x} y1={top} x2={x} y2={y - 3 * u} stroke={ink} strokeWidth={sw * 0.8} />
-      <circle cx={x} cy={y + 1.6 * u} r={2.2 * u} fill={lit ? "#FFE58A" : "#C9C4A8"} stroke={ink} strokeWidth={sw * 0.6} />
-      <path d={`M${x - 2 * u} ${y - 3.4 * u} L${x + 2 * u} ${y - 3.4 * u} L${x + 6 * u} ${y + 1 * u} L${x - 6 * u} ${y + 1 * u} Z`} fill={lit ? "#E7A86E" : "#8B8D86"} stroke={ink} strokeWidth={sw * 0.8} strokeLinejoin="round" />
+      <image href={furnitureUrl(lit ? "room-pendant" : "room-pendant-off", res)} x={x - w / 2} y={top} width={w} height={h} preserveAspectRatio="none" />
     </g>
   );
 }

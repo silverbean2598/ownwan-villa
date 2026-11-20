@@ -8,7 +8,7 @@ import { usePhotoActions } from "../components/PhotoActions";
 import { RoomScene } from "../components/RoomScene";
 import type { Member } from "../components/Building";
 import { FurnitureIcon } from "../components/furniture";
-import { slotAnchors, sceneGeom, type Anchor } from "../components/furniture/layout";
+import { placeSlot, placedRect, sceneGeom, type Placed } from "../components/furniture/layout";
 import { FURNITURE, SLOTS, findItem, slotType, type Slot } from "../../shared/catalog";
 import { CertifyButton } from "../components/CertifyButton";
 import { loadMyVillas, pickVilla, roomPath, villaPath } from "../villa/current";
@@ -29,21 +29,22 @@ export const SLOT_LABEL: Record<Slot, string> = {
   floor3: "바닥 3",
 };
 
-/** 방 상세 위에 겹치는 자리 버튼의 위치(%) */
-function slotStyle(p: Anchor): CSSProperties {
+/**
+ * 방 상세 위에 겹치는 자리 버튼의 위치(%). 놓인 가구(없으면 기본 크기)의 실제 자리와 같은 상자,
+ * 옆벽 자리는 벽면을 따라 기울인다.
+ */
+function slotStyle(p: Placed): CSSProperties {
   const { g } = sceneGeom("detail", false);
-  const wall = slotType(p.slot) === "wall";
-  const w = wall ? 34 * (p.skew ? p.sx : p.s) : 46 * p.s;
-  const h = wall ? 30 * p.s : 30 * p.s;
-  const top = wall ? p.y - h / 2 : p.y - h + 4 * p.s;
-  // 앞 구석 자리가 방 테두리 밖으로 나가지 않게
-  const left = Math.min(Math.max(p.x - w / 2, 4), g.W - 4 - w);
+  const r = placedRect(p);
+  // 손가락으로 누르기 쉽게 너무 작은 자리는 조금 키운다
+  const w = Math.max(r.w, 22);
+  const h = Math.max(r.h, 18);
   return {
-    left: `${(left / g.W) * 100}%`,
-    top: `${(top / g.H) * 100}%`,
+    left: `${((r.cx - w / 2) / g.W) * 100}%`,
+    top: `${((r.cy - h / 2) / g.H) * 100}%`,
     width: `${(w / g.W) * 100}%`,
     height: `${(h / g.H) * 100}%`,
-    transform: p.skew ? `skewY(${Math.atan(p.skew)}rad)` : undefined,
+    transform: r.skew ? `skewY(${r.skew}rad)` : undefined,
   };
 }
 
@@ -167,7 +168,6 @@ export function Room() {
   if (!member) return <NotFoundRoom />;
   const userStreak = displayStreak(member.userStreak ?? member.streak, member.certifiedAnywhere ?? member.certifiedToday);
   const villaStreak = displayStreak(member.streak, member.certifiedToday);
-  const anchors = slotAnchors("detail", penthouse);
   const placedIn = (slot: Slot) => placements.find((p) => p.slot === slot);
 
   function openPicker(slot: Slot) {
@@ -248,7 +248,7 @@ export function Room() {
                   type="button"
                   className={`slot ${slotType(s)}${item ? " filled" : ""}${picking === s ? " picking" : ""}`}
                   data-slot={s}
-                  style={slotStyle(anchors[s])}
+                  style={slotStyle(placeSlot("detail", penthouse, s, item?.id))}
                   aria-label={`${SLOT_LABEL[s]}: ${item ? `${item.name} 바꾸기` : "가구 놓기"}`}
                   onClick={() => openPicker(s)}
                 >
