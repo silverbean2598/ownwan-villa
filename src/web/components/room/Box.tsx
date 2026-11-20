@@ -215,7 +215,9 @@ export function Cork({ g, sw, ink, lit }: { g: Geom; sw: number; ink: string; li
   const note = (x: number, t: number, col: string) => {
     const a = leftWallPt(g, x, t);
     const b = leftWallPt(g, x + (x2 - x1) * 0.22, t);
-    return <polygon points={pts([a, b, [b[0], b[1] + 4], [a[0], a[1] + 4]])} fill={col} />;
+    // 메모 높이는 선 굵기에 맞춘다 (작은 방 칸 sw 0.88 → 약 4, 방 상세에서 공유 카드로 그릴 때는 그만큼 크게)
+    const nh = sw * 4.5;
+    return <polygon points={pts([a, b, [b[0], b[1] + nh], [a[0], a[1] + nh]])} fill={col} />;
   };
   return (
     <g data-part="cork" opacity={lit ? 1 : 0.75}>

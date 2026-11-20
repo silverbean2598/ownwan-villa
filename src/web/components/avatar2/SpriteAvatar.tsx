@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { AvatarSpec } from "../../../shared/avatar";
 import type { Pose } from "./pose";
 import { spriteBox, spriteLayers, spriteMeta, spriteRes, type SpriteRes } from "./layers";
@@ -17,6 +17,12 @@ type Props = {
   y?: number;
 };
 
+/**
+ * 이미지로 저장(공유 카드)용: 이 안의 캐릭터는 화면 거리와 상관없이 원본 그림을 바로 넣고, 움직임 없이 frame 번째 칸으로 멈춘다.
+ * (svg 를 글자로 꺼내 canvas 에 그릴 때는 CSS 애니메이션이 없어 칸을 직접 옮겨 둔다)
+ */
+export const SpriteStillContext = createContext<{ frame: number } | null>(null);
+
 // svg <image> 의 decoding 은 React 타입에 없어 따로 붙인다
 const ASYNC = { decoding: "async" } as object;
 
@@ -24,13 +30,13 @@ const ASYNC = { decoding: "async" } as object;
  * 화면 가까이 왔을 때만 그림을 받는다 (빌라에 방이 50개까지 있다). 받을 때 실제로 그려질 크기를 재서
  * 작으면(세로 × 화면 배율 ≤ 160px) sm/ 작은 그림을 고른다. IntersectionObserver 가 없으면 바로 받는다
  */
-function useSpriteRes<T extends SVGSVGElement>(fh: number) {
+function useSpriteRes<T extends SVGSVGElement>(fh: number, still: boolean) {
   const ref = useRef<T>(null);
-  // null = 아직 받지 않음
-  const [res, setRes] = useState<SpriteRes | null>(() => (typeof IntersectionObserver === "undefined" ? "full" : null));
+  // null = 아직 받지 않음. 공유 카드(still)는 바로 원본
+  const [res, setRes] = useState<SpriteRes | null>(() => (still || typeof IntersectionObserver === "undefined" ? "full" : null));
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || still) return;
     // 그림이 아직 없는 svg 는 getBoundingClientRect 가 0 이라 화면 변환(viewBox → 화면 px)으로 잰다
     const pick = () => {
       const m = el.getScreenCTM?.();
@@ -53,7 +59,7 @@ function useSpriteRes<T extends SVGSVGElement>(fh: number) {
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [res, fh]);
+  }, [res, fh, still]);
   return [ref, res] as const;
 }
 
@@ -63,9 +69,13 @@ function useSpriteRes<T extends SVGSVGElement>(fh: number) {
  * 요소 수 = svg 1 + 그림 3~4 (도복 자세는 머리가 몸 그림에 있어 1) + 낀 소품 수. 빌라 화면 DOM 을 작게.
  */
 export function SpriteAvatar({ spec, size, pose = "idle", className, label = "캐릭터", x, y }: Props) {
-  const [ref, res] = useSpriteRes<SVGSVGElement>(spriteMeta(pose).fh);
+  const still = useContext(SpriteStillContext);
+  const [ref, res] = useSpriteRes<SVGSVGElement>(spriteMeta(pose).fh, !!still);
   const { meta, urls, outfit, hair, stripW } = spriteLayers(spec, pose, res ?? "full");
   const box = spriteBox(pose, size);
+  const images =
+    res &&
+    urls.map((u) => <image key={u} href={u} width={stripW} height={meta.fh} preserveAspectRatio="none" {...ASYNC} />);
   return (
     <svg
       ref={ref}
@@ -87,10 +97,7 @@ export function SpriteAvatar({ spec, size, pose = "idle", className, label = "�
     >
       {/* 받기 전: 빈 svg 는 크기가 0 이라 칸 크기 빈 사각형을 둔다 (화면 밖 · 잘린 자리 판정이 틀리지 않게) */}
       {!res && <rect width={meta.fw} height={meta.fh} fill="none" />}
-      {res &&
-        urls.map((u) => (
-          <image key={u} href={u} width={stripW} height={meta.fh} preserveAspectRatio="none" {...ASYNC} />
-        ))}
+      {still ? <g transform={`translate(${-Math.min(still.frame, meta.frames - 1) * meta.fw} 0)`}>{images}</g> : images}
     </svg>
   );
 }

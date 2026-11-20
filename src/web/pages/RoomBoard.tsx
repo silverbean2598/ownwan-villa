@@ -7,6 +7,8 @@ import { CheerBar, CommentThread } from "../components/Cheer";
 import { RoutineEditor } from "../components/RoutineEdit";
 import { NotFoundRoom, useRoomMember } from "./Room";
 import { roomPath } from "../villa/current";
+import { ShareButton } from "../share/ShareButton";
+import { kstDay } from "../../shared/rules/day";
 import "../components/villa.css";
 
 const PAGE = 20;
@@ -98,6 +100,7 @@ export function RoomBoard() {
   if (!state) return <main className="page"><p className="muted">불러오는 중이에요</p></main>;
   if (!state.member) return <NotFoundRoom />;
   const mine = state.me.id === state.member.userId;
+  const today = kstDay(Date.now());
 
   return (
     <main className="villa-page room-page">
@@ -107,7 +110,11 @@ export function RoomBoard() {
       {loaded && items.length === 0 && <p className="muted">아직 붙인 기록이 없어요</p>}
       {groupByDay(items).map((g) => (
         <section key={g.day} className="day-group">
-          <h2>{g.heading}</h2>
+          <div className="day-head">
+            <h2>{g.heading}</h2>
+            {/* 내 기록의 오늘 칸에서 오늘 인증 카드를 만든다 */}
+            {mine && g.day === today && <ShareButton card={{ kind: "cert", villaId }} label="오늘 인증 카드 만들기" className="small" />}
+          </div>
           <div className="board full">
             {g.items.map((it) => (
               <Fragment key={it.id}>

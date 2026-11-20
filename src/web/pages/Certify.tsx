@@ -7,6 +7,7 @@ import type { MyVilla } from "../../shared/villa";
 import { compressImage, ImageDecodeError } from "../image/compress";
 import { dhashFromBlob } from "../image/dhash";
 import { pokeEvents } from "../events/poke";
+import { ShareButton } from "../share/ShareButton";
 
 type Item = { name: string; status: "working" | "done" | "error"; message: string; code?: number };
 type PhotoResult = { certId: string; points: number; duplicate: boolean; certifiedToday: boolean };
@@ -134,6 +135,9 @@ export function Certify() {
   }
 
   const back = villas?.length ? villaPath(pickVilla(villas, from)!) : "/villa";
+  // 인증에 성공했으면(사진을 올렸거나 루틴을 올림) 오늘 인증 카드를 이미지로 남기게 한다. 층 · 이름은 이 화면을 연 빌라(올린 빌라 중)
+  const certified = items.some((it) => it.status === "done") || (!!routineMsg && !routineMsg.error);
+  const shareVilla = from && (!targets || targets.includes(from)) ? from : (targets?.[0] ?? from);
 
   return (
     <main className="page">
@@ -171,6 +175,14 @@ export function Certify() {
           }}
           onAuthLost={toLogin}
         />
+      )}
+      {certified && (
+        <section className="share-cta" aria-label="오늘 인증 카드">
+          <p>
+            <b>오늘 오운완!</b> 인증 카드를 이미지로 남겨 보세요
+          </p>
+          <ShareButton card={{ kind: "cert", villaId: shareVilla }} />
+        </section>
       )}
       <form onSubmit={submitRoutine}>
         <div className="field">

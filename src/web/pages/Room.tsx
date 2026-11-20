@@ -12,9 +12,10 @@ import { slotAnchors, sceneGeom, type Anchor } from "../components/furniture/lay
 import { FURNITURE, SLOTS, findItem, slotType, type Slot } from "../../shared/catalog";
 import { CertifyButton } from "../components/CertifyButton";
 import { loadMyVillas, pickVilla, roomPath, villaPath } from "../villa/current";
+import { ShareButton } from "../share/ShareButton";
 import "../components/villa.css";
 
-type VillaData = { id: string; ownerId: string; penthouseUserId: string | null; members: Member[] };
+type VillaData = { id: string; name?: string; ownerId: string; penthouseUserId: string | null; members: Member[] };
 type Me = { id: string };
 
 type Placement = { slot: string; itemId: string };
@@ -44,7 +45,7 @@ function slotStyle(p: Anchor): CSSProperties {
   };
 }
 
-type RoomState = { me: Me; member: Member | null; penthouse: boolean; iAmVillaOwner: boolean; villaId: string; multi: boolean };
+type RoomState = { me: Me; member: Member | null; penthouse: boolean; iAmVillaOwner: boolean; villaId: string; villaName: string | null; multi: boolean };
 
 /**
  * 방 주인의 방 정보를 불러온다. 401이면 로그인으로 보낸다.
@@ -64,12 +65,12 @@ export function useRoomMember(userId: string | undefined, path: string) {
         const villas = await loadMyVillas();
         const first = pickVilla(villas, want);
         const order = want ? (first === want ? [want] : []) : [...new Set([first, ...villas.map((v) => v.id)])].filter((x): x is string => !!x);
-        let found: RoomState = { me, member: null, penthouse: false, iAmVillaOwner: false, villaId: first ?? "", multi: villas.length > 1 };
+        let found: RoomState = { me, member: null, penthouse: false, iAmVillaOwner: false, villaId: first ?? "", villaName: null, multi: villas.length > 1 };
         for (const id of order) {
           const villa = await api<VillaData>(`/api/villas/${id}`);
           const member = villa.members.find((m) => m.userId === userId) ?? null;
           if (!member) continue;
-          found = { ...found, member, penthouse: villa.penthouseUserId === member.userId, iAmVillaOwner: villa.ownerId === me.id, villaId: id };
+          found = { ...found, member, penthouse: villa.penthouseUserId === member.userId, iAmVillaOwner: villa.ownerId === me.id, villaId: id, villaName: villa.name ?? null };
           break;
         }
         if (alive) setState(found);
@@ -243,6 +244,12 @@ export function Room() {
         <div className="room-actions">
           <button type="button" className="btn" onClick={() => openPicker()}>가구 놓기</button>
           <Link className="btn ghost" to="/shop">가구 상점</Link>
+        </div>
+      )}
+      {isMe && !picking && (
+        <div className="room-actions share-row">
+          {/* 지금 놓인 가구 그대로 */}
+          <ShareButton card={{ kind: "room", input: { member: { ...member, placements }, penthouse, villaName: state.villaName } }} label="내 방 이미지로 저장 · 공유" />
         </div>
       )}
       <Link className="btn ghost board-all" to={roomPath(member.userId, villaId, true)}>전체 기록 보기</Link>

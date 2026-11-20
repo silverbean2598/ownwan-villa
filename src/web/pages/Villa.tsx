@@ -12,6 +12,7 @@ import type { BattleView } from "../../shared/price";
 import { PriceTag } from "../components/price/PriceTag";
 import { formatDelta } from "../../shared/rules/price";
 import { withParticle } from "../events/plan";
+import { ShareButton } from "../share/ShareButton";
 
 type VillaData = {
   id: string;
@@ -153,6 +154,12 @@ export function Villa() {
             </button>
           )}
         </div>
+        {/* 입주민만 (이 화면은 입주민만 열 수 있다). 다른 입주민은 캐릭터 · 닉네임만, 사진 · 루틴은 넣지 않는다 */}
+        {mine && (
+          <div className="villa-actions">
+            <ShareButton card={{ kind: "villa", input: { villa, meId: me.id } }} label={`우리 ${kindLabel(villa.kind)} 이미지로 저장 · 공유`} />
+          </div>
+        )}
         {copied === "manual" && (
           <textarea ref={linkRef} className="invite-fallback" readOnly rows={2} value={inviteUrl} aria-label="초대 링크" onFocus={(e) => e.currentTarget.select()} />
         )}

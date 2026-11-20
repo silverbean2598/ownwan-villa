@@ -99,7 +99,8 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
           </defs>
         )}
         <Box g={g} c={c} sw={sw} />
-        {!detail && <Cork g={g} sw={sw * 0.8} ink={c.ink} lit={lit} />}
+        {/* 방 상세는 왼쪽 벽에 진짜 게시판(HTML)을 붙인다. 게시판 없이 그릴 때(공유 카드)는 코르크판 그림 */}
+        {(!detail || !board) && <Cork g={g} sw={sw * 0.8} ink={c.ink} lit={lit} />}
         {win && <Window {...win} lit={lit} sw={sw * 0.8} ink={c.ink} />}
         {penthouse && <PenthouseDecor g={g} u={du} lit={lit} ink={c.ink} sw={sw} />}
         {penthouse ? (
