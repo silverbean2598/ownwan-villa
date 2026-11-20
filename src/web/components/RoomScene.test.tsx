@@ -8,19 +8,30 @@ import { BASE_FURNITURE, EXTRA_FURNITURE } from "../../shared/catalog";
 import { FURNITURE_ART } from "./furniture";
 
 describe("RoomScene", () => {
-  it("lit_room_shows_sport_pose_and_equipment", () => {
+  it("lit_room_shows_sport_sprite_and_equipment", () => {
     for (const sport of SPORTS) {
       const h = renderToStaticMarkup(<RoomScene sport={sport} lit avatar={DEFAULT_AVATAR} />);
-      expect(h).toContain(`pose-${sport}`);
-      expect(h).toContain(`data-equip="${sport}"`);
-      expect(h).not.toContain(">z<");
+      expect(h).toContain(`class="spr p-${sport}"`);
+      expect(h).toContain(`/avatar2/${sport}/`);
+      // 클라이밍 벽 · 필라테스 매트는 새 캐릭터 그림에 들어 있다
+      if (sport === "climbing" || sport === "pilates") expect(h).not.toContain("data-equip=");
+      else expect(h).toContain(`data-equip="${sport}"`);
+      expect(h).not.toContain('class="av ');
     }
   });
   it("unlit_room_sleeps_with_moonlight", () => {
-    const h = renderToStaticMarkup(<RoomScene sport="running" lit={false} avatar={DEFAULT_AVATAR} />);
-    expect(h).toContain("pose-sleep");
+    const h = renderToStaticMarkup(<RoomScene sport="climbing" lit={false} avatar={DEFAULT_AVATAR} />);
+    expect(h).toContain('class="spr p-sleep"');
+    expect(h).toContain("/avatar2/sleep/body-tee-s0.webp");
     expect(h).toContain('data-part="moonbeam"');
+    // 잘 때는 기구가 옆에 그대로 있다
+    expect(h).toContain('data-equip="climbing"');
+  });
+  it("svg_character_option_keeps_old_rig_for_landing", () => {
+    const h = renderToStaticMarkup(<RoomScene sport="running" lit={false} avatar={DEFAULT_AVATAR} character="svg" />);
+    expect(h).toContain("pose-sleep");
     expect(h).toContain(">z<");
+    expect(h).not.toContain("avatar2");
   });
   it("penthouse_has_chandelier_skyline_sofa", () => {
     const h = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} penthouse />);

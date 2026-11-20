@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Avatar } from "./Avatar";
+import { SpriteAvatar } from "./avatar2/SpriteAvatar";
 import { WearPreview } from "./WearPreview";
 import { AVATAR_OPTIONS, type AvatarSpec } from "../../shared/avatar";
 import { ACCESSORIES, ACC_SLOTS, OUTFITS, findAccessory, type AccSlot } from "../../shared/catalog";
@@ -34,6 +34,10 @@ function withOutfit(spec: AvatarSpec, outfit: string | undefined): AvatarSpec {
   return outfit ? { ...rest, outfit } : rest;
 }
 
+// 미리 보기 기준 크기: 서 있는 그림 높이 ≈ 155px (그림 원본 400px 보다 작게 그려 흐리지 않다)
+const PREVIEW = 120;
+const PREVIEW_H = 160;
+
 type Props = { value: AvatarSpec; onChange: (a: AvatarSpec) => void; /** 가진 옷 · 소품 id */ owned?: string[] };
 
 export function AvatarEditor({ value: avatar, onChange: setAvatar, owned = [] }: Props) {
@@ -41,8 +45,9 @@ export function AvatarEditor({ value: avatar, onChange: setAvatar, owned = [] }:
   const hiddenHead = avatar.hair === "beanie" && (avatar.acc ?? []).some((a) => findAccessory(a)?.accSlot === "head");
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}>
-        <Avatar spec={avatar} size={120} />
+      {/* 방에 보이는 새 캐릭터 그대로. 상자 높이를 고정해 머리 · 옷을 바꿔도 아래 고르기 칸이 움직이지 않는다 */}
+      <div className="editor-preview" style={{ height: PREVIEW_H }}>
+        <SpriteAvatar spec={avatar} size={PREVIEW} pose="idle" label="미리 보기 캐릭터" />
       </div>
       <div className="field">
         <label>피부색</label>
@@ -77,12 +82,13 @@ export function AvatarEditor({ value: avatar, onChange: setAvatar, owned = [] }:
         </div>
       </div>
       <div className="field">
-        <label>옷 색</label>
-        <div className="row swatches">
+        <label id="shirt-color-label">옷 색</label>
+        <div className="row swatches" aria-describedby="shirt-color-note">
           {AVATAR_OPTIONS.shirt.map((c, i) => (
             <button
               key={c}
               type="button"
+              disabled
               className={`swatch${avatar.shirt === i ? " on" : ""}`}
               style={{ background: c }}
               aria-label={`옷 색 ${i + 1}`}
@@ -91,6 +97,8 @@ export function AvatarEditor({ value: avatar, onChange: setAvatar, owned = [] }:
             />
           ))}
         </div>
+        {/* 새 캐릭터 티셔츠 색 그림이 아직 없다 (layers.ts SHIRT_ASSET). 그림이 들어오면 disabled · 안내를 뺀다 */}
+        <p id="shirt-color-note" className="muted wear-empty">새 캐릭터 옷 색은 곧 추가돼요.</p>
       </div>
       <div className="field">
         <label>옷</label>

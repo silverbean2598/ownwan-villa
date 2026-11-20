@@ -93,7 +93,7 @@ describe("RoomTile", () => {
   it("unlit_room_renders_sleep_avatar", () => {
     const h = render(m("a", 3, 1, false));
     expect(h).not.toContain("room on");
-    expect(h).toContain(">z<");
+    expect(h).toContain('class="spr p-sleep"');
     expect(h).toContain("헬스");
   });
 });

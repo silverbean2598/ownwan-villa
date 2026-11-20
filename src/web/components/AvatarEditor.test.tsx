@@ -39,4 +39,18 @@ describe("AvatarEditor", () => {
     expect(h).toContain("모자");
     expect(h).not.toContain("헤어밴드");
   });
+  it("preview_is_new_sprite_character_and_shirt_color_is_disabled_with_note", () => {
+    const h = renderToStaticMarkup(
+      <MemoryRouter>
+        <AvatarEditor value={{ ...DEFAULT_AVATAR, hair: "side-part", skin: 2 }} onChange={() => {}} />
+      </MemoryRouter>,
+    );
+    const doc = new DOMParser().parseFromString(h, "text/html");
+    const prev = doc.querySelector(".editor-preview svg.spr.p-idle")!;
+    expect([...prev.querySelectorAll("image")].map((i) => i.getAttribute("href"))).toContain("/avatar2/idle/hair-part-front.webp");
+    const shirts = [...doc.querySelectorAll('button[aria-label^="옷 색"]')];
+    expect(shirts).toHaveLength(AVATAR_OPTIONS.shirt.length);
+    for (const b of shirts) expect(b.hasAttribute("disabled")).toBe(true);
+    expect(h).toContain("새 캐릭터 옷 색은 곧 추가돼요");
+  });
 });
