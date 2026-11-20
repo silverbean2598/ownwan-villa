@@ -74,6 +74,14 @@ export type VillaBattles = {
   recent: BattleView[];
 };
 
+/** 우리 빌라 쪽 이유로 어느 빌라에도 신청할 수 없을 때 이유 (방장 아님 · 비공개 · 이미 대결 중). 신청할 수 있으면 null */
+export function selfBlock(from: RankingMine | undefined): string | null {
+  if (!from || !from.isOwner) return "대결 신청은 방장만 할 수 있어요";
+  if (!from.public) return "우리 빌라를 지도에 공개해야 대결할 수 있어요";
+  if (from.inBattle) return "우리 빌라는 이미 대결 중이거나 신청이 오가는 중이에요";
+  return null;
+}
+
 /** 대결 신청 버튼을 누를 수 없는 이유 (화면 한 줄). 누를 수 있으면 null */
 export function challengeBlock(
   target: { id: string; inBattle: boolean },

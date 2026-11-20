@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../../api";
-import { challengeBlock, type RankingMine } from "../../../shared/price";
+import { challengeBlock, selfBlock, type RankingMine } from "../../../shared/price";
 import { BATTLE_DAYS, BATTLE_POINTS } from "../../../shared/rules/price";
 
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
@@ -13,7 +13,15 @@ const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생�
  * - 방장이 아닌 입주민 · 빌라가 없는 사람: 아무것도 그리지 않는다
  * 신청하면 우리 빌라 대결 화면으로 간다
  */
-export function ChallengeBox({ target, mine, compact = false }: { target: { id: string; name: string; inBattle: boolean }; mine: RankingMine[]; compact?: boolean }) {
+export function ChallengeBox({
+  target, mine, compact = false, quietSelf = false,
+}: {
+  target: { id: string; name: string; inBattle: boolean };
+  mine: RankingMine[];
+  compact?: boolean;
+  /** 우리 빌라 쪽 이유(비공개 · 이미 대결 중)면 줄마다 쓰지 않고 그리지 않는다 (순위 화면은 위에 한 번만 알린다) */
+  quietSelf?: boolean;
+}) {
   const nav = useNavigate();
   const owned = mine.filter((m) => m.isOwner);
   const ready = owned.filter((m) => m.villaId !== target.id && m.public && !m.inBattle);
@@ -37,6 +45,7 @@ export function ChallengeBox({ target, mine, compact = false }: { target: { id: 
     }
   }
 
+  if (block && quietSelf && block === selfBlock(from)) return null;
   if (block) {
     return (
       <div className={`challenge${compact ? " compact" : ""}`}>

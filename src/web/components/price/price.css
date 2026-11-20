@@ -139,3 +139,5 @@
 .city-card .challenge { margin-top: 10px; flex-wrap: wrap; }
 .city-head-links { display: flex; align-items: center; justify-content: space-between; }
 .city-head-links .rank-link { font-size: 14px; font-weight: 600; color: #2F5BEA; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+.rank-hint.fight { background: #F8F6FF; color: #3B2D8F; }
+.battle-rules, .challenge-rules, .battle-card, .battle-empty { word-break: keep-all; }

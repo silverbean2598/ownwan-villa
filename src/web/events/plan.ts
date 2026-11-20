@@ -145,7 +145,7 @@ export function eventCopy(e: AppEvent): string {
     case "battle_result": {
       const other = str(p.opponentName, "상대 빌라");
       const pts = typeof p.points === "number" && p.points > 0 ? ` 입주민 모두 +${p.points}P` : "";
-      if (p.result === "won") return `${villa ? `${villa}, ` : ""}${other}${objParticle(other)} 이겼어요! 집값 대결 승리${pts}`;
+      if (p.result === "won") return `${villa ? `${villa}, ` : ""}${other}${objParticle(other)} 이겼어요! 집값 대결에서 승리했어요.${pts}`;
       if (p.result === "lost") return `${villa ? `${villa}, ` : ""}아쉽게 ${other}에 졌어요. 다음 대결에서 다시 해 봐요`;
       return `${villa ? `${villa}, ` : ""}${other}${withParticle(other)} 무승부예요. 오른 집값이 똑같았어요`;
     }

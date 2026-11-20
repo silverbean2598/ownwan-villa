@@ -191,7 +191,7 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
       </g>
 
       {villa.trophy && <RoofTrophy x={-W / 2 + 13} y={roof} rank={villa.trophy} />}
-      {villa.battleWin && <BattleMedal x={W / 2 - 1} y={bodyTop + 13} />}
+      {villa.battleWin && <BattleMedal x={W / 2 + 4} y={bodyTop + 9} />}
 
       {villa.recruit && <RecruitFlag x={W / 2 - 18} y={roof} />}
 

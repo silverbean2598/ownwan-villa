@@ -100,7 +100,7 @@ describe("events", () => {
     expect(eventCopy(e("league_rank", { rank: 1, points: 100 }))).toBe("지난주 집값 리그 1위! 우리 빌라 건물에 금 트로피가 달렸어요. 입주민 모두 +100P");
     expect(eventCopy(e("league_rank", { rank: 3, points: 0, multi: true, villaName: "햇살" }))).toContain("햇살 건물에 동 트로피");
     expect(eventCopy(e("league_rank", { rank: 3, points: 0 }))).toContain("다음 기회에");
-    expect(eventCopy(e("battle_result", { result: "won", opponentName: "새벽런닝", points: 50 }))).toBe("새벽런닝을 이겼어요! 집값 대결 승리 입주민 모두 +50P");
+    expect(eventCopy(e("battle_result", { result: "won", opponentName: "새벽런닝", points: 50 }))).toBe("새벽런닝을 이겼어요! 집값 대결에서 승리했어요. 입주민 모두 +50P");
     expect(eventCopy(e("battle_result", { result: "draw", opponentName: "햇살빌라" }))).toContain("햇살빌라와 무승부");
     expect(eventCopy(e("battle_started", { opponentName: "달빛" }))).toBe("달빛과 집값 대결이 내일부터 7일 동안 열려요");
     expect(eventCopy(e("battle_challenged", { fromName: "달빛" }))).toContain("달빛에서 집값 대결을 신청했어요");

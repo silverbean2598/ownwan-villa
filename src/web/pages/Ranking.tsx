@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
-import type { RankingResponse } from "../../shared/price";
+import { selfBlock, type RankingResponse } from "../../shared/price";
 import { LEAGUE_POINTS } from "../../shared/rules/price";
 import { PriceBadges, PriceTag, TrophyIcon } from "../components/price/PriceTag";
 import { ChallengeBox } from "../components/price/ChallengeBox";
@@ -34,6 +34,9 @@ export function Ranking() {
 
   const mineIds = new Set(data.mine.map((m) => m.villaId));
   const hiddenMine = data.mine.filter((m) => !m.public);
+  // 내가 방장인 빌라가 모두 우리 쪽 이유로 신청할 수 없으면 위에 한 번만 알린다 (줄마다 같은 이유를 쓰지 않는다)
+  const owned = data.mine.filter((m) => m.isOwner);
+  const ownBlock = owned.length && owned.every((m) => selfBlock(m)) ? selfBlock(owned[0]) : null;
   const back = from === "city" ? { to: "/city", label: "← 도시로" } : { to: "/villa", label: "← 빌라로" };
 
   return (
@@ -65,6 +68,12 @@ export function Ranking() {
         </p>
       ))}
 
+      {ownBlock && (
+        <p className="rank-hint fight" role="status">
+          {ownBlock}.{owned[0].inBattle && " 대결이 끝나면 다시 신청할 수 있어요."}
+        </p>
+      )}
+
       {data.villas.length === 0 ? (
         <p className="rank-empty">아직 지도에 공개한 빌라가 없어요.</p>
       ) : (
@@ -87,7 +96,7 @@ export function Ranking() {
                   </div>
                   <PriceTag price={v.price} change={v.change} className="stack" />
                 </div>
-                <ChallengeBox target={v} mine={data.mine} compact />
+                <ChallengeBox target={v} mine={data.mine} compact quietSelf />
               </li>
             );
           })}
