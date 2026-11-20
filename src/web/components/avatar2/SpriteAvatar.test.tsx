@@ -24,6 +24,7 @@ describe("새 캐릭터 그림 고르기", () => {
       "/avatar2/idle/hair-part-front.webp",
     ]);
     for (const h of AVATAR_OPTIONS.hair) expect(spriteLayers(a({ hair: h }), "running").hair).toBe(h === "side-part" ? "part" : h);
+    expect(urls(a({ hair: "side-part" }), "taekwondo")).toEqual(["/avatar2/taekwondo/body-dobok-part-s0.webp"]);
   });
   it("every_catalog_outfit_maps_to_a_body_asset_or_tee", () => {
     const meta = spriteMeta("idle");
@@ -40,12 +41,32 @@ describe("새 캐릭터 그림 고르기", () => {
     // 저장값이 깨져 있으면 기본 캐릭터
     expect(urls({ skin: 9, hair: "mohawk", shirt: 0 } as AvatarSpec, "idle")[1]).toBe("/avatar2/idle/body-tee-s0.webp");
   });
-  it("jiujitsu_and_taekwondo_wear_uniforms", () => {
+  it("jiujitsu_and_taekwondo_wear_uniforms_with_hair_baked_in", () => {
     for (const o of [undefined, "hoodie", "rashguard"]) {
-      expect(spriteLayers(a({ outfit: o }), "jiujitsu").outfit).toBe("gi");
-      expect(spriteLayers(a({ outfit: o }), "taekwondo").outfit).toBe("dobok");
+      expect(spriteLayers(a({ outfit: o }), "jiujitsu").outfit).toBe("gi-short");
+      expect(spriteLayers(a({ outfit: o }), "taekwondo").outfit).toBe("dobok-short");
     }
-    expect(urls(a({ skin: 2 }), "jiujitsu")[1]).toBe("/avatar2/jiujitsu/body-gi-s2.webp");
+    // 머리 층 없이 몸(머리 포함) 하나 + 소품
+    expect(urls(a({ skin: 2, hair: "afro" }), "jiujitsu")).toEqual(["/avatar2/jiujitsu/body-gi-afro-s2.webp"]);
+    expect(urls(a({ hair: "bun", acc: ["glasses", "towel"] }), "taekwondo")).toEqual([
+      "/avatar2/taekwondo/body-dobok-bun-s0.webp",
+      "/avatar2/taekwondo/acc-glasses.webp",
+      "/avatar2/taekwondo/acc-towel.webp",
+    ]);
+    expect(spriteLayers(a({ hair: "wolf" }), "jiujitsu", "sm").urls).toEqual(["/avatar2/jiujitsu/sm/body-gi-wolf-s0.webp"]);
+    for (const p of ["jiujitsu", "taekwondo"] as const) {
+      const m = spriteMeta(p);
+      expect(m.fullHair).toBe(true);
+      expect(m.hairs).toEqual([]);
+      for (const h of AVATAR_OPTIONS.hair) {
+        const l = spriteLayers(a({ hair: h }), p);
+        expect(l.hair).toBe("");
+        expect(l.outfit, `${p} ${h}`).toBe(`${m.outfits[0]}-${h === "side-part" ? "part" : h}`);
+        expect(l.urls.some((u) => u.includes("/hair-"))).toBe(false);
+      }
+      // 머리 그림이 없으면 민머리 도복
+      expect(outfitAsset(a({ hair: "afro" }), { ...m, outfits: [m.outfits[0]] })).toBe(m.outfits[0]);
+    }
   });
   it("skin_index_picks_body_file", () => {
     for (let s = 0; s < AVATAR_OPTIONS.skin.length; s++) expect(urls(a({ skin: s, outfit: "singlet" }), "running")[1]).toBe(`/avatar2/running/body-singlet-s${s}.webp`);
@@ -53,6 +74,10 @@ describe("새 캐릭터 그림 고르기", () => {
   it("only_needed_layers_in_draw_order_props_only_for_gym", () => {
     for (const p of POSES) {
       const u = urls(a({ hair: "afro", outfit: "hoodie" }), p);
+      if (spriteMeta(p).fullHair) {
+        expect(u).toEqual([`/avatar2/${p}/body-${p === "jiujitsu" ? "gi" : "dobok"}-afro-s0.webp`]);
+        continue;
+      }
       expect(u[0]).toMatch(/hair-afro-back\.webp$/);
       expect(u[1]).toMatch(/\/body-[a-z-]+-s0\.webp$/);
       expect(u[2]).toMatch(/hair-afro-front\.webp$/);
@@ -76,7 +101,8 @@ describe("새 캐릭터 그림 고르기", () => {
     ]);
     for (const p of POSES) {
       expect(spriteMeta(p).accs, p).toEqual(ACCESSORIES.map((x) => x.id));
-      for (const x of ACCESSORIES) expect(urls(a({ acc: [x.id] }), p)[3], `${p} ${x.id}`).toBe(`/avatar2/${p}/acc-${x.id}.webp`);
+      const at = spriteMeta(p).fullHair ? 1 : 3;
+      for (const x of ACCESSORIES) expect(urls(a({ acc: [x.id] }), p)[at], `${p} ${x.id}`).toBe(`/avatar2/${p}/acc-${x.id}.webp`);
     }
     expect(spriteLayers(a({ acc: ["glasses", "headband"] }), "idle").acc).toEqual(["headband", "glasses"]);
   });
@@ -92,7 +118,7 @@ describe("새 캐릭터 그림 고르기", () => {
     for (const p of POSES) {
       const meta = spriteMeta(p);
       for (let i = 0; i < AVATAR_OPTIONS.shirt.length; i++) {
-        const uniform = p === "jiujitsu" ? "gi" : p === "taekwondo" ? "dobok" : null;
+        const uniform = p === "jiujitsu" ? "gi-short" : p === "taekwondo" ? "dobok-short" : null;
         expect(outfitAsset(a({ shirt: i }), meta), `${p} ${i}`).toBe(uniform ?? SHIRT_ASSET[i]);
         // 산 옷을 입으면 색 티는 쓰지 않는다
         expect(outfitAsset(a({ shirt: i, outfit: "hoodie" }), meta)).toBe(uniform ?? "hoodie");
@@ -136,6 +162,12 @@ describe("새 캐릭터 그림 고르기", () => {
       const dir = join(ROOT, "public/avatar2", p);
       for (const o of m.outfits) for (let s = 0; s < 4; s++, n++) expect(existsSync(join(dir, `body-${o}-s${s}.webp`)), `${p} ${o} ${s}`).toBe(true);
       for (const h of m.hairs) for (const side of ["back", "front"]) expect(existsSync(join(dir, `hair-${h}-${side}.webp`)), `${p} ${h}`).toBe(true);
+      if (m.fullHair) {
+        // 머리가 몸 그림에 있다: 모든 머리 × 피부 몸 그림이 있고 머리 층 그림은 없다
+        for (const h of AVATAR_OPTIONS.hair)
+          for (let s = 0; s < 4; s++) expect(existsSync(join(dir, `body-${m.outfits[0]}-${h === "side-part" ? "part" : h}-s${s}.webp`)), `${p} ${h} ${s}`).toBe(true);
+        expect(readdirSync(dir).some((f) => f.startsWith("hair-")), p).toBe(false);
+      } else expect(m.hairs.length, p).toBeGreaterThan(0);
       for (const x of m.accs) expect(existsSync(join(dir, `acc-${x}.webp`)), `${p} acc ${x}`).toBe(true);
       expect(existsSync(join(dir, "props.webp"))).toBe(m.props);
       // sm/ 에 같은 이름 그림이 다 있다

@@ -10,6 +10,8 @@ export type SpriteMeta = {
   frames: number;
   outfits: readonly string[];
   hairs: readonly string[];
+  /** 머리가 몸 그림에 들어 있다 (주짓수 · 태권도): body-<도복>-<머리>-s<피부>, 머리 층 없음 */
+  fullHair: boolean;
   props: boolean;
   accs: readonly string[];
 };
@@ -52,6 +54,7 @@ export const SPRITE_MANIFEST = {
       "wolf",
       "beanie"
     ],
+    "fullHair": false,
     "props": false,
     "accs": [
       "headband",
@@ -96,6 +99,7 @@ export const SPRITE_MANIFEST = {
       "wolf",
       "beanie"
     ],
+    "fullHair": false,
     "props": true,
     "accs": [
       "headband",
@@ -140,6 +144,7 @@ export const SPRITE_MANIFEST = {
       "wolf",
       "beanie"
     ],
+    "fullHair": false,
     "props": false,
     "accs": [
       "headband",
@@ -151,26 +156,26 @@ export const SPRITE_MANIFEST = {
     ]
   },
   "jiujitsu": {
-    "fw": 524,
+    "fw": 483,
     "fh": 400,
-    "sw": 1572,
-    "smSw": 629,
+    "sw": 1449,
+    "smSw": 580,
     "frames": 3,
     "outfits": [
-      "gi"
+      "gi",
+      "gi-short",
+      "gi-long",
+      "gi-bun",
+      "gi-buzz",
+      "gi-part",
+      "gi-afro",
+      "gi-pigtails",
+      "gi-ponytail",
+      "gi-wolf",
+      "gi-beanie"
     ],
-    "hairs": [
-      "short",
-      "long",
-      "bun",
-      "buzz",
-      "part",
-      "afro",
-      "pigtails",
-      "ponytail",
-      "wolf",
-      "beanie"
-    ],
+    "hairs": [],
+    "fullHair": true,
     "props": false,
     "accs": [
       "headband",
@@ -182,10 +187,10 @@ export const SPRITE_MANIFEST = {
     ]
   },
   "pilates": {
-    "fw": 539,
+    "fw": 537,
     "fh": 400,
-    "sw": 1618,
-    "smSw": 647,
+    "sw": 1613,
+    "smSw": 645,
     "frames": 3,
     "outfits": [
       "tee",
@@ -215,6 +220,7 @@ export const SPRITE_MANIFEST = {
       "wolf",
       "beanie"
     ],
+    "fullHair": false,
     "props": false,
     "accs": [
       "headband",
@@ -259,6 +265,7 @@ export const SPRITE_MANIFEST = {
       "wolf",
       "beanie"
     ],
+    "fullHair": false,
     "props": false,
     "accs": [
       "headband",
@@ -270,10 +277,10 @@ export const SPRITE_MANIFEST = {
     ]
   },
   "sleep": {
-    "fw": 635,
+    "fw": 628,
     "fh": 400,
-    "sw": 1905,
-    "smSw": 762,
+    "sw": 1885,
+    "smSw": 754,
     "frames": 3,
     "outfits": [
       "tee",
@@ -303,6 +310,7 @@ export const SPRITE_MANIFEST = {
       "wolf",
       "beanie"
     ],
+    "fullHair": false,
     "props": false,
     "accs": [
       "headband",
@@ -314,26 +322,26 @@ export const SPRITE_MANIFEST = {
     ]
   },
   "taekwondo": {
-    "fw": 268,
+    "fw": 262,
     "fh": 400,
-    "sw": 804,
-    "smSw": 322,
+    "sw": 788,
+    "smSw": 315,
     "frames": 3,
     "outfits": [
-      "dobok"
+      "dobok",
+      "dobok-short",
+      "dobok-long",
+      "dobok-bun",
+      "dobok-buzz",
+      "dobok-part",
+      "dobok-afro",
+      "dobok-pigtails",
+      "dobok-ponytail",
+      "dobok-wolf",
+      "dobok-beanie"
     ],
-    "hairs": [
-      "short",
-      "long",
-      "bun",
-      "buzz",
-      "part",
-      "afro",
-      "pigtails",
-      "ponytail",
-      "wolf",
-      "beanie"
-    ],
+    "hairs": [],
+    "fullHair": true,
     "props": false,
     "accs": [
       "headband",

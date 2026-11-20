@@ -24,10 +24,11 @@ const OUTFIT_ASSET: Record<string, string> = {
  */
 export const SHIRT_ASSET = ["tee-coral", "tee-orange", "tee-yellow", "tee-mint", "tee", "tee-navy", "tee-lavender", "tee-charcoal"] as const;
 
-// 그림마다 캐릭터를 그린 배율이 달라 머리 크기로 맞춘다: hair-buzz-front 첫 칸의 불투명 영역(알파 > 0) 긴 변(px, 측정값)
-const HEAD_PX: Record<Pose, number> = { idle: 178, sleep: 236, gym: 161, running: 173, pilates: 216, climbing: 133, jiujitsu: 201, taekwondo: 169 };
-// 칸 아래 빈 줄(px). 발 · 매트 · 몸 아래끝을 바닥에 맞춘다 (body-tee(도복) 그림 불투명 영역 측정값)
-const FLOOR_PAD: Partial<Record<Pose, number>> = { sleep: 2, pilates: 4, jiujitsu: 29, climbing: 1 };
+// 그림마다 캐릭터를 그린 배율이 달라 머리 크기로 맞춘다: hair-buzz-front 첫 칸의 불투명 영역(알파 > 0) 긴 변(px, 측정값).
+// 주짓수 · 태권도(머리가 몸 그림에 들어 있음)는 내보낸 그림에 같이 온 hair-buzz-front(배포하지 않음)로 쟀다
+const HEAD_PX: Record<Pose, number> = { idle: 178, sleep: 236, gym: 161, running: 173, pilates: 217, climbing: 133, jiujitsu: 189, taekwondo: 169 };
+// 칸 아래 빈 줄(px). 발 · 매트 · 몸 아래끝을 바닥에 맞춘다 (body-tee(민머리 도복) 그림 첫 칸 불투명 영역 측정값)
+const FLOOR_PAD: Partial<Record<Pose, number>> = { sleep: 2, pilates: 3, jiujitsu: 26, climbing: 1 };
 
 /** 그림 해상도: 원본(세로 400px) · 작은 그림(sm/, 세로 160px) */
 export type SpriteRes = "full" | "sm";
@@ -60,9 +61,16 @@ export function spriteMeta(pose: Pose): SpriteMeta {
 
 export const hairAsset = (hair: string) => HAIR_ASSET[hair] ?? hair;
 
-/** 이 자세에서 입을 몸 그림 이름. 도복 자세(주짓수 · 태권도)는 그림에 있는 옷 하나뿐 */
+/**
+ * 이 자세에서 입을 몸 그림 이름. 도복 자세(주짓수 · 태권도)는 그림에 있는 옷 하나뿐.
+ * 머리가 몸 그림에 들어 있는 자세(fullHair)는 "<도복>-<머리>" (그 머리 그림이 없으면 민머리 "<도복>")
+ */
 export function outfitAsset(spec: AvatarSpec, meta: SpriteMeta): string {
   const has = (o: string) => meta.outfits.includes(o);
+  if (meta.fullHair) {
+    const withHair = `${meta.outfits[0]}-${hairAsset(spec.hair)}`;
+    return has(withHair) ? withHair : meta.outfits[0];
+  }
   const want = (spec.outfit && OUTFIT_ASSET[spec.outfit]) || "tee";
   if (want === "tee") {
     const colored = SHIRT_ASSET[spec.shirt];
@@ -75,10 +83,11 @@ export function outfitAsset(spec: AvatarSpec, meta: SpriteMeta): string {
 export type SpriteLayers = {
   meta: SpriteMeta;
   outfit: string;
+  /** 머리 층 그림 이름. fullHair 자세는 머리가 몸 그림에 있어 "" */
   hair: string;
   /** 그릴 소품 (meta.accs 순서) */
   acc: string[];
-  /** 그리는 순서: 뒷머리 → 몸 → 앞머리 → 소품 → 기구(바벨) */
+  /** 그리는 순서: 뒷머리 → 몸 → 앞머리 → 소품 → 기구(바벨). fullHair 자세는 몸 → 소품 */
   urls: string[];
   /** svg 안에서 띠 그림을 그릴 가로 (viewBox 단위 = 원본 px). sm/ 도 원본 배율로 늘려 칸 위치가 같다 */
   stripW: number;
@@ -89,7 +98,7 @@ export function spriteLayers(raw: AvatarSpec, pose: Pose, res: SpriteRes = "full
   const spec = parseAvatar(raw) ?? DEFAULT_AVATAR;
   const meta = spriteMeta(pose);
   const dir = `${SPRITE_BASE}/${pose}${res === "sm" ? "/sm" : ""}`;
-  const hair = meta.hairs.includes(hairAsset(spec.hair)) ? hairAsset(spec.hair) : hairAsset(DEFAULT_AVATAR.hair);
+  const hair = meta.fullHair ? "" : meta.hairs.includes(hairAsset(spec.hair)) ? hairAsset(spec.hair) : hairAsset(DEFAULT_AVATAR.hair);
   const outfit = outfitAsset(spec, meta);
   const skin = Math.min(spec.skin, AVATAR_OPTIONS.skin.length - 1);
   // 비니는 머리 자리를 차지하므로 모자 · 헤어밴드는 그리지 않는다 (옛 캐릭터와 같은 규칙)
@@ -103,9 +112,9 @@ export function spriteLayers(raw: AvatarSpec, pose: Pose, res: SpriteRes = "full
     acc,
     stripW: res === "sm" ? (meta.smSw * meta.fh) / SPRITE_SM_H : meta.sw,
     urls: [
-      `${dir}/hair-${hair}-back.webp`,
+      ...(hair ? [`${dir}/hair-${hair}-back.webp`] : []),
       `${dir}/body-${outfit}-s${skin}.webp`,
-      `${dir}/hair-${hair}-front.webp`,
+      ...(hair ? [`${dir}/hair-${hair}-front.webp`] : []),
       ...acc.map((a) => `${dir}/acc-${a}.webp`),
       ...(meta.props ? [`${dir}/props.webp`] : []),
     ],

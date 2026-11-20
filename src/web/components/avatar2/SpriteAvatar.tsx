@@ -60,7 +60,7 @@ function useSpriteRes<T extends SVGSVGElement>(fh: number) {
 /**
  * 새 캐릭터: 같은 크기의 그림 띠(3칸)를 뒷머리 → 몸 → 앞머리 → 소품 → 바벨 순으로 겹치고,
  * 한 칸 크기의 svg 창으로 잘라 보여 준다. 칸 넘기기는 sprite.css 가 띠를 옮겨서 한다.
- * 요소 수 = svg 1 + 그림 3~4 (+ 낀 소품 수. 빌라 화면 DOM 을 작게).
+ * 요소 수 = svg 1 + 그림 3~4 (도복 자세는 머리가 몸 그림에 있어 1) + 낀 소품 수. 빌라 화면 DOM 을 작게.
  */
 export function SpriteAvatar({ spec, size, pose = "idle", className, label = "캐릭터", x, y }: Props) {
   const [ref, res] = useSpriteRes<SVGSVGElement>(spriteMeta(pose).fh);
@@ -70,7 +70,7 @@ export function SpriteAvatar({ spec, size, pose = "idle", className, label = "�
     <svg
       ref={ref}
       className={`spr p-${pose}${className ? ` ${className}` : ""}`}
-      data-hair={hair}
+      data-hair={hair || undefined}
       data-outfit={outfit}
       data-res={res ?? undefined}
       role="img"

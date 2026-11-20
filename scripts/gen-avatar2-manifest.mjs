@@ -42,6 +42,16 @@ for (const pose of readdirSync(DIR).sort()) {
   if (smSizes.size !== 1 || [...smSizes][0] !== `${smSw}x${SM_H}`) throw new Error(`${pose}: sm/ 크기 ${[...smSizes]} ≠ ${smSw}x${SM_H}`);
   for (const a of m.accs ?? []) if (!names.includes(`acc-${a}.webp`)) throw new Error(`${pose}: acc-${a}.webp 없음`);
   for (const o of m.outfits) for (let s = 0; s < 4; s++) if (!names.includes(`body-${o}-s${s}.webp`)) throw new Error(`${pose}: body-${o}-s${s}.webp 없음`);
+  // 머리가 몸 그림에 들어 있는 자세(fullHair: 주짓수 · 태권도): 머리 층이 없다. outfits[0] = 민머리 도복, 나머지 = "<도복>-<머리>"
+  const fullHair = !!m.fullHair;
+  if (fullHair) {
+    if (m.hairs.length) throw new Error(`${pose}: fullHair 인데 hairs 가 있다`);
+    if (names.some((f) => f.startsWith("hair-"))) throw new Error(`${pose}: fullHair 인데 hair-*.webp 가 있다`);
+    const base = m.outfits[0];
+    for (const o of m.outfits.slice(1)) if (!o.startsWith(`${base}-`)) throw new Error(`${pose}: ${o} 는 ${base}-<머리> 꼴이 아니다`);
+  } else {
+    for (const h of m.hairs) for (const side of ["back", "front"]) if (!names.includes(`hair-${h}-${side}.webp`)) throw new Error(`${pose}: hair-${h}-${side}.webp 없음`);
+  }
   out[pose] = {
     fw: m.frame_w,
     fh: m.frame_h,
@@ -50,6 +60,7 @@ for (const pose of readdirSync(DIR).sort()) {
     frames: m.frames,
     outfits: m.outfits,
     hairs: m.hairs,
+    fullHair,
     props: !!m.props,
     accs: m.accs ?? [],
   };
@@ -69,6 +80,8 @@ export type SpriteMeta = {
   frames: number;
   outfits: readonly string[];
   hairs: readonly string[];
+  /** 머리가 몸 그림에 들어 있다 (주짓수 · 태권도): body-<도복>-<머리>-s<피부>, 머리 층 없음 */
+  fullHair: boolean;
   props: boolean;
   accs: readonly string[];
 };
