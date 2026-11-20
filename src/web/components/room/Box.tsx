@@ -1,3 +1,4 @@
+import { useId } from "react";
 // 한 점 투시 인형의 집 상자(뒷벽 · 옆벽 · 천장 · 나무 바닥). 좌표는 viewBox 단위.
 export type Geom = { W: number; H: number; bx0: number; bx1: number; by0: number; by1: number };
 
@@ -17,13 +18,18 @@ export type Palette = {
   floor: string;
   plank: string;
   trim?: string;
+  /** 벽 아래쪽 판넬(징두리) · 걸레받이 · 엇갈린 마루 널 색 */
+  wain: string;
+  base: string;
+  floor2: string;
 };
 
+// 새 캐릭터 그림(파스텔 · 부드러운 갈색 외곽선 · 옅은 그림자)에 맞춘 색
 export const PALETTE = {
-  lit: { ink: "#5B4640", frame: "#F2CF96", ceil: "#FBEBD6", side: "#FCE6B2", back: "#FDF3D8", floor: "#EFCDA3", plank: "#D8AE84" },
-  unlit: { ink: "#2A2438", frame: "#1E2A4E", ceil: "#1F2D57", side: "#22335F", back: "#293B6C", floor: "#8A8174", plank: "#6E665B" },
-  phLit: { ink: "#5B4640", frame: "#6B4A40", ceil: "#F4E7D0", side: "#FBEFCF", back: "#FCF3DC", floor: "#7B4436", plank: "#5F3128", trim: "#D9A93A" },
-  phUnlit: { ink: "#2A2438", frame: "#3E2D33", ceil: "#1F2D57", side: "#22335F", back: "#293B6C", floor: "#4C3540", plank: "#3A2832", trim: "#A88A3E" },
+  lit: { ink: "#5B4640", frame: "#F2CF96", ceil: "#FBEBD6", side: "#FCE6B2", back: "#FDF3D8", floor: "#EFCDA3", plank: "#D8AE84", wain: "#F6DDB4", base: "#C99463", floor2: "#E8C194" },
+  unlit: { ink: "#2A2438", frame: "#1E2A4E", ceil: "#1F2D57", side: "#22335F", back: "#293B6C", floor: "#8A8174", plank: "#6E665B", wain: "#24365F", base: "#4A4458", floor2: "#80776B" },
+  phLit: { ink: "#5B4640", frame: "#6B4A40", ceil: "#F4E7D0", side: "#FBEFCF", back: "#FCF3DC", floor: "#7B4436", plank: "#5F3128", trim: "#D9A93A", wain: "#F1E0BE", base: "#6B4A40", floor2: "#723D30" },
+  phUnlit: { ink: "#2A2438", frame: "#3E2D33", ceil: "#1F2D57", side: "#22335F", back: "#293B6C", floor: "#4C3540", plank: "#3A2832", trim: "#A88A3E", wain: "#24365F", base: "#3E2D33", floor2: "#45303A" },
 } satisfies Record<string, Palette>;
 
 const pts = (a: number[][]) => a.map((p) => p.join(",")).join(" ");
@@ -35,22 +41,89 @@ export function leftWallPt(g: Geom, x: number, t: number) {
   return [x, top + (bottom - top) * t];
 }
 
+/** 바닥 위 점: 뒤(f=0, 뒷벽 밑) ~ 앞(f=1, 화면 아래) 사이, 가로 위치 a(0..1) */
+function floorPt(g: Geom, a: number, f: number) {
+  const y = g.by1 + (g.H - g.by1) * f;
+  const x0 = g.bx0 * (1 - f);
+  const x1 = g.bx1 + (g.W - g.bx1) * f;
+  return [x0 + (x1 - x0) * a, y];
+}
+
 export function Box({ g, c, sw }: { g: Geom; c: Palette; sw: number }) {
   const { W, H, bx0, bx1, by0, by1 } = g;
+  const id = useId().replace(/:/g, "");
   const line = { stroke: c.ink, strokeWidth: sw, strokeLinejoin: "round" as const };
+  const bh = by1 - by0;
+  // 옆벽은 앞으로 올수록 H / bh 배 커진다
+  const z = H / bh;
+  const wh = bh * 0.26; // 징두리 높이
+  const bb = bh * 0.035; // 걸레받이 높이
   const planks = 6;
+  // 바닥 깊이 줄(원근: 앞쪽일수록 간격이 넓다)
+  const rowsF = [0.12, 0.3, 0.55, 0.85];
   return (
-    <g>
+    <g data-part="room-shell">
+      <defs>
+        <linearGradient id={`${id}bk`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.35" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id={`${id}sl`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor={c.ink} stopOpacity="0.12" />
+          <stop offset="1" stopColor={c.ink} stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id={`${id}sr`} x1="1" y1="0" x2="0" y2="0">
+          <stop offset="0" stopColor={c.ink} stopOpacity="0.12" />
+          <stop offset="1" stopColor={c.ink} stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id={`${id}fl`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={c.ink} stopOpacity="0.16" />
+          <stop offset="0.35" stopColor={c.ink} stopOpacity="0" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0.1" />
+        </linearGradient>
+      </defs>
       <rect x="0" y="0" width={W} height={H} fill={c.back} />
+      {/* 천장 */}
       <polygon points={pts([[0, 0], [W, 0], [bx1, by0], [bx0, by0]])} fill={c.ceil} {...line} />
-      <polygon points={pts([[0, 0], [bx0, by0], [bx0, by1], [0, H]])} fill={c.side} {...line} />
-      <polygon points={pts([[W, 0], [W, H], [bx1, by1], [bx1, by0]])} fill={c.side} {...line} />
-      <rect x={bx0} y={by0} width={bx1 - bx0} height={by1 - by0} fill={c.back} {...line} />
-      <polygon points={pts([[bx0, by1], [bx1, by1], [W, H], [0, H]])} fill={c.floor} {...line} />
+      {/* 옆벽: 벽 · 징두리 · 걸레받이 · 앞쪽으로 갈수록 옅은 그늘 */}
+      <polygon points={pts([[0, 0], [bx0, by0], [bx0, by1], [0, H]])} fill={c.side} />
+      <polygon points={pts([[0, H - wh * z], [bx0, by1 - wh], [bx0, by1], [0, H]])} fill={c.wain} />
+      <polygon points={pts([[0, H - bb * z], [bx0, by1 - bb], [bx0, by1], [0, H]])} fill={c.base} />
+      <line x1={0} y1={H - wh * z} x2={bx0} y2={by1 - wh} stroke={c.base} strokeWidth={sw * 0.9} />
+      <polygon points={pts([[0, 0], [bx0, by0], [bx0, by1], [0, H]])} fill={`url(#${id}sl)`} {...line} />
+      <polygon points={pts([[W, 0], [W, H], [bx1, by1], [bx1, by0]])} fill={c.side} />
+      <polygon points={pts([[W, H - wh * z], [bx1, by1 - wh], [bx1, by1], [W, H]])} fill={c.wain} />
+      <polygon points={pts([[W, H - bb * z], [bx1, by1 - bb], [bx1, by1], [W, H]])} fill={c.base} />
+      <line x1={W} y1={H - wh * z} x2={bx1} y2={by1 - wh} stroke={c.base} strokeWidth={sw * 0.9} />
+      <polygon points={pts([[W, 0], [W, H], [bx1, by1], [bx1, by0]])} fill={`url(#${id}sr)`} {...line} />
+      {/* 뒷벽 */}
+      <rect x={bx0} y={by0} width={bx1 - bx0} height={bh} fill={c.back} />
+      <rect x={bx0} y={by1 - wh} width={bx1 - bx0} height={wh} fill={c.wain} />
+      {Array.from({ length: 5 }, (_, i) => {
+        const x = bx0 + ((bx1 - bx0) * (i + 1)) / 6;
+        return <line key={i} x1={x} y1={by1 - wh + sw * 1.4} x2={x} y2={by1 - bb} stroke={c.base} strokeWidth={sw * 0.45} opacity="0.55" />;
+      })}
+      <line x1={bx0} y1={by1 - wh} x2={bx1} y2={by1 - wh} stroke={c.base} strokeWidth={sw * 0.9} />
+      <rect x={bx0} y={by1 - bb} width={bx1 - bx0} height={bb} fill={c.base} />
+      <rect x={bx0} y={by0} width={bx1 - bx0} height={bh} fill={`url(#${id}bk)`} {...line} />
+      {/* 마루: 엇갈린 널 색 · 이음매 · 안쪽 그늘 */}
+      <polygon points={pts([[bx0, by1], [bx1, by1], [W, H], [0, H]])} fill={c.floor} />
+      {Array.from({ length: planks }, (_, i) =>
+        i % 2 ? (
+          <polygon key={i} points={pts([floorPt(g, i / planks, 0), floorPt(g, (i + 1) / planks, 0), floorPt(g, (i + 1) / planks, 1), floorPt(g, i / planks, 1)])} fill={c.floor2} />
+        ) : null,
+      )}
       {Array.from({ length: planks - 1 }, (_, i) => {
         const t = (i + 1) / planks;
         return <line key={i} x1={bx0 + (bx1 - bx0) * t} y1={by1} x2={W * t} y2={H} stroke={c.plank} strokeWidth={sw * 0.7} />;
       })}
+      {Array.from({ length: planks }, (_, i) => {
+        const f = rowsF[(i * 3) % rowsF.length];
+        const [x1, y] = floorPt(g, i / planks, f);
+        const [x2] = floorPt(g, (i + 1) / planks, f);
+        return <line key={`s${i}`} x1={x1} y1={y} x2={x2} y2={y} stroke={c.plank} strokeWidth={sw * 0.55} />;
+      })}
+      <polygon points={pts([[bx0, by1], [bx1, by1], [W, H], [0, H]])} fill={`url(#${id}fl)`} {...line} />
       {c.trim && (
         <g stroke={c.trim} strokeWidth={sw * 2.2} strokeLinecap="round">
           <polyline points={pts([[0, sw], [bx0, by0], [bx1, by0], [W, sw]])} fill="none" />
@@ -74,14 +147,41 @@ export function Frame({ g, c, sw }: { g: Geom; c: Palette; sw: number }) {
 }
 
 export function Window({ x, y, w, h, lit, sw, ink }: { x: number; y: number; w: number; h: number; lit: boolean; sw: number; ink: string }) {
-  const pane = lit ? "#BFE2F6" : "#4D6FA8";
   const b = w * 0.1;
+  const pw = (w - 3 * b) / 2;
+  const sky = lit ? "#BFE2F6" : "#3F5E98";
+  const curtain = lit ? "#F6B8C4" : "#5A5C8E";
+  const curtainD = lit ? "#E99AAA" : "#4B4C7C";
+  const cw = w * 0.32;
   return (
-    <g>
+    <g data-part="window">
       <rect x={x} y={y} width={w} height={h} rx={sw} fill={lit ? "#B98257" : "#6B5446"} stroke={ink} strokeWidth={sw} />
-      <rect x={x + b} y={y + b} width={(w - 3 * b) / 2} height={h - 2 * b} fill={pane} stroke={ink} strokeWidth={sw * 0.6} />
-      <rect x={x + 2 * b + (w - 3 * b) / 2} y={y + b} width={(w - 3 * b) / 2} height={h - 2 * b} fill={pane} stroke={ink} strokeWidth={sw * 0.6} />
+      {[x + b, x + 2 * b + pw].map((px, i) => (
+        <g key={i}>
+          <rect x={px} y={y + b} width={pw} height={h - 2 * b} fill={sky} stroke={ink} strokeWidth={sw * 0.6} />
+          <rect x={px + sw * 0.3} y={y + b + sw * 0.3} width={pw - sw * 0.6} height={(h - 2 * b) * 0.45} fill="#fff" opacity={lit ? 0.25 : 0.06} />
+        </g>
+      ))}
+      {lit ? (
+        <g fill="#fff" opacity="0.9">
+          <ellipse cx={x + b + pw * 0.55} cy={y + h * 0.3} rx={pw * 0.32} ry={h * 0.035} />
+          <ellipse cx={x + 2 * b + pw * 1.45} cy={y + h * 0.48} rx={pw * 0.26} ry={h * 0.03} />
+        </g>
+      ) : (
+        <g>
+          <circle cx={x + 2 * b + pw * 1.5} cy={y + h * 0.26} r={pw * 0.24} fill="#FFF3C4" />
+          <circle cx={x + b + pw * 0.4} cy={y + h * 0.45} r={sw * 0.35} fill="#fff" />
+          <circle cx={x + b + pw * 0.7} cy={y + h * 0.22} r={sw * 0.3} fill="#fff" />
+        </g>
+      )}
       {lit && <path d={`M${x + b * 1.6} ${y + h * 0.6} l${w * 0.12} ${-h * 0.25}`} stroke="#fff" strokeWidth={sw} strokeLinecap="round" opacity="0.8" />}
+      {/* 커튼 · 커튼봉 · 창턱 */}
+      <path d={`M${x - cw * 0.35} ${y - sw} H${x + cw * 0.6} Q${x + cw * 0.15} ${y + h * 0.5} ${x + cw * 0.35} ${y + h + sw} H${x - cw * 0.35} Z`} fill={curtain} stroke={ink} strokeWidth={sw * 0.7} strokeLinejoin="round" />
+      <path d={`M${x + w + cw * 0.35} ${y - sw} H${x + w - cw * 0.6} Q${x + w - cw * 0.15} ${y + h * 0.5} ${x + w - cw * 0.35} ${y + h + sw} H${x + w + cw * 0.35} Z`} fill={curtain} stroke={ink} strokeWidth={sw * 0.7} strokeLinejoin="round" />
+      <path d={`M${x} ${y + sw} Q${x + cw * 0.1} ${y + h * 0.5} ${x + cw * 0.05} ${y + h}`} stroke={curtainD} strokeWidth={sw * 0.6} fill="none" />
+      <path d={`M${x + w} ${y + sw} Q${x + w - cw * 0.1} ${y + h * 0.5} ${x + w - cw * 0.05} ${y + h}`} stroke={curtainD} strokeWidth={sw * 0.6} fill="none" />
+      <rect x={x - cw * 0.5} y={y - sw * 2} width={w + cw} height={sw * 1.4} rx={sw * 0.7} fill={lit ? "#B98257" : "#6B5446"} stroke={ink} strokeWidth={sw * 0.6} />
+      <rect x={x - b} y={y + h - sw * 0.2} width={w + 2 * b} height={sw * 1.8} rx={sw * 0.6} fill={lit ? "#FFF7EA" : "#7D7F9F"} stroke={ink} strokeWidth={sw * 0.6} />
     </g>
   );
 }

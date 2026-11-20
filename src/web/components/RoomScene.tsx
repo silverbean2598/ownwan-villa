@@ -6,7 +6,7 @@ import type { Sport } from "../../shared/sports";
 import { Box, Cork, Frame, Moonbeam, PALETTE, Pendant, Window } from "./room/Box";
 import { Equipment } from "./room/Equipment";
 import { Chandelier, PenthouseDecor } from "./room/Penthouse";
-import { Furniture } from "./furniture";
+import { Furniture, furnitureBox } from "./furniture";
 import { anchorTransform, sceneGeom, slotAnchors, type Anchor } from "./furniture/layout";
 import { isSlot } from "../../shared/catalog";
 
@@ -59,7 +59,16 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
   const anchors = slotAnchors(variant, penthouse);
   const placed = placements
     .filter((p) => isSlot(p.slot))
-    .map((p) => ({ ...anchors[p.slot as keyof typeof anchors], itemId: p.itemId }))
+    .map((p) => {
+      const a = anchors[p.slot as keyof typeof anchors];
+      // 넓은 가구가 상자 테두리 밖으로 나가지 않게 가로 위치를 안쪽으로 당긴다 (바닥 자리)
+      const box = a.skew ? null : furnitureBox(p.itemId);
+      if (!box) return { ...a, itemId: p.itemId };
+      const m = sw * 4;
+      const hw = (box[2] / 2) * a.s;
+      const x = hw * 2 > g.W - 2 * m ? g.W / 2 : Math.min(Math.max(a.x, m + hw), g.W - m - hw);
+      return { ...a, x, itemId: p.itemId };
+    })
     .sort((a, b) => a.y - b.y);
   const fid = useId().replace(/:/g, "");
   const furniture = (items: (Anchor & { itemId: string })[], filter: string) =>
@@ -67,7 +76,7 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
       <g filter={lit ? undefined : `url(#${filter})`}>
         {items.map((p) => (
           <g key={p.slot} data-slot={p.slot} transform={anchorTransform(p)}>
-            <Furniture itemId={p.itemId} />
+            <Furniture itemId={p.itemId} res={detail ? "full" : "sm"} />
           </g>
         ))}
       </g>
@@ -101,7 +110,7 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
         {furniture(placed.filter((p) => !p.front), `${fid}b`)}
         {showEquip && (
           <g transform={`translate(${ex} ${fy}) scale(${k})`}>
-            <Equipment sport={sport} lit={lit} />
+            <Equipment sport={sport} lit={lit} res={detail ? "full" : "sm"} />
           </g>
         )}
         {!lit && (
