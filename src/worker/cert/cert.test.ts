@@ -157,6 +157,84 @@ describe("routine cert", () => {
   });
 });
 
+describe("routine edit", () => {
+  const edit = (cookie: string, id: string, body: unknown) => app.request(`/api/certs/${id}`, json(cookie, body, "PATCH"), env);
+  const routine = async (cookie: string, body = "스쿼트 5x5") =>
+    (await (await app.request("/api/certs/routine", json(cookie, { body }), env)).json<any>()).certId as string;
+  const row = (id: string) =>
+    env.DB.prepare("SELECT body, day, points, edited_at, created_at, hidden FROM certs WHERE id = ?").bind(id).first<any>();
+
+  it("author_edits_own_routine_points_and_day_unchanged", async () => {
+    setNow(() => Date.UTC(2026, 10, 18, 3, 0, 0));
+    const u = await signup();
+    const id = await routine(u.cookie);
+    const before = await row(id);
+    // 날짜 제한 없음: 이틀 뒤에도 고칠 수 있다
+    setNow(() => Date.UTC(2026, 10, 20, 5, 0, 0));
+    const res = await edit(u.cookie, id, { body: "  데드리프트 3x5  " });
+    expect(res.status).toBe(200);
+    expect(await res.json<any>()).toEqual({ ok: true, body: "데드리프트 3x5", editedAt: Date.UTC(2026, 10, 20, 5, 0, 0) });
+    const after = await row(id);
+    expect(after).toMatchObject({ body: "데드리프트 3x5", day: before.day, points: before.points, created_at: before.created_at, edited_at: Date.UTC(2026, 10, 20, 5, 0, 0) });
+    expect(await points(u.id)).toBe(10);
+  });
+
+  it("board_returns_edited_at_only_for_edited", async () => {
+    const u = await signup();
+    const a = await routine(u.cookie, "처음");
+    const b = await routine(u.cookie, "그대로");
+    await edit(u.cookie, a, { body: "고친 글" });
+    const items = await (await board(u.cookie, u.id)).json<any[]>();
+    const ia = items.find((x) => x.id === a);
+    const ib = items.find((x) => x.id === b);
+    expect(ia).toMatchObject({ body: "고친 글", editedAt: expect.any(Number) });
+    expect(ib.editedAt).toBeUndefined();
+  });
+
+  it("housemate_gets_403_stranger_404", async () => {
+    const a = await signup();
+    const m = await signup();
+    const x = await signup();
+    await join(m.cookie, await makeVilla(a.cookie));
+    const id = await routine(a.cookie);
+    expect((await edit(m.cookie, id, { body: "남의 글" })).status).toBe(403);
+    expect((await edit(x.cookie, id, { body: "남의 글" })).status).toBe(404);
+    expect((await row(id)).body).toBe("스쿼트 5x5");
+    expect((await row(id)).edited_at).toBeNull();
+  });
+
+  it("photo_is_409_deleted_and_missing_404", async () => {
+    const u = await signup();
+    const p = await (await upload(u.cookie, { dhash: hash(0) })).json<any>();
+    expect((await edit(u.cookie, p.certId, { body: "글" })).status).toBe(409);
+    const id = await routine(u.cookie);
+    expect((await app.request(`/api/certs/${id}`, { method: "DELETE", headers: { cookie: u.cookie } }, env)).status).toBe(200);
+    expect((await edit(u.cookie, id, { body: "되살리기" })).status).toBe(404);
+    expect((await row(id)).body).toBeNull();
+    expect((await edit(u.cookie, "nope", { body: "글" })).status).toBe(404);
+  });
+
+  it("validates_body", async () => {
+    const u = await signup();
+    const id = await routine(u.cookie);
+    expect((await edit(u.cookie, id, { body: "   " })).status).toBe(400);
+    expect((await edit(u.cookie, id, {})).status).toBe(400);
+    expect((await edit(u.cookie, id, { body: "가".repeat(1001) })).status).toBe(400);
+    expect((await edit(u.cookie, id, { body: "가".repeat(1000) })).status).toBe(200);
+  });
+
+  it("hidden_routine_editable_by_author_stays_hidden", async () => {
+    const u = await signup();
+    const id = await routine(u.cookie);
+    await env.DB.prepare("UPDATE certs SET hidden = 1 WHERE id = ?").bind(id).run();
+    expect((await edit(u.cookie, id, { body: "다시 쓴 글" })).status).toBe(200);
+    expect((await row(id)).hidden).toBe(1);
+    const items = await (await board(u.cookie, u.id)).json<any[]>();
+    expect(items[0].body).toBeUndefined();
+    expect(items[0].editedAt).toBeUndefined();
+  });
+});
+
 describe("board and photos", () => {
   it("owner_and_housemate_can_view_board", async () => {
     const a = await signup();

@@ -4,6 +4,7 @@ import { api, ApiError } from "../api";
 import { BoardItem, groupByDay, type BoardItemData } from "../components/Board";
 import { usePhotoActions } from "../components/PhotoActions";
 import { CheerBar, CommentThread } from "../components/Cheer";
+import { RoutineEditor } from "../components/RoutineEdit";
 import { NotFoundRoom, useRoomMember } from "./Room";
 import { roomPath } from "../villa/current";
 import "../components/villa.css";
@@ -39,6 +40,27 @@ export function RoomBoard() {
       setErr(e instanceof ApiError ? e.message : "응원하지 못했어요. 다시 해 주세요");
     } finally {
       cheering.current.delete(it.id);
+    }
+  }
+  /** 고치는 중인 루틴 (한 번에 하나). draft · error 는 저장에 실패해 되돌아왔을 때 */
+  const [editing, setEditing] = useState<{ id: string; draft?: string; error?: string } | null>(null);
+
+  /** 루틴 저장: 먼저 화면을 바꾸고 닫는다. 실패하면 글을 되돌리고, 고치던 글로 다시 연다 */
+  async function saveRoutine(it: BoardItemData, text: string) {
+    const body = text.trim();
+    const before = { body: it.body, editedAt: it.editedAt };
+    patch(it.id, { body, editedAt: Date.now() });
+    setEditing(null);
+    setErr("");
+    try {
+      const r = await api<{ ok: boolean; body: string; editedAt: number }>(`/api/certs/${it.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ body }),
+      });
+      patch(it.id, { body: r.body, editedAt: r.editedAt });
+    } catch (e) {
+      patch(it.id, before);
+      setEditing({ id: it.id, draft: text, error: e instanceof ApiError ? e.message : "루틴을 고치지 못했어요. 다시 해 주세요" });
     }
   }
   const photoActions = usePhotoActions({
@@ -97,10 +119,38 @@ export function RoomBoard() {
                       mine={mine}
                       open={thread === it.id}
                       onCheer={() => void cheer(it)}
-                      onToggleThread={() => setThread(thread === it.id ? null : it.id)}
-                    />
+                      onToggleThread={() => {
+                        setEditing(null);
+                        setThread(thread === it.id ? null : it.id);
+                      }}
+                    >
+                      {/* 내 루틴에만 [수정]. 다른 사람 기록 · 사진에는 없다(읽기전용) */}
+                      {mine && it.kind === "routine" && editing?.id !== it.id && (
+                        <button
+                          type="button"
+                          className="cheer-edit"
+                          aria-label="루틴 수정"
+                          onClick={() => {
+                            setThread(null);
+                            setEditing({ id: it.id });
+                          }}
+                        >
+                          수정
+                        </button>
+                      )}
+                    </CheerBar>
                   )}
                 </div>
+                {editing?.id === it.id && !it.hidden && (
+                  <RoutineEditor
+                    key={`${it.id}:${editing.error ?? ""}`}
+                    original={it.body ?? ""}
+                    initial={editing.draft}
+                    error={editing.error}
+                    onSave={(text) => void saveRoutine(it, text)}
+                    onCancel={() => setEditing(null)}
+                  />
+                )}
                 {thread === it.id && !it.hidden && (
                   <CommentThread certId={it.id} onCount={(n) => patch(it.id, { commentCount: n })} />
                 )}

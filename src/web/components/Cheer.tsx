@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { api, ApiError } from "../api";
 import type { AvatarSpec } from "../../shared/avatar";
 import { MemberHead } from "./MemberManage";
@@ -76,10 +76,12 @@ type Props = {
   open: boolean;
   onCheer: () => void;
   onToggleThread: () => void;
+  /** 줄 끝에 붙이는 버튼 (내 루틴의 [수정]) */
+  children?: ReactNode;
 };
 
 /** 기록 아래 한 줄: [하트 n] [말풍선 n] */
-export function CheerBar({ item, mine, open, onCheer, onToggleThread }: Props) {
+export function CheerBar({ item, mine, open, onCheer, onToggleThread, children }: Props) {
   const hearts = item.cheerCount ?? 0;
   const talk = item.commentCount ?? 0;
   const on = !!item.cheeredByMe;
@@ -100,6 +102,7 @@ export function CheerBar({ item, mine, open, onCheer, onToggleThread }: Props) {
         <CommentIcon />
         <span>{talk}</span>
       </button>
+      {children}
     </div>
   );
 }

@@ -13,6 +13,8 @@ export type BoardItemData = {
   cheerCount?: number;
   cheeredByMe?: boolean;
   commentCount?: number;
+  /** 루틴을 고친 시각. 고친 적 없으면 없음 → "수정됨" 표시 */
+  editedAt?: number;
 };
 
 export const ROOM_BOARD_LIMIT = 6;
@@ -52,7 +54,12 @@ type ItemProps = {
 export function BoardItem({ item, renderPhotoActions, badges }: ItemProps) {
   const { m, d } = md(item.day);
   const style = { transform: `rotate(${tiltFor(item.id)}deg)` };
-  const date = <span className="cap">{`${m}/${d}`}</span>;
+  const date = (
+    <span className="cap">
+      {`${m}/${d}`}
+      {item.editedAt && !item.hidden ? <span className="edited"> · 수정됨</span> : null}
+    </span>
+  );
   const cheers = badges && !item.hidden ? <CheerBadges item={item} /> : null;
   if (item.kind === "photo") {
     return (

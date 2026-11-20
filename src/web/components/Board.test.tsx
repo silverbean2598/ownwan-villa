@@ -21,6 +21,12 @@ describe("Board", () => {
     expect(html.indexOf("스쿼트")).toBeLessThan(html.indexOf("/api/photos/b"));
     expect(html).toContain("11/18");
   });
+  it("edited_routine_shows_label_in_room_wall_too", () => {
+    const html = renderToStaticMarkup(<Board items={[routine("r", 0, { editedAt: 5 }), routine("s", 1)]} />);
+    expect(html.split("수정됨").length - 1).toBe(1);
+    // 가려진 글에는 표시하지 않는다
+    expect(renderToStaticMarkup(<Board items={[routine("r", 0, { editedAt: 5, hidden: true, body: undefined })]} />)).not.toContain("수정됨");
+  });
   it("room_mode_caps_at_6", () => {
     const items = Array.from({ length: 9 }, (_, i) => photo("p" + i, i));
     expect(count(renderToStaticMarkup(<Board items={items} />), "polaroid")).toBe(6);

@@ -311,6 +311,36 @@ cert.post("/api/certs/routine", requireUser, async (c) => {
   return c.json({ certId: id, points: row.points });
 });
 
+/**
+ * 루틴 수정 [제안]: 작성자 본인만, 지우지 않은 루틴 글만. 날짜 제한 없음. 글은 1~1000자(앞뒤 공백 제외).
+ * 글과 수정 시각(edited_at)만 바뀌고 포인트 · 날짜 · 올린 빌라 · 응원 · 댓글은 그대로다.
+ * 신고로 가려진 글도 작성자는 고칠 수 있고, 고쳐도 계속 가려져 있다.
+ * 순서: 없음 · 볼 수 없음 404 → 작성자가 아님 403 → 사진 409 → 글 확인 400
+ */
+cert.patch("/api/certs/:id", requireUser, async (c) => {
+  const userId = c.get("userId");
+  const id = c.req.param("id");
+  const row = await c.env.DB.prepare("SELECT id, user_id, kind FROM certs WHERE id = ? AND deleted = 0")
+    .bind(id)
+    .first<{ id: string; user_id: string; kind: string }>();
+  const notFound = row?.kind === "photo" ? "사진을 찾을 수 없어요" : "기록을 찾을 수 없어요";
+  if (!row || !(await canViewCert(c.env, userId, row))) return jsonError(c, 404, notFound);
+  if (row.user_id !== userId) return jsonError(c, 403, "내가 쓴 루틴만 고칠 수 있어요");
+  if (row.kind !== "routine") return jsonError(c, 409, "사진 인증은 고칠 수 없어요");
+  const b = await c.req.json().catch(() => null);
+  const body = typeof b?.body === "string" ? b.body.trim() : "";
+  if (body.length < 1 || body.length > 1000) return jsonError(c, 400, "루틴은 1~1000자로 적어 주세요");
+  const t = now();
+  // 그 사이 지워졌을 수 있으니 조건을 다시 건다
+  const r = await c.env.DB.prepare(
+    "UPDATE certs SET body = ?1, edited_at = ?2 WHERE id = ?3 AND user_id = ?4 AND kind = 'routine' AND deleted = 0",
+  )
+    .bind(body, t, id, userId)
+    .run();
+  if (!r.meta.changes) return jsonError(c, 404, "기록을 찾을 수 없어요");
+  return c.json({ ok: true, body, editedAt: t });
+});
+
 cert.get("/api/users/:id/board", requireUser, async (c) => {
   const ownerId = c.req.param("id");
   const me = c.get("userId");
@@ -334,7 +364,7 @@ cert.get("/api/users/:id/board", requireUser, async (c) => {
     : `AND (?1 = ?4 OR ${sharedVillaOf("certs.id", "?1", "?4")})`;
   // 응원 · 댓글 수도 같은 쿼리에서 센다. 가려진 기록은 0
   const { results } = await c.env.DB.prepare(
-    `SELECT id, kind, day, body, hidden, created_at AS createdAt,
+    `SELECT id, kind, day, body, hidden, created_at AS createdAt, edited_at AS editedAt,
        CASE WHEN hidden THEN 0 ELSE (SELECT COUNT(*) FROM cheers WHERE cert_id = certs.id) END AS cheerCount,
        CASE WHEN hidden THEN 0 ELSE EXISTS (SELECT 1 FROM cheers WHERE cert_id = certs.id AND user_id = ?4) END AS cheeredByMe,
        CASE WHEN hidden THEN 0 ELSE (SELECT COUNT(*) FROM comments WHERE cert_id = certs.id) END AS commentCount
@@ -344,7 +374,7 @@ cert.get("/api/users/:id/board", requireUser, async (c) => {
   )
     .bind(ownerId, Number.isFinite(before) && c.req.query("before") ? before : Number.MAX_SAFE_INTEGER, limit, me, ...(villaId ? [villaId] : []))
     .all<{
-      id: string; kind: string; day: string; body: string | null; hidden: number; createdAt: number;
+      id: string; kind: string; day: string; body: string | null; hidden: number; createdAt: number; editedAt: number | null;
       cheerCount: number; cheeredByMe: number; commentCount: number;
     }>();
   return c.json(
@@ -359,6 +389,8 @@ cert.get("/api/users/:id/board", requireUser, async (c) => {
       commentCount: r.commentCount,
       // 가려진 글은 내용을 내보내지 않는다
       ...(r.hidden ? {} : r.kind === "routine" ? { body: r.body } : { photoUrl: `/api/photos/${r.id}` }),
+      // 고친 루틴만 수정 시각을 보낸다 (가려진 글은 내용과 함께 뺀다)
+      ...(!r.hidden && r.editedAt != null ? { editedAt: r.editedAt } : {}),
     })),
   );
 });

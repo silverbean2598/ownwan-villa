@@ -194,3 +194,20 @@
 .villa-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .villa-title h1 { min-width: 0; overflow-wrap: anywhere; }
 .villa-title .city-link { flex: none; width: auto; padding: 8px 12px; font-size: 14px; border-radius: 999px; }
+
+/* 루틴 수정 */
+.cheer-bar { flex-wrap: wrap; }
+.cheer-bar .cheer-edit { color: var(--ink); }
+.sticky .edited { opacity: .85; white-space: nowrap; }
+.routine-edit { grid-column: 1 / -1; background: #fff; border-radius: 12px; padding: 12px; box-shadow: 0 2px 6px rgba(0,0,0,.15); display: flex; flex-direction: column; gap: 8px; }
+.routine-edit label { font-size: 14px; font-weight: 700; }
+.routine-edit textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: 16px; line-height: 1.45; resize: vertical; background: #FFFBE0; }
+.routine-edit-count { margin: -2px 0 0; align-self: flex-end; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.routine-edit .error { margin: 0; font-size: 13px; }
+.routine-edit-row { display: flex; gap: 8px; }
+.routine-edit-row .btn { flex: 1; padding: 10px; font-size: 14px; }
+/* 방 벽 게시판은 칸이 작아 "· 수정됨" 대신 연필 표시만 (글자는 화면 읽기용으로 남긴다) */
+.wall-board .sticky .edited { font-size: 0; }
+.wall-board .sticky .edited::after { content: "✎"; font-size: 9px; margin-left: 1px; }
+.wall-board .sticky .cap { white-space: nowrap; }
+.wall-board .sticky .cap-row { flex-wrap: wrap; justify-content: flex-end; row-gap: 1px; }

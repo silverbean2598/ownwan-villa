@@ -172,6 +172,103 @@ describe("RoomBoard 응원 · 댓글", () => {
   });
 });
 
+describe("RoomBoard 루틴 수정", () => {
+  const typeIn = async (text: string) => {
+    const ta = host.querySelector<HTMLTextAreaElement>("#routine-edit-text")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(ta, text);
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  };
+  const submit = async () => {
+    await act(async () => host.querySelector(".routine-edit")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    await flush();
+  };
+  const sticky = () => host.querySelector(".sticky")!.textContent!;
+
+  it("edit_button_only_on_my_routines", async () => {
+    mockApi("me", [item("c1"), item("p1", { kind: "photo", body: undefined, photoUrl: "/x.jpg" })]);
+    await mount("me");
+    expect(host.querySelectorAll('[aria-label="루틴 수정"]')).toHaveLength(1);
+  });
+
+  it("others_routines_are_read_only", async () => {
+    mockApi("b", [item("c1", { editedAt: NOW })]);
+    await mount("b");
+    expect(byLabel("루틴 수정")).toBeNull();
+    // 다른 사람이 봐도 고친 글에는 "수정됨"
+    expect(sticky()).toContain("수정됨");
+  });
+
+  it("edit_save_updates_optimistically_then_server", async () => {
+    let resolve!: (r: Response) => void;
+    mockApi("me", [item("c1")]);
+    const orig = fetch as unknown as (p: string, i?: RequestInit) => Promise<Response>;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((p: string, i?: RequestInit) => {
+        if (p === "/api/certs/c1" && i?.method === "PATCH") {
+          calls.push({ path: p, method: "PATCH", body: JSON.parse(String(i.body)) });
+          return new Promise<Response>((r) => (resolve = r));
+        }
+        return orig(p, i);
+      }),
+    );
+    await mount("me");
+    expect(sticky()).not.toContain("수정됨");
+    await click(byLabel("루틴 수정"));
+    // 수정 중: 지금 글이 들어 있고 글자 수가 보인다. 바꾸지 않으면 저장할 수 없다
+    const ta = host.querySelector<HTMLTextAreaElement>("#routine-edit-text")!;
+    expect(ta.value).toBe("스쿼트");
+    expect(host.querySelector(".routine-edit-count")!.textContent).toBe("3/1000");
+    const save = () => [...host.querySelectorAll<HTMLButtonElement>(".routine-edit button")].find((b) => b.textContent === "저장")!;
+    expect(save().disabled).toBe(true);
+    expect(byLabel("루틴 수정")).toBeNull();
+    await typeIn("  스쿼트 5x5  ");
+    expect(host.querySelector(".routine-edit-count")!.textContent).toBe("7/1000");
+    expect(save().disabled).toBe(false);
+    await submit();
+    // 응답 전에 이미 바뀌고 닫힌다
+    expect(calls.find((c) => c.method === "PATCH")!.body).toEqual({ body: "스쿼트 5x5" });
+    expect(host.querySelector(".routine-edit")).toBeNull();
+    expect(sticky()).toContain("스쿼트 5x5");
+    expect(sticky()).toContain("수정됨");
+    await act(async () => resolve(new Response(JSON.stringify({ ok: true, body: "스쿼트 5x5!", editedAt: NOW }), { status: 200 })));
+    await flush();
+    expect(sticky()).toContain("스쿼트 5x5!");
+    expect(byLabel("루틴 수정")).not.toBeNull();
+  });
+
+  it("cancel_keeps_text", async () => {
+    mockApi("me", [item("c1")]);
+    await mount("me");
+    await click(byLabel("루틴 수정"));
+    await typeIn("바꾸려다 만 글");
+    await click([...host.querySelectorAll(".routine-edit button")].find((b) => b.textContent === "취소")!);
+    expect(host.querySelector(".routine-edit")).toBeNull();
+    expect(sticky()).toContain("스쿼트");
+    expect(sticky()).not.toContain("수정됨");
+    expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+  });
+
+  it("error_rolls_back_and_reopens_with_draft", async () => {
+    mockApi("me", [item("c1")], (path, method) =>
+      path === "/api/certs/c1" && method === "PATCH" ? new Response(JSON.stringify({ error: "기록을 찾을 수 없어요" }), { status: 404 }) : undefined,
+    );
+    await mount("me");
+    await click(byLabel("루틴 수정"));
+    await typeIn("새 루틴");
+    await submit();
+    await flush();
+    expect(sticky()).toContain("스쿼트");
+    expect(sticky()).not.toContain("새 루틴");
+    expect(sticky()).not.toContain("수정됨");
+    const ta = host.querySelector<HTMLTextAreaElement>("#routine-edit-text")!;
+    expect(ta.value).toBe("새 루틴");
+    expect(host.querySelector(".routine-edit [role=alert]")!.textContent).toBe("기록을 찾을 수 없어요");
+  });
+});
+
 describe("timeAgo", () => {
   it("korean_relative", () => {
     const t = Date.parse("2026-11-18T12:00:00+09:00");
