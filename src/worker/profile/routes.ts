@@ -101,6 +101,10 @@ profile.delete("/api/me", requireUser, async (c) => {
     q("DELETE FROM events WHERE user_id = ?"),
     q("DELETE FROM villa_bans WHERE user_id = ?"),
     q("DELETE FROM villa_applications WHERE user_id = ?"),
+    // 휴대폰 알림: 기기 구독 · 설정 · 보낸 기록
+    q("DELETE FROM push_subscriptions WHERE user_id = ?"),
+    q("DELETE FROM push_prefs WHERE user_id = ?"),
+    q("DELETE FROM push_log WHERE user_id = ?"),
     // 집값 대결: 보상 장부 줄을 지우고, 대결 기록에 남은 신청한 사람 id 는 비운다 (빌라끼리의 기록은 남긴다)
     q("DELETE FROM price_rewards WHERE user_id = ?"),
     q("UPDATE battles SET challenger_user_id = '' WHERE challenger_user_id = ?"),

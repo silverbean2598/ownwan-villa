@@ -1,0 +1,9 @@
+/* 설정 → 휴대폰 알림 */
+.push-on { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; margin: 4px 0 8px; border-radius: 12px; background: #EEF3FF; color: #1D3FB0; font-size: 15px; font-weight: 600; }
+.push-prefs { list-style: none; margin: 4px 0 8px; padding: 0; }
+.push-prefs li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.push-prefs li:last-child { border-bottom: 0; }
+.push-guide { padding: 14px 16px; margin: 4px 0 4px; border-radius: 12px; background: #F6F7F9; }
+.push-guide-title { margin: 0 0 8px; font-weight: 700; font-size: 15px; }
+.push-guide ol { margin: 0 0 6px; padding-left: 20px; font-size: 14.5px; line-height: 1.6; }
+.push-guide .muted.small { margin: 0; }

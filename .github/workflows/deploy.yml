@@ -74,3 +74,23 @@ jobs:
             printf %s "$VALUE" | npx wrangler secret put "$NAME"
           done
           unset VALUE
+      # 휴대폰 푸시 알림 VAPID 키를 Worker secret 으로 넣는다 (만드는 법: node scripts/gen-vapid.mjs). 값은 표준 입력으로만 넘기고 출력하지 않는다.
+      # 비어 있으면 경고만 남기고 건너뛴다 (배포는 그대로, 설정 화면은 "알림 준비 중이에요"로 안내)
+      - name: Push VAPID secrets
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          for NAME in VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY; do
+            VALUE="${!NAME:-}"
+            # 앞뒤 공백 · 줄바꿈을 지운다 (출력 없이 셸 치환만 쓴다)
+            VALUE="${VALUE#"${VALUE%%[![:space:]]*}"}"
+            VALUE="${VALUE%"${VALUE##*[![:space:]]}"}"
+            if [ -z "$VALUE" ]; then
+              echo "::warning::$NAME 이(가) 비어 있어 건너뛰어요. 휴대폰 알림은 '준비 중'으로 보여요"
+              continue
+            fi
+            printf %s "$VALUE" | npx wrangler secret put "$NAME"
+          done
+          unset VALUE

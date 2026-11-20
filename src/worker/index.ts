@@ -14,6 +14,8 @@ import { cheer } from "./cheer/routes";
 import { city } from "./city/routes";
 import { recruit } from "./recruit/routes";
 import { price } from "./price/routes";
+import { push } from "./push/routes";
+import { sendReminders } from "./push/service";
 import { settleThrough } from "./cron/settle";
 import { now } from "./clock";
 import { kstDay } from "../shared/rules/day";
@@ -36,10 +38,20 @@ app.route("/", cheer);
 app.route("/", city);
 app.route("/", recruit);
 app.route("/", price);
+app.route("/", push);
 
+/** 저녁 9시(KST) 운동 알림 크론 (wrangler.jsonc triggers.crons 와 같은 문자열) */
+export const REMINDER_CRON = "0 12 * * *";
+
+// 크론 두 개: 12:00 UTC(21:00 KST) 운동 알림 푸시, 15:00 UTC(자정 KST) 정산.
 // 자정(KST) 정산: 방금 끝난 날까지, 밀린 날이 있으면 함께 정산한다.
 // 끝까지 기다려 실패가 실행 결과(Workers Logs)에 그대로 드러나게 한다.
-async function scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext) {
+export async function scheduled(controller: Pick<ScheduledController, "cron">, env: Env, _ctx?: ExecutionContext) {
+  if (controller.cron === REMINDER_CRON) {
+    const r = await sendReminders(env, now());
+    console.log(`reminder push: ${r.sent} sent to ${r.users} users`);
+    return;
+  }
   await settleThrough(env, kstDay(now() - 60_000));
 }
 

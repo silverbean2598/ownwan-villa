@@ -16,6 +16,8 @@ import type { Sport } from "../../shared/sports";
 import { RecruitSettings } from "../components/RecruitSettings";
 import { daysLeft } from "../components/city/RecruitCard";
 import type { MyApplication } from "../../shared/recruit";
+import { PushSection } from "../components/push/PushSection";
+import { dropSubscription, endpointForLogout } from "../push/client";
 
 type Me = { id: string; username: string; nickname: string; sport: Sport | null; avatar: AvatarSpec };
 type VillaInfo = {
@@ -218,6 +220,8 @@ export function Settings() {
       </Section>
 
       {kakao && <KakaoSection status={kakao} notice={kakaoNotice} onChanged={setKakao} />}
+
+      <PushSection onAuthLost={() => nav("/login?next=/settings", { replace: true })} />
 
       {/* 카카오로만 가입한 계정은 비밀번호 · 복구 코드가 없다 */}
       {!passwordless && <>
@@ -440,7 +444,10 @@ export function Settings() {
 
       <Section title="로그아웃" note={notes.logout}>
         <button className="btn ghost" type="button" onClick={() => run("logout", "", async () => {
-          await api("/api/logout", { method: "POST" });
+          // 이 기기의 휴대폰 알림도 함께 끈다 (다음에 이 기기를 쓰는 사람이 내 알림을 받지 않게)
+          const pushEndpoint = await endpointForLogout();
+          await api("/api/logout", { method: "POST", ...(pushEndpoint ? { body: JSON.stringify({ pushEndpoint }) } : {}) });
+          if (pushEndpoint) await dropSubscription();
           nav("/", { replace: true });
         })}>로그아웃</button>
       </Section>

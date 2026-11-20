@@ -176,3 +176,18 @@ describe("Settings 도시 지도 공개", () => {
     expect(host.textContent).toContain("공개 설정은 방장이 해요");
   });
 });
+
+describe("Settings 휴대폰 알림", () => {
+  it("shows_push_section_and_logout_still_works_without_service_worker", async () => {
+    mockApi("b");
+    await mount();
+    expect(headings()).toContain("휴대폰 알림");
+    // 이 목업은 키를 주지 않는다 → 준비 중
+    expect(host.querySelector('[data-push-state="preparing"]')).not.toBeNull();
+    await click(button("로그아웃"));
+    const out = calls.find((c) => c.path === "/api/logout");
+    expect(out?.method).toBe("POST");
+    // 이 기기에 구독이 없으면 본문 없이 (예전과 같다)
+    expect(out?.body).toBeUndefined();
+  });
+});
