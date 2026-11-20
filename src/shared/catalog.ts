@@ -117,6 +117,7 @@ export const ACCESSORIES: AccessoryItem[] = [
   { id: "earphones", name: "목 이어폰", kind: "accessory", accSlot: "neck", price: 80 },
   { id: "towel", name: "어깨 수건", kind: "accessory", accSlot: "shoulder", price: 60 },
   { id: "wristbands", name: "손목 밴드", kind: "accessory", accSlot: "wrist", price: 50 },
+  { id: "chicken", name: "치킨", kind: "accessory", accSlot: "wrist", price: 60 },
 ];
 
 export const SHOP_ITEMS: ShopItem[] = [...FURNITURE, ...OUTFITS, ...ACCESSORIES];

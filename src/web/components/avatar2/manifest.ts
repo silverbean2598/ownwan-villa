@@ -21,10 +21,10 @@ export const SPRITE_SM_H = 160;
 
 export const SPRITE_MANIFEST = {
   "cheer": {
-    "fw": 284,
+    "fw": 294,
     "fh": 400,
-    "sw": 852,
-    "smSw": 341,
+    "sw": 884,
+    "smSw": 354,
     "frames": 3,
     "outfits": [
       "tee",
@@ -62,13 +62,14 @@ export const SPRITE_MANIFEST = {
       "glasses",
       "earphones",
       "towel",
-      "wristbands"
+      "wristbands",
+      "chicken"
     ]
   },
   "climbing": {
-    "fw": 255,
+    "fw": 254,
     "fh": 400,
-    "sw": 765,
+    "sw": 764,
     "smSw": 306,
     "frames": 3,
     "outfits": [
@@ -107,7 +108,8 @@ export const SPRITE_MANIFEST = {
       "glasses",
       "earphones",
       "towel",
-      "wristbands"
+      "wristbands",
+      "chicken"
     ]
   },
   "gym": {
@@ -152,7 +154,8 @@ export const SPRITE_MANIFEST = {
       "glasses",
       "earphones",
       "towel",
-      "wristbands"
+      "wristbands",
+      "chicken"
     ]
   },
   "idle": {
@@ -197,7 +200,8 @@ export const SPRITE_MANIFEST = {
       "glasses",
       "earphones",
       "towel",
-      "wristbands"
+      "wristbands",
+      "chicken"
     ]
   },
   "jiujitsu": {
@@ -228,7 +232,8 @@ export const SPRITE_MANIFEST = {
       "glasses",
       "earphones",
       "towel",
-      "wristbands"
+      "wristbands",
+      "chicken"
     ]
   },
   "pilates": {
@@ -273,7 +278,8 @@ export const SPRITE_MANIFEST = {
       "glasses",
       "earphones",
       "towel",
-      "wristbands"
+      "wristbands",
+      "chicken"
     ]
   },
   "running": {
@@ -318,7 +324,8 @@ export const SPRITE_MANIFEST = {
       "glasses",
       "earphones",
       "towel",
-      "wristbands"
+      "wristbands",
+      "chicken"
     ]
   },
   "sad": {
@@ -363,7 +370,8 @@ export const SPRITE_MANIFEST = {
       "glasses",
       "earphones",
       "towel",
-      "wristbands"
+      "wristbands",
+      "chicken"
     ]
   },
   "sleep": {
@@ -408,7 +416,8 @@ export const SPRITE_MANIFEST = {
       "glasses",
       "earphones",
       "towel",
-      "wristbands"
+      "wristbands",
+      "chicken"
     ]
   },
   "taekwondo": {
@@ -439,7 +448,8 @@ export const SPRITE_MANIFEST = {
       "glasses",
       "earphones",
       "towel",
-      "wristbands"
+      "wristbands",
+      "chicken"
     ]
   }
 } as const satisfies Record<string, SpriteMeta>;

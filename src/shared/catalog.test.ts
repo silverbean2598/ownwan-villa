@@ -12,7 +12,7 @@ const range = (ids: string[], lo: number, hi: number) => {
 describe("catalog (꾸미기 확장)", () => {
   it("ids_are_unique_across_every_kind", () => {
     expect(new Set(SHOP_ITEMS.map((i) => i.id)).size).toBe(SHOP_ITEMS.length);
-    expect(SHOP_ITEMS).toHaveLength(25 + 24 + 6 + 6);
+    expect(SHOP_ITEMS).toHaveLength(25 + 24 + 6 + 7);
   });
   it("kinds", () => {
     expect(FURNITURE).toEqual([...BASE_FURNITURE, ...EXTRA_FURNITURE]);
@@ -41,7 +41,7 @@ describe("catalog (꾸미기 확장)", () => {
     expect(OUTFITS.map((i) => i.id)).toEqual(["tank-joggers", "hoodie", "sports-bra-leggings", "singlet", "cycling-jersey", "rashguard"]);
     range(OUTFITS.map((i) => i.id), 100, 150);
     expect(Object.fromEntries(ACCESSORIES.map((i) => [i.id, i.accSlot]))).toEqual({
-      headband: "head", cap: "head", glasses: "face", earphones: "neck", towel: "shoulder", wristbands: "wrist",
+      headband: "head", cap: "head", glasses: "face", earphones: "neck", towel: "shoulder", wristbands: "wrist", chicken: "wrist",
     });
     range(ACCESSORIES.map((i) => i.id), 50, 80);
   });
