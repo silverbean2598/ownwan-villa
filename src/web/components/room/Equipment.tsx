@@ -1,5 +1,4 @@
 import type { Sport } from "../../../shared/sports";
-import { Dummy } from "../avatar/parts";
 
 // 종목별 운동 기구. 캐릭터 발 위치를 (0,0)으로, 캐릭터 키 ≈ 58 단위 기준으로 그린다.
 const INK = "#5B4640";
@@ -89,4 +88,22 @@ export function Equipment({ sport, lit }: { sport: Sport; lit: boolean }) {
         </g>
       );
   }
+}
+
+/** 주짓수 그래플링 더미 (잘 때 매트 옆에 둔다). (0,0) = 바닥 가운데 */
+function Dummy({ transform }: { transform?: string }) {
+  const BODY = "#B08560";
+  const DARK = "#8C6646";
+  const l = { ...line, strokeWidth: 1.5 };
+  return (
+    <g data-part="dummy" transform={transform}>
+      <path d="M-14 -30 Q-17 -12 -12 0 L12 0 Q17 -12 14 -30 Z" fill={BODY} {...l} />
+      <rect x="-21" y="-31" width="9" height="16" rx="4.5" fill={BODY} {...l} transform="rotate(14 -16 -30)" />
+      <rect x="12" y="-31" width="9" height="16" rx="4.5" fill={BODY} {...l} transform="rotate(-14 16 -30)" />
+      <path d="M-15 -30 Q0 -36 15 -30 Q14 -25 0 -25 Q-14 -25 -15 -30 Z" fill={DARK} {...l} strokeWidth={1.1} />
+      <rect x="-4" y="-38" width="8" height="8" fill={BODY} {...l} />
+      <circle cx="0" cy="-45" r="9" fill={BODY} {...l} />
+      <path d="M0 -24 V-4" stroke={DARK} strokeWidth="1" strokeLinecap="round" />
+    </g>
+  );
 }

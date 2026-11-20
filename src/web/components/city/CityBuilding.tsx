@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from "react";
 import type { CityVilla } from "../../../shared/city";
-import { INK, shade } from "../avatar/ink";
+import { INK, shade } from "../ink";
 import { dims, hash, shapeOf, wallColor, type WindowState } from "./layout";
 import { kindLabel } from "../../../shared/villa";
 import { NIGHT, Planter, Bush } from "./CityProps";

@@ -1,5 +1,5 @@
 import type { CityVilla } from "../../../shared/city";
-import { INK } from "../avatar/ink";
+import { INK } from "../ink";
 import { CityBuilding, NamePlate } from "./CityBuilding";
 import { Bench, Bush, BusStop, Cloud, Lamp, Moon, NIGHT, Star, Store, Tree, Vending } from "./CityProps";
 import { buildingHeight, hash, layoutCity, MARGIN, ROAD, shapeOf, SKY_H, type Lot } from "./layout";

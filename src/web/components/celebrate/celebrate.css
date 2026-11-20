@@ -27,16 +27,11 @@
   .toast { animation: cel-drop 0.3s ease-out; }
   .cel-twinkle { animation: cel-twinkle 1.6s ease-in-out infinite; }
   .cel-confetti { animation: cel-confetti 2.4s ease-in-out infinite; }
-  .cel-jump { animation: cel-jump 0.9s ease-in-out infinite alternate; }
-  .cel-shadow { animation: cel-shadow 0.9s ease-in-out infinite alternate; }
   .cel-fly { animation: cel-fly 1.8s ease-in-out infinite alternate; }
-  .cel-wave [data-part="armR"] { --d: -22deg; animation: av-swing 0.5s ease-in-out infinite alternate; }
 }
 
 @keyframes cel-pop { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: scale(1); } }
 @keyframes cel-drop { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes cel-twinkle { 50% { transform: scale(0.6); opacity: 0.6; } }
 @keyframes cel-confetti { 50% { transform: translateY(6px) rotate(25deg); } }
-@keyframes cel-jump { from { transform: translateY(6px); } to { transform: translateY(-6px); } }
-@keyframes cel-shadow { from { transform: scale(1.1); } to { transform: scale(0.75); opacity: 0.05; } }
 @keyframes cel-fly { to { transform: translate(6px, -6px) rotate(6deg); } }

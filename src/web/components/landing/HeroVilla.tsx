@@ -37,7 +37,7 @@ const FLOORS: { floor: number; rooms: [Resident, Resident] }[] = [
 function Room({ r, penthouse = false }: { r: Resident; penthouse?: boolean }) {
   return (
     <div className={`lp-room${r.lit ? " on" : " off"}${penthouse ? " ph" : ""}`}>
-      <RoomScene sport={r.sport} lit={r.lit} avatar={r.avatar} penthouse={penthouse} placements={r.items} character="svg" />
+      <RoomScene sport={r.sport} lit={r.lit} avatar={r.avatar} penthouse={penthouse} placements={r.items} />
     </div>
   );
 }

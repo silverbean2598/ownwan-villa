@@ -1,4 +1,5 @@
-import { Avatar } from "./Avatar";
+import { SpriteAvatar, SpriteCrop } from "./avatar2/SpriteAvatar";
+import { spriteBox } from "./avatar2/layers";
 import { findAccessory, findOutfit } from "../../shared/catalog";
 import type { AvatarSpec } from "../../shared/avatar";
 
@@ -13,14 +14,14 @@ export function wearing(spec: AvatarSpec, itemId: string): AvatarSpec {
   return { ...spec, hair, acc };
 }
 
-/** 상점 · 꾸미기 목록용 미리보기. 소품은 상반신만 크게 */
+// 소품 미리보기: 서 있는 그림(275 × 400) 머리 ~ 손목 밴드까지 상반신
+const ACC_BOX = [18, 2, 240, 296] as const;
+
+/** 상점 · 꾸미기 목록용 미리보기 (서 있는 자세). 옷은 온몸, 소품은 상반신만 크게. size = 그릴 세로(px) */
 export function WearPreview({ spec, itemId, size = 80 }: { spec: AvatarSpec; itemId: string; size?: number }) {
   const s = wearing(spec, itemId);
-  const box = findAccessory(itemId) ? "10 4 100 116" : "0 0 120 168";
-  const [, , w, h] = box.split(" ").map(Number);
-  return (
-    <svg viewBox={box} width={(size * w) / h} height={size} aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-      <Avatar spec={s} size={120} label="" />
-    </svg>
-  );
+  if (findAccessory(itemId)) return <SpriteCrop spec={s} box={ACC_BOX} height={size} />;
+  // 온몸: 그림 높이 = size
+  const b = spriteBox("idle", 1);
+  return <SpriteAvatar spec={s} size={size / b.h} pose="idle" label="" />;
 }

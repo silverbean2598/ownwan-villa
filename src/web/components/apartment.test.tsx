@@ -119,8 +119,7 @@ describe("축하 카드", () => {
     const h = renderToStaticMarkup(<CardArt type="apartment_promoted" spec={DEFAULT_AVATAR} />);
     expect(h).toContain('data-part="mini-apartment"');
     expect(h).toContain('data-part="confetti"');
-    expect(h).toContain('data-face="happy"');
-    expect(h).not.toContain("<image");
+    expect(h).toContain('class="spr p-cheer"');
   });
 });
 

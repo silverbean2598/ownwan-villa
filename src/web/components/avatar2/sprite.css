@@ -8,7 +8,9 @@
 }
 
 /* 한 바퀴 시간 = layers.ts FRAME_STEPS 합 */
-.spr.p-idle image { animation-duration: calc(2.8s * var(--t)); }
+.spr.p-idle image,
+.spr.p-sad image { animation-duration: calc(2.8s * var(--t)); }
+.spr.p-cheer image { animation-duration: calc(1.2s * var(--t)); }
 .spr.p-sleep image { animation-duration: calc(3.2s * var(--t)); }
 .spr.p-running image { animation-duration: calc(0.64s * var(--t)); }
 .spr.p-pilates image,

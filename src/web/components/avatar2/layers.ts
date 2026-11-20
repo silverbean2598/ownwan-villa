@@ -1,5 +1,5 @@
 import { AVATAR_OPTIONS, DEFAULT_AVATAR, parseAvatar, type AvatarSpec } from "../../../shared/avatar";
-import type { Pose } from "../avatar/poses";
+import type { Pose } from "./pose";
 import { SPRITE_MANIFEST, SPRITE_SM_H, type SpriteMeta } from "./manifest";
 
 /** 그림 파일이 있는 곳 (public/avatar2 → 빌드 결과 정적 파일) */
@@ -26,9 +26,11 @@ export const SHIRT_ASSET = ["tee-coral", "tee-orange", "tee-yellow", "tee-mint",
 
 // 그림마다 캐릭터를 그린 배율이 달라 머리 크기로 맞춘다: hair-buzz-front 첫 칸의 불투명 영역(알파 > 0) 긴 변(px, 측정값).
 // 주짓수 · 태권도(머리가 몸 그림에 들어 있음)는 내보낸 그림에 같이 온 hair-buzz-front(배포하지 않음)로 쟀다
-const HEAD_PX: Record<Pose, number> = { idle: 178, sleep: 236, gym: 161, running: 173, pilates: 217, climbing: 133, jiujitsu: 189, taekwondo: 169 };
+const HEAD_PX: Record<Pose, number> = {
+  idle: 178, sleep: 236, gym: 161, running: 173, pilates: 217, climbing: 133, jiujitsu: 189, taekwondo: 169, cheer: 177, sad: 178,
+};
 // 칸 아래 빈 줄(px). 발 · 매트 · 몸 아래끝을 바닥에 맞춘다 (body-tee(민머리 도복) 그림 첫 칸 불투명 영역 측정값)
-const FLOOR_PAD: Partial<Record<Pose, number>> = { sleep: 2, pilates: 3, jiujitsu: 26, climbing: 1 };
+const FLOOR_PAD: Partial<Record<Pose, number>> = { sleep: 2, pilates: 3, jiujitsu: 26, climbing: 1, cheer: 1, sad: 1 };
 
 /** 그림 해상도: 원본(세로 400px) · 작은 그림(sm/, 세로 160px) */
 export type SpriteRes = "full" | "sm";
@@ -53,6 +55,10 @@ export const FRAME_STEPS: Record<Pose, readonly [number, number, number, number]
   climbing: [0.35, 0.35, 0.35, 0.35],
   jiujitsu: [0.35, 0.35, 0.35, 0.35],
   taekwondo: [0.35, 0.35, 0.35, 0.35],
+  // 축하: 웅크림 → 만세 점프 → 착지 (빠르게)
+  cheer: [0.3, 0.3, 0.3, 0.3],
+  // 아쉬움: 눈물 → 한숨 → 다짐 (천천히)
+  sad: [0.7, 0.7, 0.7, 0.7],
 };
 
 export function spriteMeta(pose: Pose): SpriteMeta {

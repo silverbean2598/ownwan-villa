@@ -39,9 +39,11 @@ describe("Landing", () => {
     const h = render(null);
     expect(h).toContain("이렇게 놀아요");
     expect((h.match(/class="lp-step"/g) ?? []).length).toBe(3);
-    expect(h).toContain("pose-sleep");
+    // 그림 캐릭터: 빌라 단면 · 꺼진 방은 잠 그림, 펜트하우스는 만세 + 왕관. 옛 svg 캐릭터는 없다
+    expect(h).toContain('class="spr p-sleep"');
+    expect(h).toContain('class="spr p-cheer"');
     expect(h).toContain('data-part="crown"');
-    expect(h).toContain('data-part="sunglasses"');
+    expect(h).not.toContain('class="av ');
     expect(h).toContain('href="/terms"');
     expect(h).toContain('href="/privacy"');
   });

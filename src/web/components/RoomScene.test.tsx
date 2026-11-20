@@ -27,12 +27,6 @@ describe("RoomScene", () => {
     // 잘 때는 기구가 옆에 그대로 있다
     expect(h).toContain('data-equip="climbing"');
   });
-  it("svg_character_option_keeps_old_rig_for_landing", () => {
-    const h = renderToStaticMarkup(<RoomScene sport="running" lit={false} avatar={DEFAULT_AVATAR} character="svg" />);
-    expect(h).toContain("pose-sleep");
-    expect(h).toContain(">z<");
-    expect(h).not.toContain("avatar2");
-  });
   it("penthouse_has_chandelier_skyline_sofa", () => {
     const h = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} penthouse />);
     for (const p of ["chandelier", "skyline", "sofa", "plant"]) expect(h).toContain(`data-part="${p}"`);

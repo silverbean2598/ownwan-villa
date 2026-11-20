@@ -1,6 +1,6 @@
 import { formatChange, formatPrice } from "../../../shared/rules/price";
 import type { Trophy } from "../../../shared/price";
-import { INK } from "../avatar/ink";
+import { INK } from "../ink";
 import "./price.css";
 
 /** 집값 + 전날 대비 (오르면 빨강 ▲, 내리면 파랑 ▼ — 한국 주식 표기). 아직 집계 전이면 "집계 전" */

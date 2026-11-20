@@ -1,5 +1,5 @@
 // 도시 지도의 거리 소품 · 하늘 그림. 모두 (0, 0) = 땅에 닿는 가운데 기준으로 그린다
-import { INK, shade } from "../avatar/ink";
+import { INK, shade } from "../ink";
 
 export const NIGHT = {
   sky: "#1E2B57",

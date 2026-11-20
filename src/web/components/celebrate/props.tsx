@@ -1,4 +1,4 @@
-import { INK } from "../avatar/parts";
+import { INK } from "../ink";
 
 // 축하 장면 소품. 캐릭터와 같은 갈색 외곽선 + 파스텔 채색 (docs/art-reference/celebrations.webp)
 const line = { stroke: INK, strokeWidth: 1.5, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };

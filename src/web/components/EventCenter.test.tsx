@@ -5,9 +5,9 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventCenter, TOAST_MS } from "./EventCenter";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CardArt, ToastArt } from "./celebrate/CelebrationArt";
+import { CardArt, ToastArt, cardMood, toastMood } from "./celebrate/CelebrationArt";
+import { SHIRT_ASSET } from "./avatar2/layers";
 import { CARD_TYPES, TOAST_TYPES } from "../events/plan";
-import { AVATAR_OPTIONS } from "../../shared/avatar";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -152,36 +152,55 @@ describe("EventCenter", () => {
 });
 
 describe("celebration art", () => {
-  it("every_card_and_toast_draws_the_viewers_own_avatar", () => {
-    const shirt = AVATAR_OPTIONS.shirt[SPEC.shirt];
-    const skin = AVATAR_OPTIONS.skin[SPEC.skin];
+  it("every_card_and_toast_draws_the_viewers_own_sprite_avatar", () => {
+    const tee = `body-${SHIRT_ASSET[SPEC.shirt]}-s${SPEC.skin}.webp`;
     for (const type of CARD_TYPES) {
       const h = renderToStaticMarkup(<CardArt type={type} spec={SPEC} />);
       expect(h, type).toContain('data-hair="bun"');
-      expect(h, type).toContain(shirt);
-      expect(h, type).toContain(skin);
-      expect(h, type).not.toContain("<image");
+      expect(h, type).toContain(tee);
+      expect(h, type).not.toContain('class="av ');
     }
     for (const type of TOAST_TYPES) {
       const h = renderToStaticMarkup(<ToastArt type={type} spec={SPEC} />);
       expect(h, type).toContain('data-hair="bun"');
+      expect(h, type).toContain(tee);
     }
   });
 
-  it("uses_new_faces_and_props", () => {
+  it("happy_events_cheer_sad_events_sad_others_idle", () => {
+    const mood = (type: (typeof CARD_TYPES)[number], variant?: string) => {
+      const h = renderToStaticMarkup(<CardArt type={type} spec={SPEC} variant={variant} />);
+      return h.match(/class="spr p-(\w+)"/)![1];
+    };
+    for (const t of ["streak7", "floor_up", "penthouse_in", "welcome", "owner_in", "league_rank", "apartment_promoted"] as const) expect(mood(t), t).toBe("cheer");
+    for (const t of ["floor_down", "penthouse_out", "kicked", "dissolved", "application_rejected"] as const) expect(mood(t), t).toBe("sad");
+    expect(mood("battle_result", "won")).toBe("cheer");
+    expect(mood("battle_result", "lost")).toBe("sad");
+    expect(mood("battle_result", "draw")).toBe("idle");
+    expect(mood("battle_challenged")).toBe("idle");
+    expect(mood("league_rank", "3")).toBe("cheer");
+    for (const t of CARD_TYPES) expect(["cheer", "sad", "idle"]).toContain(cardMood(t));
+    for (const t of TOAST_TYPES) expect(["cheer", "sad", "idle"]).toContain(toastMood(t));
+    expect(toastMood("certified")).toBe("cheer");
+    expect(toastMood("battle_declined")).toBe("sad");
+    expect(toastMood("application_closed")).toBe("sad");
+    expect(toastMood("night_reminder")).toBe("idle");
+  });
+
+  it("keeps_scene_props_around_the_character", () => {
     const has = (type: (typeof CARD_TYPES)[number], ...parts: string[]) => {
       const h = renderToStaticMarkup(<CardArt type={type} spec={SPEC} />);
       for (const p of parts) expect(h, `${type} ${p}`).toContain(p);
     };
-    has("streak7", 'data-face="tears"', 'data-part="trophy"', 'data-part="confetti"');
+    has("streak7", 'data-part="trophy"', 'data-part="confetti"');
     has("floor_up", 'data-part="plus-one"', 'data-part="arrow"');
-    has("penthouse_in", 'data-face="cool"', 'data-part="sunglasses"', 'data-part="box"', 'data-part="plant"');
-    has("penthouse_out", 'data-face="shocked"', 'data-part="crown"');
-    has("floor_down", 'data-face="sad"', 'data-part="stairs"', 'data-part="box"');
-    has("welcome", 'data-face="shy"');
-    has("kicked", 'data-face="sad"', 'data-part="box"', 'data-part="mini-villa"');
-    has("owner_in", 'data-face="proud"', 'data-part="key"');
-    has("dissolved", 'data-face="sad"', 'data-part="mini-villa"');
+    has("penthouse_in", 'data-part="box"', 'data-part="plant"', 'data-part="crown"');
+    has("penthouse_out", 'data-part="crown"');
+    has("floor_down", 'data-part="stairs"', 'data-part="box"');
+    has("kicked", 'data-part="box"', 'data-part="mini-villa"');
+    has("owner_in", 'data-part="key"');
+    has("dissolved", 'data-part="mini-villa"');
+    has("application_rejected", 'data-part="letter"');
   });
 
   it("owner_changed_shows_the_new_owner_with_a_key", () => {
@@ -195,6 +214,6 @@ describe("celebration art", () => {
     const friend = { skin: 3, hair: "long", shirt: 6 };
     const h = renderToStaticMarkup(<ToastArt type="friend_joined" spec={SPEC} friend={friend} />);
     expect(h).toContain('data-hair="long"');
-    expect(h).toContain(AVATAR_OPTIONS.shirt[6]);
+    expect(h).toContain(`body-${SHIRT_ASSET[6]}-s3.webp`);
   });
 });

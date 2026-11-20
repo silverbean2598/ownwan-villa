@@ -20,6 +20,51 @@ export type SpriteMeta = {
 export const SPRITE_SM_H = 160;
 
 export const SPRITE_MANIFEST = {
+  "cheer": {
+    "fw": 284,
+    "fh": 400,
+    "sw": 852,
+    "smSw": 341,
+    "frames": 3,
+    "outfits": [
+      "tee",
+      "tee-coral",
+      "tee-orange",
+      "tee-yellow",
+      "tee-mint",
+      "tee-navy",
+      "tee-lavender",
+      "tee-charcoal",
+      "tank-joggers",
+      "hoodie",
+      "sports-bra-leggings",
+      "singlet",
+      "cycling-jersey",
+      "rashguard"
+    ],
+    "hairs": [
+      "short",
+      "long",
+      "bun",
+      "buzz",
+      "part",
+      "afro",
+      "pigtails",
+      "ponytail",
+      "wolf",
+      "beanie"
+    ],
+    "fullHair": false,
+    "props": false,
+    "accs": [
+      "headband",
+      "cap",
+      "glasses",
+      "earphones",
+      "towel",
+      "wristbands"
+    ]
+  },
   "climbing": {
     "fw": 255,
     "fh": 400,
@@ -236,6 +281,51 @@ export const SPRITE_MANIFEST = {
     "fh": 400,
     "sw": 713,
     "smSw": 285,
+    "frames": 3,
+    "outfits": [
+      "tee",
+      "tee-coral",
+      "tee-orange",
+      "tee-yellow",
+      "tee-mint",
+      "tee-navy",
+      "tee-lavender",
+      "tee-charcoal",
+      "tank-joggers",
+      "hoodie",
+      "sports-bra-leggings",
+      "singlet",
+      "cycling-jersey",
+      "rashguard"
+    ],
+    "hairs": [
+      "short",
+      "long",
+      "bun",
+      "buzz",
+      "part",
+      "afro",
+      "pigtails",
+      "ponytail",
+      "wolf",
+      "beanie"
+    ],
+    "fullHair": false,
+    "props": false,
+    "accs": [
+      "headband",
+      "cap",
+      "glasses",
+      "earphones",
+      "towel",
+      "wristbands"
+    ]
+  },
+  "sad": {
+    "fw": 263,
+    "fh": 400,
+    "sw": 791,
+    "smSw": 316,
     "frames": 3,
     "outfits": [
       "tee",

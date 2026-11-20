@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { api, ApiError } from "../api";
-import { Avatar } from "./Avatar";
+import { SpriteCrop } from "./avatar2/SpriteAvatar";
 import { SPORT_LABEL, type Sport } from "../../shared/sports";
 import type { AvatarSpec } from "../../shared/avatar";
 import { objParticle } from "../events/plan";
@@ -20,13 +20,12 @@ export const appliedDay = (ms: number) => {
   return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
 };
 
-/** 얼굴만 잘라 보이는 작은 캐릭터 */
+// 서 있는 그림(275 × 400)에서 얼굴 둘레
+const HEAD_BOX = [30, 16, 216, 216] as const;
+
+/** 얼굴만 잘라 보이는 작은 캐릭터 (목록이 길어도 화면 가까이 올 때 sm/ 그림을 받는다) */
 export function MemberHead({ spec }: { spec: AvatarSpec }) {
-  return (
-    <svg className="member-head" viewBox="14 4 92 92" aria-hidden="true">
-      <Avatar size={120} spec={spec} />
-    </svg>
-  );
+  return <SpriteCrop className="member-head" spec={spec} box={HEAD_BOX} />;
 }
 
 /** 화면 안 확인 창. Esc · [취소]로 닫힌다 */

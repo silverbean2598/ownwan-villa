@@ -8,10 +8,10 @@ import { FRAME_STEPS, SHIRT_ASSET, cycleSeconds, outfitAsset, spriteBox, spriteL
 import { SPRITE_MANIFEST, SPRITE_SM_H } from "./manifest";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR, type AvatarSpec } from "../../../shared/avatar";
 import { ACCESSORIES, OUTFITS } from "../../../shared/catalog";
-import type { Pose } from "../avatar/poses";
+import type { Pose } from "./pose";
 
 const ROOT = join(__dirname, "../../../..");
-const POSES: Pose[] = ["idle", "sleep", "gym", "running", "pilates", "climbing", "jiujitsu", "taekwondo"];
+const POSES: Pose[] = ["idle", "sleep", "gym", "running", "pilates", "climbing", "jiujitsu", "taekwondo", "cheer", "sad"];
 const css = readFileSync(join(__dirname, "sprite.css"), "utf8");
 const a = (x: Partial<AvatarSpec>): AvatarSpec => ({ ...DEFAULT_AVATAR, ...x });
 const urls = (spec: AvatarSpec, pose: Pose) => spriteLayers(spec, pose).urls;

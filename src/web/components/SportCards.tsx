@@ -1,4 +1,4 @@
-import { Avatar } from "./Avatar";
+import { SpriteAvatar } from "./avatar2/SpriteAvatar";
 import type { AvatarSpec } from "../../shared/avatar";
 import { SPORTS, SPORT_LABEL, type Sport } from "../../shared/sports";
 
@@ -17,7 +17,7 @@ export function SportCards({ value, avatar, onChange }: Props) {
           onClick={() => onChange(s)}
         >
           <span className="sport-pic" aria-hidden="true">
-            <Avatar spec={avatar} size={50} pose={s} />
+            <SpriteAvatar spec={avatar} size={54} pose={s} label="" />
           </span>
           {SPORT_LABEL[s]}
         </button>
