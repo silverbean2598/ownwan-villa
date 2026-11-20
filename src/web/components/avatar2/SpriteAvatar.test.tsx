@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SpriteAvatar } from "./SpriteAvatar";
-import { FRAME_STEPS, cycleSeconds, outfitAsset, spriteBox, spriteLayers, spriteMeta } from "./layers";
-import { SPRITE_MANIFEST } from "./manifest";
+import { FRAME_STEPS, SHIRT_ASSET, cycleSeconds, outfitAsset, spriteBox, spriteLayers, spriteMeta, spriteRes } from "./layers";
+import { SPRITE_MANIFEST, SPRITE_SM_H } from "./manifest";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR, type AvatarSpec } from "../../../shared/avatar";
-import { OUTFITS } from "../../../shared/catalog";
+import { ACCESSORIES, OUTFITS } from "../../../shared/catalog";
 import type { Pose } from "../avatar/poses";
 
 const ROOT = join(__dirname, "../../../..");
@@ -59,15 +59,75 @@ describe("새 캐릭터 그림 고르기", () => {
       expect(u.length).toBe(p === "gym" ? 4 : 3);
       if (p === "gym") expect(u[3]).toBe("/avatar2/gym/props.webp");
     }
-    // 아직 소품 그림이 없다: 소품을 껴도 그림 요청이 늘지 않는다
-    expect(urls(a({ acc: ["cap", "glasses"] }), "idle")).toHaveLength(3);
   });
-  it("future_shirt_colors_and_accessories_come_from_meta_lists", () => {
-    const meta = { ...spriteMeta("idle"), outfits: [...spriteMeta("idle").outfits, "tee-coral"], accs: ["glasses"] };
-    expect(outfitAsset(a({ shirt: 0 }), meta)).toBe("tee-coral");
-    expect(outfitAsset(a({ shirt: 1 }), meta)).toBe("tee");
-    // 산 옷을 입으면 색 티는 쓰지 않는다
-    expect(outfitAsset(a({ shirt: 0, outfit: "hoodie" }), meta)).toBe("hoodie");
+  it("accessory_layers_drawn_after_front_hair_before_props_in_fixed_order", () => {
+    // 몸 자리마다 하나씩 다 낀다 (헤어밴드 대신 모자)
+    const all = ["wristbands", "towel", "glasses", "cap", "earphones"];
+    expect(urls(a({ hair: "bun", acc: all }), "gym")).toEqual([
+      "/avatar2/gym/hair-bun-back.webp",
+      "/avatar2/gym/body-tee-s0.webp",
+      "/avatar2/gym/hair-bun-front.webp",
+      "/avatar2/gym/acc-cap.webp",
+      "/avatar2/gym/acc-glasses.webp",
+      "/avatar2/gym/acc-earphones.webp",
+      "/avatar2/gym/acc-towel.webp",
+      "/avatar2/gym/acc-wristbands.webp",
+      "/avatar2/gym/props.webp",
+    ]);
+    for (const p of POSES) {
+      expect(spriteMeta(p).accs, p).toEqual(ACCESSORIES.map((x) => x.id));
+      for (const x of ACCESSORIES) expect(urls(a({ acc: [x.id] }), p)[3], `${p} ${x.id}`).toBe(`/avatar2/${p}/acc-${x.id}.webp`);
+    }
+    expect(spriteLayers(a({ acc: ["glasses", "headband"] }), "idle").acc).toEqual(["headband", "glasses"]);
+  });
+  it("beanie_hides_cap_and_headband_and_broken_acc_lists_draw_none", () => {
+    expect(spriteLayers(a({ hair: "beanie", acc: ["cap", "glasses"] }), "idle").acc).toEqual(["glasses"]);
+    expect(spriteLayers(a({ hair: "beanie", acc: ["headband"] }), "running").urls).toHaveLength(3);
+    // 같은 자리 소품 두 개(저장값이 깨짐) → parseAvatar 가 거부해 기본 캐릭터
+    expect(spriteLayers(a({ acc: ["cap", "headband"] }), "idle").acc).toEqual([]);
+  });
+  it("shirt_color_picks_colored_tee_only_without_shop_outfit", () => {
+    expect(SHIRT_ASSET).toEqual(["tee-coral", "tee-orange", "tee-yellow", "tee-mint", "tee", "tee-navy", "tee-lavender", "tee-charcoal"]);
+    expect(SHIRT_ASSET).toHaveLength(AVATAR_OPTIONS.shirt.length);
+    for (const p of POSES) {
+      const meta = spriteMeta(p);
+      for (let i = 0; i < AVATAR_OPTIONS.shirt.length; i++) {
+        const uniform = p === "jiujitsu" ? "gi" : p === "taekwondo" ? "dobok" : null;
+        expect(outfitAsset(a({ shirt: i }), meta), `${p} ${i}`).toBe(uniform ?? SHIRT_ASSET[i]);
+        // 산 옷을 입으면 색 티는 쓰지 않는다
+        expect(outfitAsset(a({ shirt: i, outfit: "hoodie" }), meta)).toBe(uniform ?? "hoodie");
+      }
+    }
+    expect(urls(a({ shirt: 0, skin: 1 }), "idle")[1]).toBe("/avatar2/idle/body-tee-coral-s1.webp");
+    expect(urls(a({ shirt: 7 }), "running")[1]).toBe("/avatar2/running/body-tee-charcoal-s0.webp");
+    expect(urls(a({ shirt: 4 }), "idle")[1]).toBe("/avatar2/idle/body-tee-s0.webp");
+    // 색 그림이 없는 자세(예전 meta) → 기본 티
+    expect(outfitAsset(a({ shirt: 0 }), { ...spriteMeta("idle"), outfits: ["tee", "hoodie"] })).toBe("tee");
+  });
+  it("small_sprites_when_drawn_at_most_160_device_px", () => {
+    expect(spriteRes(80, 2)).toBe("sm");
+    expect(spriteRes(160, 1)).toBe("sm");
+    expect(spriteRes(81, 2)).toBe("full");
+    expect(spriteRes(60, 3)).toBe("full");
+    expect(spriteRes(155, 2)).toBe("full");
+    expect(spriteRes(0, 2)).toBe("full");
+    expect(spriteRes(100, 0)).toBe("sm");
+    const sm = spriteLayers(a({ hair: "wolf", acc: ["towel"] }), "gym", "sm");
+    expect(sm.urls).toEqual([
+      "/avatar2/gym/sm/hair-wolf-back.webp",
+      "/avatar2/gym/sm/body-tee-s0.webp",
+      "/avatar2/gym/sm/hair-wolf-front.webp",
+      "/avatar2/gym/sm/acc-towel.webp",
+      "/avatar2/gym/sm/props.webp",
+    ]);
+    // 작은 띠도 원본 배율로 늘려 칸 경계가 같다
+    for (const p of POSES) {
+      const m = spriteMeta(p);
+      const w = spriteLayers(DEFAULT_AVATAR, p, "sm").stripW;
+      expect(w / m.fh).toBeCloseTo(m.smSw / SPRITE_SM_H, 9);
+      expect(Math.abs(w - m.sw)).toBeLessThanOrEqual(1.5);
+      expect(spriteLayers(DEFAULT_AVATAR, p).stripW).toBe(m.sw);
+    }
   });
   it("every_layer_file_listed_in_manifest_exists", () => {
     let n = 0;
@@ -76,7 +136,12 @@ describe("새 캐릭터 그림 고르기", () => {
       const dir = join(ROOT, "public/avatar2", p);
       for (const o of m.outfits) for (let s = 0; s < 4; s++, n++) expect(existsSync(join(dir, `body-${o}-s${s}.webp`)), `${p} ${o} ${s}`).toBe(true);
       for (const h of m.hairs) for (const side of ["back", "front"]) expect(existsSync(join(dir, `hair-${h}-${side}.webp`)), `${p} ${h}`).toBe(true);
+      for (const x of m.accs) expect(existsSync(join(dir, `acc-${x}.webp`)), `${p} acc ${x}`).toBe(true);
       expect(existsSync(join(dir, "props.webp"))).toBe(m.props);
+      // sm/ 에 같은 이름 그림이 다 있다
+      const names = readdirSync(dir).filter((f) => f.endsWith(".webp")).sort();
+      expect(readdirSync(join(dir, "sm")).filter((f) => f.endsWith(".webp")).sort(), p).toEqual(names);
+      expect(m.smSw).toBe(Math.round((m.sw * SPRITE_SM_H) / m.fh));
       expect(m.frames).toBe(3);
       expect(Math.abs(m.sw - 3 * m.fw)).toBeLessThanOrEqual(3);
     }
@@ -90,8 +155,8 @@ describe("SpriteAvatar", () => {
     const doc = new DOMParser().parseFromString(h, "text/html");
     const svg = doc.querySelector("svg")!;
     expect(svg.getAttribute("class")).toBe("spr p-gym");
-    expect(svg.getAttribute("viewBox")).toBe("0 0 304 400");
-    expect(svg.getAttribute("style")).toContain("--fw:304px");
+    expect(svg.getAttribute("viewBox")).toBe("0 0 305 400");
+    expect(svg.getAttribute("style")).toContain("--fw:305px");
     const imgs = [...svg.querySelectorAll("image")];
     expect(imgs.map((i) => i.getAttribute("href"))).toEqual([
       "/avatar2/gym/hair-bun-back.webp",
@@ -100,12 +165,22 @@ describe("SpriteAvatar", () => {
       "/avatar2/gym/props.webp",
     ]);
     for (const i of imgs) {
-      expect(i.getAttribute("width")).toBe("914");
+      expect(i.getAttribute("width")).toBe("916");
       expect(i.getAttribute("height")).toBe("400");
       expect(i.getAttribute("decoding")).toBe("async");
     }
     // 요소 수 ≤ 5 (빌라 화면에 50명)
     expect(doc.querySelectorAll("svg, svg *").length).toBeLessThanOrEqual(5);
+  });
+  it("accessory_adds_one_image_per_worn_item", () => {
+    const h = renderToStaticMarkup(<SpriteAvatar spec={a({ acc: ["glasses"] })} size={42} pose="idle" />);
+    const doc = new DOMParser().parseFromString(h, "text/html");
+    expect([...doc.querySelectorAll("image")].map((i) => i.getAttribute("href"))).toEqual([
+      "/avatar2/idle/hair-short-back.webp",
+      "/avatar2/idle/body-tee-s0.webp",
+      "/avatar2/idle/hair-short-front.webp",
+      "/avatar2/idle/acc-glasses.webp",
+    ]);
   });
   it("box_keeps_aspect_and_fits_old_avatar_size", () => {
     for (const p of POSES) {

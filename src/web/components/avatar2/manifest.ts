@@ -5,6 +5,8 @@ export type SpriteMeta = {
   fh: number;
   /** 띠 그림 전체 가로 (칸 수 × fw 와 1~2px 다를 수 있다) */
   sw: number;
+  /** sm/ 작은 그림(세로 160px) 띠 가로 */
+  smSw: number;
   frames: number;
   outfits: readonly string[];
   hairs: readonly string[];
@@ -12,14 +14,25 @@ export type SpriteMeta = {
   accs: readonly string[];
 };
 
+/** 작은 그림(sm/) 세로 px */
+export const SPRITE_SM_H = 160;
+
 export const SPRITE_MANIFEST = {
   "climbing": {
-    "fw": 254,
+    "fw": 255,
     "fh": 400,
-    "sw": 763,
+    "sw": 765,
+    "smSw": 306,
     "frames": 3,
     "outfits": [
       "tee",
+      "tee-coral",
+      "tee-orange",
+      "tee-yellow",
+      "tee-mint",
+      "tee-navy",
+      "tee-lavender",
+      "tee-charcoal",
       "tank-joggers",
       "hoodie",
       "sports-bra-leggings",
@@ -40,15 +53,30 @@ export const SPRITE_MANIFEST = {
       "beanie"
     ],
     "props": false,
-    "accs": []
+    "accs": [
+      "headband",
+      "cap",
+      "glasses",
+      "earphones",
+      "towel",
+      "wristbands"
+    ]
   },
   "gym": {
-    "fw": 304,
+    "fw": 305,
     "fh": 400,
-    "sw": 914,
+    "sw": 916,
+    "smSw": 366,
     "frames": 3,
     "outfits": [
       "tee",
+      "tee-coral",
+      "tee-orange",
+      "tee-yellow",
+      "tee-mint",
+      "tee-navy",
+      "tee-lavender",
+      "tee-charcoal",
       "tank-joggers",
       "hoodie",
       "sports-bra-leggings",
@@ -69,15 +97,30 @@ export const SPRITE_MANIFEST = {
       "beanie"
     ],
     "props": true,
-    "accs": []
+    "accs": [
+      "headband",
+      "cap",
+      "glasses",
+      "earphones",
+      "towel",
+      "wristbands"
+    ]
   },
   "idle": {
-    "fw": 206,
+    "fw": 275,
     "fh": 400,
-    "sw": 618,
+    "sw": 827,
+    "smSw": 331,
     "frames": 3,
     "outfits": [
       "tee",
+      "tee-coral",
+      "tee-orange",
+      "tee-yellow",
+      "tee-mint",
+      "tee-navy",
+      "tee-lavender",
+      "tee-charcoal",
       "tank-joggers",
       "hoodie",
       "sports-bra-leggings",
@@ -98,12 +141,20 @@ export const SPRITE_MANIFEST = {
       "beanie"
     ],
     "props": false,
-    "accs": []
+    "accs": [
+      "headband",
+      "cap",
+      "glasses",
+      "earphones",
+      "towel",
+      "wristbands"
+    ]
   },
   "jiujitsu": {
-    "fw": 474,
+    "fw": 524,
     "fh": 400,
-    "sw": 1423,
+    "sw": 1572,
+    "smSw": 629,
     "frames": 3,
     "outfits": [
       "gi"
@@ -121,15 +172,30 @@ export const SPRITE_MANIFEST = {
       "beanie"
     ],
     "props": false,
-    "accs": []
+    "accs": [
+      "headband",
+      "cap",
+      "glasses",
+      "earphones",
+      "towel",
+      "wristbands"
+    ]
   },
   "pilates": {
-    "fw": 506,
+    "fw": 539,
     "fh": 400,
-    "sw": 1519,
+    "sw": 1618,
+    "smSw": 647,
     "frames": 3,
     "outfits": [
       "tee",
+      "tee-coral",
+      "tee-orange",
+      "tee-yellow",
+      "tee-mint",
+      "tee-navy",
+      "tee-lavender",
+      "tee-charcoal",
       "tank-joggers",
       "hoodie",
       "sports-bra-leggings",
@@ -150,15 +216,30 @@ export const SPRITE_MANIFEST = {
       "beanie"
     ],
     "props": false,
-    "accs": []
+    "accs": [
+      "headband",
+      "cap",
+      "glasses",
+      "earphones",
+      "towel",
+      "wristbands"
+    ]
   },
   "running": {
-    "fw": 189,
+    "fw": 237,
     "fh": 400,
-    "sw": 569,
+    "sw": 713,
+    "smSw": 285,
     "frames": 3,
     "outfits": [
       "tee",
+      "tee-coral",
+      "tee-orange",
+      "tee-yellow",
+      "tee-mint",
+      "tee-navy",
+      "tee-lavender",
+      "tee-charcoal",
       "tank-joggers",
       "hoodie",
       "sports-bra-leggings",
@@ -179,15 +260,30 @@ export const SPRITE_MANIFEST = {
       "beanie"
     ],
     "props": false,
-    "accs": []
+    "accs": [
+      "headband",
+      "cap",
+      "glasses",
+      "earphones",
+      "towel",
+      "wristbands"
+    ]
   },
   "sleep": {
-    "fw": 554,
+    "fw": 635,
     "fh": 400,
-    "sw": 1664,
+    "sw": 1905,
+    "smSw": 762,
     "frames": 3,
     "outfits": [
       "tee",
+      "tee-coral",
+      "tee-orange",
+      "tee-yellow",
+      "tee-mint",
+      "tee-navy",
+      "tee-lavender",
+      "tee-charcoal",
       "tank-joggers",
       "hoodie",
       "sports-bra-leggings",
@@ -208,12 +304,20 @@ export const SPRITE_MANIFEST = {
       "beanie"
     ],
     "props": false,
-    "accs": []
+    "accs": [
+      "headband",
+      "cap",
+      "glasses",
+      "earphones",
+      "towel",
+      "wristbands"
+    ]
   },
   "taekwondo": {
-    "fw": 227,
+    "fw": 268,
     "fh": 400,
-    "sw": 682,
+    "sw": 804,
+    "smSw": 322,
     "frames": 3,
     "outfits": [
       "dobok"
@@ -231,6 +335,13 @@ export const SPRITE_MANIFEST = {
       "beanie"
     ],
     "props": false,
-    "accs": []
+    "accs": [
+      "headband",
+      "cap",
+      "glasses",
+      "earphones",
+      "towel",
+      "wristbands"
+    ]
   }
 } as const satisfies Record<string, SpriteMeta>;

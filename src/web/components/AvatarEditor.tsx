@@ -83,12 +83,11 @@ export function AvatarEditor({ value: avatar, onChange: setAvatar, owned = [] }:
       </div>
       <div className="field">
         <label id="shirt-color-label">옷 색</label>
-        <div className="row swatches" aria-describedby="shirt-color-note">
+        <div className="row swatches" role="group" aria-labelledby="shirt-color-label" aria-describedby={avatar.outfit ? "shirt-color-note" : undefined}>
           {AVATAR_OPTIONS.shirt.map((c, i) => (
             <button
               key={c}
               type="button"
-              disabled
               className={`swatch${avatar.shirt === i ? " on" : ""}`}
               style={{ background: c }}
               aria-label={`옷 색 ${i + 1}`}
@@ -97,8 +96,12 @@ export function AvatarEditor({ value: avatar, onChange: setAvatar, owned = [] }:
             />
           ))}
         </div>
-        {/* 새 캐릭터 티셔츠 색 그림이 아직 없다 (layers.ts SHIRT_ASSET). 그림이 들어오면 disabled · 안내를 뺀다 */}
-        <p id="shirt-color-note" className="muted wear-empty">새 캐릭터 옷 색은 곧 추가돼요.</p>
+        {/* 색은 기본 티셔츠 그림만 있다 (layers.ts SHIRT_ASSET). 산 옷은 제 색 그대로 */}
+        {avatar.outfit && (
+          <p id="shirt-color-note" className="muted wear-empty">
+            옷 색은 기본 티셔츠에만 적용돼요.
+          </p>
+        )}
       </div>
       <div className="field">
         <label>옷</label>

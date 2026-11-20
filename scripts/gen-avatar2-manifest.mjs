@@ -6,6 +6,8 @@ import { join } from "node:path";
 const ROOT = join(import.meta.dirname, "..");
 const DIR = join(ROOT, "public/avatar2");
 const OUT = join(ROOT, "src/web/components/avatar2/manifest.ts");
+/** 작은 그림(sm/) 세로 px */
+const SM_H = 160;
 
 /** webp 머리말에서 가로 · 세로 (VP8X · VP8 · VP8L) */
 function webpSize(file) {
@@ -30,10 +32,21 @@ for (const pose of readdirSync(DIR).sort()) {
   if (sizes.size !== 1) throw new Error(`${pose}: 층마다 그림 크기가 다르다 ${[...sizes]}`);
   const [sw, sh] = [...sizes][0].split("x").map(Number);
   if (sh !== m.frame_h) throw new Error(`${pose}: 세로 ${sh} ≠ frame_h ${m.frame_h}`);
+  // 작은 그림(sm/): 같은 이름 · 세로 SM_H · 가로 = round(sw × SM_H / frame_h)
+  const names = readdirSync(join(DIR, pose)).filter((f) => f.endsWith(".webp")).sort();
+  const smDir = join(DIR, pose, "sm");
+  const smNames = existsSync(smDir) ? readdirSync(smDir).filter((f) => f.endsWith(".webp")).sort() : [];
+  if (names.join() !== smNames.join()) throw new Error(`${pose}: sm/ 그림 목록이 다르다`);
+  const smSizes = new Set(smNames.map((f) => webpSize(join(smDir, f)).join("x")));
+  const smSw = Math.round((sw * SM_H) / m.frame_h);
+  if (smSizes.size !== 1 || [...smSizes][0] !== `${smSw}x${SM_H}`) throw new Error(`${pose}: sm/ 크기 ${[...smSizes]} ≠ ${smSw}x${SM_H}`);
+  for (const a of m.accs ?? []) if (!names.includes(`acc-${a}.webp`)) throw new Error(`${pose}: acc-${a}.webp 없음`);
+  for (const o of m.outfits) for (let s = 0; s < 4; s++) if (!names.includes(`body-${o}-s${s}.webp`)) throw new Error(`${pose}: body-${o}-s${s}.webp 없음`);
   out[pose] = {
     fw: m.frame_w,
     fh: m.frame_h,
     sw,
+    smSw,
     frames: m.frames,
     outfits: m.outfits,
     hairs: m.hairs,
@@ -51,12 +64,17 @@ export type SpriteMeta = {
   fh: number;
   /** 띠 그림 전체 가로 (칸 수 × fw 와 1~2px 다를 수 있다) */
   sw: number;
+  /** sm/ 작은 그림(세로 ${SM_H}px) 띠 가로 */
+  smSw: number;
   frames: number;
   outfits: readonly string[];
   hairs: readonly string[];
   props: boolean;
   accs: readonly string[];
 };
+
+/** 작은 그림(sm/) 세로 px */
+export const SPRITE_SM_H = ${SM_H};
 
 export const SPRITE_MANIFEST = ${JSON.stringify(out, null, 2)} as const satisfies Record<string, SpriteMeta>;
 `,

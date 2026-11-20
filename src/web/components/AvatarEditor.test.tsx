@@ -39,7 +39,7 @@ describe("AvatarEditor", () => {
     expect(h).toContain("모자");
     expect(h).not.toContain("헤어밴드");
   });
-  it("preview_is_new_sprite_character_and_shirt_color_is_disabled_with_note", () => {
+  it("preview_is_new_sprite_character_and_shirt_color_swatches_work", () => {
     const h = renderToStaticMarkup(
       <MemoryRouter>
         <AvatarEditor value={{ ...DEFAULT_AVATAR, hair: "side-part", skin: 2 }} onChange={() => {}} />
@@ -50,7 +50,21 @@ describe("AvatarEditor", () => {
     expect([...prev.querySelectorAll("image")].map((i) => i.getAttribute("href"))).toContain("/avatar2/idle/hair-part-front.webp");
     const shirts = [...doc.querySelectorAll('button[aria-label^="옷 색"]')];
     expect(shirts).toHaveLength(AVATAR_OPTIONS.shirt.length);
-    for (const b of shirts) expect(b.hasAttribute("disabled")).toBe(true);
-    expect(h).toContain("새 캐릭터 옷 색은 곧 추가돼요");
+    for (const b of shirts) expect(b.hasAttribute("disabled")).toBe(false);
+    expect(shirts[4].getAttribute("aria-pressed")).toBe("true");
+    expect(h).not.toContain("곧 추가돼요");
+    // 기본 티를 입고 있으면 안내가 없다
+    expect(h).not.toContain("기본 티셔츠에만 적용돼요");
+  });
+  it("shirt_swatch_note_when_wearing_shop_outfit", () => {
+    const h = renderToStaticMarkup(
+      <MemoryRouter>
+        <AvatarEditor value={{ ...DEFAULT_AVATAR, shirt: 0, outfit: "hoodie" }} onChange={() => {}} owned={["hoodie"]} />
+      </MemoryRouter>,
+    );
+    expect(h).toContain("옷 색은 기본 티셔츠에만 적용돼요");
+    const doc = new DOMParser().parseFromString(h, "text/html");
+    expect([...doc.querySelectorAll(".editor-preview image")].map((i) => i.getAttribute("href"))).toContain("/avatar2/idle/body-hoodie-s0.webp");
+    expect(doc.querySelector('button[aria-label="옷 색 1"]')!.getAttribute("aria-pressed")).toBe("true");
   });
 });

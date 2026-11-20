@@ -1,6 +1,6 @@
 import { AVATAR_OPTIONS, DEFAULT_AVATAR, parseAvatar, type AvatarSpec } from "../../../shared/avatar";
 import type { Pose } from "../avatar/poses";
-import { SPRITE_MANIFEST, type SpriteMeta } from "./manifest";
+import { SPRITE_MANIFEST, SPRITE_SM_H, type SpriteMeta } from "./manifest";
 
 /** 그림 파일이 있는 곳 (public/avatar2 → 빌드 결과 정적 파일) */
 export const SPRITE_BASE = "/avatar2";
@@ -19,15 +19,27 @@ const OUTFIT_ASSET: Record<string, string> = {
 };
 
 /**
- * 티셔츠 색 그림 이름 (AVATAR_OPTIONS.shirt 순서). body-tee-<이름>-s<n>.webp 를 넣고 meta.json outfits 에
- * "tee-<이름>" 을 더하면 그 색을 입는다. 없으면 기본 티(하늘색)
+ * 기본 티셔츠 색 → 몸 그림 이름 (AVATAR_OPTIONS.shirt 순서: 코랄 · 주황 · 노랑 · 민트 · 하늘 · 남색 · 라벤더 · 차콜).
+ * 하늘색은 그냥 "tee". 산 옷을 입으면 쓰지 않는다 (산 옷은 제 색 그대로)
  */
-export const SHIRT_ASSET = ["coral", "orange", "yellow", "mint", "sky", "navy", "lavender", "charcoal"] as const;
+export const SHIRT_ASSET = ["tee-coral", "tee-orange", "tee-yellow", "tee-mint", "tee", "tee-navy", "tee-lavender", "tee-charcoal"] as const;
 
-// 그림마다 캐릭터를 그린 배율이 달라 머리 크기로 맞춘다: hair-buzz-front 첫 칸의 불투명 영역 긴 변(px, 측정값)
-const HEAD_PX: Record<Pose, number> = { idle: 177, sleep: 232, gym: 161, running: 173, pilates: 216, climbing: 133, jiujitsu: 201, taekwondo: 169 };
-// 칸 아래 빈 줄(px). 발 · 매트 · 몸 아래끝을 바닥에 맞춘다 (body 그림 불투명 영역 측정값)
-const FLOOR_PAD: Partial<Record<Pose, number>> = { sleep: 6, pilates: 4, jiujitsu: 29, climbing: 1 };
+// 그림마다 캐릭터를 그린 배율이 달라 머리 크기로 맞춘다: hair-buzz-front 첫 칸의 불투명 영역(알파 > 0) 긴 변(px, 측정값)
+const HEAD_PX: Record<Pose, number> = { idle: 178, sleep: 236, gym: 161, running: 173, pilates: 216, climbing: 133, jiujitsu: 201, taekwondo: 169 };
+// 칸 아래 빈 줄(px). 발 · 매트 · 몸 아래끝을 바닥에 맞춘다 (body-tee(도복) 그림 불투명 영역 측정값)
+const FLOOR_PAD: Partial<Record<Pose, number>> = { sleep: 2, pilates: 4, jiujitsu: 29, climbing: 1 };
+
+/** 그림 해상도: 원본(세로 400px) · 작은 그림(sm/, 세로 160px) */
+export type SpriteRes = "full" | "sm";
+
+/**
+ * 실제로 그려질 세로 크기(CSS px × devicePixelRatio)가 작은 그림 세로(160px) 이하면 sm/ 를 쓴다 (빌라 방 칸).
+ * 크기를 모르면(0 · 측정 전) 원본
+ */
+export function spriteRes(cssH: number, dpr = 1): SpriteRes {
+  const px = cssH * (dpr > 0 ? dpr : 1);
+  return px > 0 && px <= SPRITE_SM_H ? "sm" : "full";
+}
 
 /** 한 칸씩 보여 줄 시간(초): 0→1→2→1 왕복 순서 */
 export const FRAME_STEPS: Record<Pose, readonly [number, number, number, number]> = {
@@ -53,8 +65,8 @@ export function outfitAsset(spec: AvatarSpec, meta: SpriteMeta): string {
   const has = (o: string) => meta.outfits.includes(o);
   const want = (spec.outfit && OUTFIT_ASSET[spec.outfit]) || "tee";
   if (want === "tee") {
-    const colored = `tee-${SHIRT_ASSET[spec.shirt]}`;
-    if (has(colored)) return colored;
+    const colored = SHIRT_ASSET[spec.shirt];
+    if (colored && has(colored)) return colored;
   }
   if (has(want)) return want;
   return has("tee") ? "tee" : meta.outfits[0];
@@ -64,24 +76,32 @@ export type SpriteLayers = {
   meta: SpriteMeta;
   outfit: string;
   hair: string;
+  /** 그릴 소품 (meta.accs 순서) */
+  acc: string[];
   /** 그리는 순서: 뒷머리 → 몸 → 앞머리 → 소품 → 기구(바벨) */
   urls: string[];
+  /** svg 안에서 띠 그림을 그릴 가로 (viewBox 단위 = 원본 px). sm/ 도 원본 배율로 늘려 칸 위치가 같다 */
+  stripW: number;
 };
 
-/** 캐릭터 설정 · 자세 → 쌓을 그림 주소 (필요한 것만) */
-export function spriteLayers(raw: AvatarSpec, pose: Pose): SpriteLayers {
+/** 캐릭터 설정 · 자세 → 쌓을 그림 주소 (필요한 것만). res = "sm" 이면 sm/ 작은 그림 */
+export function spriteLayers(raw: AvatarSpec, pose: Pose, res: SpriteRes = "full"): SpriteLayers {
   const spec = parseAvatar(raw) ?? DEFAULT_AVATAR;
   const meta = spriteMeta(pose);
-  const dir = `${SPRITE_BASE}/${pose}`;
+  const dir = `${SPRITE_BASE}/${pose}${res === "sm" ? "/sm" : ""}`;
   const hair = meta.hairs.includes(hairAsset(spec.hair)) ? hairAsset(spec.hair) : hairAsset(DEFAULT_AVATAR.hair);
   const outfit = outfitAsset(spec, meta);
   const skin = Math.min(spec.skin, AVATAR_OPTIONS.skin.length - 1);
   // 비니는 머리 자리를 차지하므로 모자 · 헤어밴드는 그리지 않는다 (옛 캐릭터와 같은 규칙)
-  const acc = (spec.acc ?? []).filter((a) => meta.accs.includes(a) && !(spec.hair === "beanie" && (a === "cap" || a === "headband")));
+  // 소품끼리는 meta.accs 순서로 겹친다 (헤어밴드 · 모자 → 안경 → 이어폰 → 수건 → 손목 밴드). 몸 자리마다 하나는 parseAvatar 가 지킨다
+  const worn = spec.acc ?? [];
+  const acc = meta.accs.filter((a) => worn.includes(a) && !(spec.hair === "beanie" && (a === "cap" || a === "headband")));
   return {
     meta,
     outfit,
     hair,
+    acc,
+    stripW: res === "sm" ? (meta.smSw * meta.fh) / SPRITE_SM_H : meta.sw,
     urls: [
       `${dir}/hair-${hair}-back.webp`,
       `${dir}/body-${outfit}-s${skin}.webp`,
