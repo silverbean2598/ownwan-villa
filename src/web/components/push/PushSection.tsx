@@ -37,7 +37,9 @@ export function IosGuide() {
         <li><b>홈 화면에 추가</b>를 골라요</li>
         <li>홈 화면에 생긴 <b>오운완빌라</b>로 열고, 설정 → 휴대폰 알림에서 켜요</li>
       </ol>
-      <p className="muted small">iOS 16.4 이상에서 돼요.</p>
+      <p className="muted small">
+        iOS 16.4 이상에서 돼요. <a href="#install">앱처럼 쓰기 안내 보기</a>
+      </p>
     </div>
   );
 }

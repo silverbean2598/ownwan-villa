@@ -5,6 +5,7 @@ import { Badge } from "../components/Badge";
 import { CertifyButton } from "../components/CertifyButton";
 import { Building, type Member } from "../components/Building";
 import { VillaSwitcher } from "../components/VillaSwitcher";
+import { InstallCard } from "../components/install/InstallCard";
 import { loadMyVillas, pickVilla, villaPath, writeCurrentVilla } from "../villa/current";
 import { capacityOf, kindLabel, type MyVilla, type VillaKind } from "../../shared/villa";
 import type { BattleView } from "../../shared/price";
@@ -156,6 +157,7 @@ export function Villa() {
           <textarea ref={linkRef} className="invite-fallback" readOnly rows={2} value={inviteUrl} aria-label="초대 링크" onFocus={(e) => e.currentTarget.select()} />
         )}
       </header>
+      <InstallCard />
       <Building
         members={villa.members}
         penthouseUserId={villa.penthouseUserId}

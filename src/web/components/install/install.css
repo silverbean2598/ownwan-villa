@@ -1,0 +1,27 @@
+/* 앱처럼 쓰기: 빌라 화면 작은 카드 · 설정 칸 (흰 톤) */
+.install-card {
+  position: relative; display: flex; align-items: flex-start; gap: 12px; margin: 0 0 16px; padding: 14px 40px 14px 14px;
+  border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 4px 16px rgba(40, 32, 30, 0.05);
+}
+.install-icon { flex: none; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); }
+.install-main { flex: 1; min-width: 0; }
+.install-title { margin: 1px 0 2px; font-size: 15px; font-weight: 800; }
+.install-text { margin: 0; font-size: 14px; line-height: 1.55; color: #3d3d3d; word-break: keep-all; }
+.install-steps { line-height: 1.9; }
+.install-key {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 8px; background: #F3F5F8;
+  color: var(--ink); font-weight: 700; white-space: nowrap;
+}
+.share-icon { color: #2F6BFF; flex: none; }
+.install-card .install-btn, .settings-section .install-btn { display: inline-block; width: auto; margin-top: 10px; padding: 10px 14px; font-size: 14.5px; font-weight: 700; border-radius: 11px; }
+.install-close {
+  position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 10px; background: transparent; color: #9a9a9a; cursor: pointer;
+}
+.install-close:hover { background: #F6F7F9; color: var(--ink); }
+
+.install-h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.install-pill { padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #F3F5F8; color: #5f6672; }
+.install-pill.ready { background: #EEF3FF; color: #1D3FB0; }
+.install-pill.done { background: #EAF7EE; color: #1E7B3C; }
+.install-foot { margin-top: 10px; }

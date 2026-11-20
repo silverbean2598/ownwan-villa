@@ -6,6 +6,8 @@
 * { box-sizing: border-box; }
 body {
   margin: 0;
+  /* 홈 화면 앱(viewport-fit=cover): 노치 · 홈 막대 · 가로 모드 양옆만큼 안쪽으로. 일반 브라우저에서는 0 */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   background: var(--bg);
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
@@ -71,7 +73,7 @@ body {
 .danger-zone .sub-title { margin-top: 0; color: #c62828; }
 .confirm-overlay {
   position: fixed; inset: 0; z-index: 900; display: flex; align-items: center; justify-content: center;
-  padding: 24px; background: rgba(40, 32, 30, 0.32);
+  padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)); background: rgba(40, 32, 30, 0.32);
 }
 .confirm-box {
   width: min(340px, 100%); padding: 20px; border-radius: 20px; background: #fff; box-shadow: 0 18px 50px rgba(40, 32, 30, 0.18);
@@ -200,3 +202,14 @@ h1 .kind-badge { font-size: 13px; position: relative; top: -2px; }
 .promote-confirm { border: 1px solid #DCCBF5; background: #FBF8FF; border-radius: 12px; padding: 12px 14px; }
 .promote-confirm p { margin: 0 0 6px; }
 .promote-confirm ul { margin: 0 0 10px; padding-left: 18px; line-height: 1.6; }
+
+/* 홈 화면 앱으로 열었을 때: 앱처럼 */
+@media (display-mode: standalone) {
+  /* 당겨서 새로고침 · 끝에서 튕기는 것 줄이기 */
+  html, body { overscroll-behavior-y: contain; }
+  /* 버튼 · 탭 · 머리말 글자는 길게 눌러도 선택되지 않게 (입력칸 · 글 · 초대 링크 · 복구 코드는 그대로 선택된다) */
+  .btn, button, .chip, .villa-head h1, .villa-switch, .back, .install-card, nav, [role="tab"], [role="switch"] {
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  a, button { -webkit-tap-highlight-color: transparent; }
+}

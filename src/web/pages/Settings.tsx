@@ -17,6 +17,7 @@ import { RecruitSettings } from "../components/RecruitSettings";
 import { daysLeft } from "../components/city/RecruitCard";
 import type { MyApplication } from "../../shared/recruit";
 import { PushSection } from "../components/push/PushSection";
+import { InstallSection } from "../components/install/InstallCard";
 import { dropSubscription, endpointForLogout } from "../push/client";
 
 type Me = { id: string; username: string; nickname: string; sport: Sport | null; avatar: AvatarSpec };
@@ -140,9 +141,9 @@ export function Settings() {
     api<{ pending: MyApplication | null }>("/api/me/application").then((r) => setMyApp(r?.pending ?? null), () => {});
   }, []);
 
-  // 상점의 [꾸미러 가기](/settings#avatar)로 오면 캐릭터 꾸미기로 내려간다
+  // 상점의 [꾸미러 가기](/settings#avatar), 앱처럼 쓰기 안내(/settings#install)로 오면 그 칸으로 내려간다
   useEffect(() => {
-    if (me && location.hash === "#avatar") document.getElementById("avatar")?.scrollIntoView();
+    if (me && (location.hash === "#avatar" || location.hash === "#install")) document.getElementById(location.hash.slice(1))?.scrollIntoView();
   }, [me]);
 
   if (loadError) return <main className="page"><p className="error" role="alert">{loadError}</p></main>;
@@ -220,6 +221,8 @@ export function Settings() {
       </Section>
 
       {kakao && <KakaoSection status={kakao} notice={kakaoNotice} onChanged={setKakao} />}
+
+      <InstallSection />
 
       <PushSection onAuthLost={() => nav("/login?next=/settings", { replace: true })} />
 
