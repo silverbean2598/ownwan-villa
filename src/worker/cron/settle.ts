@@ -10,6 +10,7 @@ import { logEvents, type NewEvent } from "../events/log";
 import { tagVilla } from "../villa/membership";
 import { purgeExpiredKakao } from "../auth/kakao";
 import { purgeApplications } from "../recruit/service";
+import { prunePushLog } from "../push/service";
 
 /** 사용자 한 명: 어느 빌라든(또는 빌라 없이) 사진 인증한 날로 센 연속 기록 */
 type UserRow = { id: string; streak: number; missRun: number; certified: number };
@@ -74,6 +75,12 @@ export async function settleThrough(env: Env, target: string): Promise<string[]>
     await purgeApplications(env);
   } catch (e) {
     console.warn("application purge failed", e);
+  }
+  // 푸시 보낸 기록(10분 제한 · 하루 한 번 운동 알림용) 중 2일 지난 줄 정리. 실패해도 정산 결과는 그대로
+  try {
+    await prunePushLog(env, now());
+  } catch (e) {
+    console.warn("push log prune failed", e);
   }
   return done;
 }

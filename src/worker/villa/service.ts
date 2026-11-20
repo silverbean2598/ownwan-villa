@@ -6,6 +6,7 @@ import { kstDay } from "../../shared/rules/day";
 import { displayFloor, displayStreak } from "../../shared/rules/streak";
 import { pickPenthouse } from "../../shared/rules/penthouse";
 import { logEvents } from "../events/log";
+import { queueApartmentPushes } from "../push/service";
 import { myVillaIds, tagVilla } from "./membership";
 import { closeApplications, closeIfDissolved } from "../recruit/service";
 import { cancelGoneBattles } from "../price/service";
@@ -271,7 +272,11 @@ export async function promoteVilla(env: Env, villaId: string, ownerId: string): 
        WHERE m.villa_id = ?1 AND m.left_at IS NULL AND v.kind = 'apartment' AND changes() = 1`,
     ).bind(villaId, t),
   ]);
-  if (res.meta.changes === 1) return { capacity: APARTMENT_CAPACITY };
+  if (res.meta.changes === 1) {
+    // 축하 카드를 받은 입주민에게 휴대폰 푸시도 (카드는 위 batch 에서 SQL 로 썼으니 여기서 같은 내용을 다시 만든다)
+    await queueApartmentPushes(env, villaId).catch((e) => console.error("apartment push failed", e));
+    return { capacity: APARTMENT_CAPACITY };
+  }
   const v = await env.DB.prepare(
     `SELECT owner_id AS ownerId, kind, capacity, (SELECT COUNT(*) FROM memberships WHERE villa_id = villas.id AND left_at IS NULL) AS memberCount
      FROM villas WHERE id = ? AND dissolved_at IS NULL`,

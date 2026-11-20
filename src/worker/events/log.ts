@@ -1,5 +1,6 @@
 import type { Env } from "../env";
 import { now } from "../clock";
+import { queueEventPushes } from "../push/service";
 
 export type EventType =
   | "certified"
@@ -46,8 +47,9 @@ export type NewEvent = { userId: string; type: EventType; payload?: Record<strin
 export async function logEvents(env: Env, events: NewEvent[]): Promise<void> {
   if (!events.length) return;
   const t = now();
+  let res: D1Result[];
   try {
-    await env.DB.batch(
+    res = await env.DB.batch(
       events.map((e) =>
         env.DB.prepare("INSERT OR IGNORE INTO events (id, user_id, type, payload, created_at) VALUES (?, ?, ?, ?, ?)").bind(
           e.key ?? crypto.randomUUID(),
@@ -60,6 +62,13 @@ export async function logEvents(env: Env, events: NewEvent[]): Promise<void> {
     );
   } catch (err) {
     console.error(`event log failed (${events.map((e) => e.type).join(",")})`, err);
+    return;
+  }
+  // 새로 쓴 알림만(고정 키로 무시된 것은 빼고) 휴대폰 푸시로도 보낸다. 따로 돌고 실패해도 던지지 않는다
+  try {
+    queueEventPushes(env, events.filter((_, i) => (res[i]?.meta.changes ?? 0) > 0));
+  } catch (err) {
+    console.error("push queue failed", err);
   }
 }
 

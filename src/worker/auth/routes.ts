@@ -9,7 +9,7 @@ import { PASSWORD_LENGTH_MSG, hashPassword, isValidPasswordLength, needsRehash, 
 import { normalizeUsername } from "./username";
 import { KAKAO_ONLY_MSG, isPasswordless } from "./identity";
 import { LOCKED_MSG, isLocked, recordFailure, resetFailures } from "./lockout";
-import { createSession, endSession, requireUser, setSessionCookie } from "./session";
+import { createSession, endSession, requireUser, sessionUserId, setSessionCookie } from "./session";
 import { CERTIFIED_PHOTO } from "../cert/certified";
 import { kstDay } from "../../shared/rules/day";
 
@@ -80,7 +80,14 @@ auth.post("/api/login", async (c) => {
   return c.json({ ok: true });
 });
 
+// 로그아웃: 이 기기의 휴대폰 알림 구독(endpoint 를 보내면)도 함께 지운다 [제안] — 다음 사람이 이 기기로 내 알림을 받지 않게
 auth.post("/api/logout", async (c) => {
+  const b = await c.req.json().catch(() => null);
+  const endpoint = b?.pushEndpoint;
+  if (typeof endpoint === "string" && endpoint.length <= 1000) {
+    const userId = await sessionUserId(c);
+    if (userId) await c.env.DB.prepare("DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?").bind(userId, endpoint).run();
+  }
   await endSession(c);
   return c.json({ ok: true });
 });
