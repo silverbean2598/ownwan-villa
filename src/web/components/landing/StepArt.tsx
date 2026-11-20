@@ -73,7 +73,7 @@ export function PenthouseArt() {
       <svg className="lp-ph-art" viewBox={`0 0 ${g.W} ${g.H}`}>
         <Box g={g} c={c} sw={sw} />
         <PenthouseDecor g={g} u={k} lit ink={c.ink} sw={sw} />
-        <Chandelier x={g.bx0 + (g.bx1 - g.bx0) * 0.62} top={g.by0} u={k} lit ink={c.ink} />
+        <Chandelier x={g.bx0 + (g.bx1 - g.bx0) * 0.62} top={g.by0} u={k} lit />
         <SpriteAvatar spec={{ ...DEFAULT_AVATAR, hair: "short", shirt: 0 }} size={size} pose="cheer" x={cx - b.w / 2} y={top} label="" />
         <g className="lp-crown" transform={`translate(${cx} ${top - 2}) scale(0.62)`}>
           <Crown x={0} y={0} rot={-10} />

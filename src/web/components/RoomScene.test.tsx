@@ -31,6 +31,22 @@ describe("RoomScene", () => {
     const h = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} penthouse />);
     for (const p of ["chandelier", "skyline", "sofa", "plant"]) expect(h).toContain(`data-part="${p}"`);
   });
+  it("penthouse_uses_generated_art_with_glow_only_when_lit", () => {
+    const lit = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} penthouse variant="detail" />);
+    expect(lit).toContain('href="/furniture/penthouse-chandelier.webp"');
+    expect(lit).toContain('href="/furniture/penthouse-sofa.webp"');
+    expect(lit).toContain('href="/furniture/penthouse-plant.webp"');
+    expect(lit).toContain('data-part="chandelier-glow"');
+    expect(lit).toContain("radialGradient");
+    const off = renderToStaticMarkup(<RoomScene sport="gym" lit={false} avatar={DEFAULT_AVATAR} penthouse variant="detail" />);
+    expect(off).toContain('href="/furniture/penthouse-chandelier-off.webp"');
+    expect(off).not.toContain('data-part="chandelier-glow"');
+    for (const p of ["chandelier", "skyline", "sofa", "plant"]) expect(off).toContain(`data-part="${p}"`);
+    // 빌라 칸은 작은 그림
+    const tile = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} penthouse />);
+    expect(tile).toContain('href="/furniture/sm/penthouse-chandelier.webp"');
+    expect(tile).toContain('href="/furniture/sm/penthouse-sofa.webp"');
+  });
   it("tile_has_small_cork_board_detail_leaves_wall_for_board", () => {
     expect(renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} />)).toContain('data-part="cork"');
     const d = renderToStaticMarkup(

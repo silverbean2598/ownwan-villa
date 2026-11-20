@@ -1,31 +1,58 @@
+import { useId } from "react";
 import type { Geom } from "./Box";
+import { furnitureUrl, type FurnitureRes } from "../furniture";
 
 // 펜트하우스 소품: 샹들리에 · 통유리 야경 창 · 화분 · 벨벳 소파. u = 뒷벽 높이 / 54.
-const GOLD = "#D9A93A";
-const GOLD_D = "#B4862A";
+// 샹들리에 · 화분 · 소파는 가구와 같은 그림체로 만든 그림(public/furniture/penthouse-*.webp)이다.
 
-export function Chandelier({ x, top, u, lit, ink }: { x: number; top: number; u: number; lit: boolean; ink: string }) {
-  const y = top + 10 * u;
-  const sw = 0.9 * u;
-  const candle = (dx: number) => (
-    <g key={dx}>
-      <rect x={x + dx * u - 0.9 * u} y={y - 3.6 * u} width={1.8 * u} height={3.4 * u} fill="#FFF7E2" stroke={ink} strokeWidth={sw * 0.6} />
-      <ellipse cx={x + dx * u} cy={y - 4.6 * u} rx={0.9 * u} ry={1.4 * u} fill={lit ? "#FFD460" : "#8A8A80"} />
-    </g>
-  );
+/** 꺼진 방의 소품을 어둡게 하는 색 행렬(방에 놓은 뒤쪽 가구와 같음) */
+const DIM = "0.7 0 0 0 0  0 0.72 0 0 0.01  0 0 0.8 0 0.04  0 0 0 1 0";
+
+/** 샹들리에 그림(가로:세로)과 높이(u 단위) */
+const CHANDELIER_RATIO = 196 / 325;
+const CHANDELIER_H = 26;
+
+/**
+ * 천장에 매달린 금빛 크리스털 샹들리에(생성 그림). 켜지면 전구가 빛나고 아래로 따뜻한 빛이 번진다.
+ * 꺼지면 전구가 꺼진 그림으로 바꾼다.
+ */
+export function Chandelier({ x, top, u, lit, res = "full" }: { x: number; top: number; u: number; lit: boolean; res?: FurnitureRes }) {
+  const id = useId().replace(/:/g, "");
+  const h = CHANDELIER_H * u;
+  const w = h * CHANDELIER_RATIO;
+  // 빛의 중심: 전구가 몰린 아래쪽 단
+  const cy = top + h * 0.62;
   return (
     <g data-part="chandelier">
       {lit && (
-        <g fill="#FFE9A8">
-          <circle cx={x} cy={y} r={20 * u} opacity="0.12" />
-          <circle cx={x} cy={y} r={13 * u} opacity="0.16" />
-          <circle cx={x} cy={y} r={7 * u} opacity="0.2" />
-        </g>
+        <>
+          <defs>
+            <radialGradient id={`${id}g`}>
+              <stop offset="0" stopColor="#FFE9A8" stopOpacity="0.75" />
+              <stop offset="0.4" stopColor="#FFE2A0" stopOpacity="0.32" />
+              <stop offset="1" stopColor="#FFE2A0" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <circle data-part="chandelier-glow" cx={x} cy={cy} r={h * 1.05} fill={`url(#${id}g)`} />
+        </>
       )}
-      <line x1={x} y1={top} x2={x} y2={y - 2 * u} stroke={GOLD_D} strokeWidth={sw * 1.4} />
-      <path d={`M${x - 8 * u} ${y - 0.5 * u} Q${x - 7 * u} ${y + 4 * u} ${x} ${y + 3.5 * u} Q${x + 7 * u} ${y + 4 * u} ${x + 8 * u} ${y - 0.5 * u}`} fill="none" stroke={GOLD} strokeWidth={sw * 1.6} strokeLinecap="round" />
-      <ellipse cx={x} cy={y + 2.6 * u} rx={2.2 * u} ry={2.6 * u} fill={GOLD} stroke={ink} strokeWidth={sw * 0.7} />
-      {[-8, -4, 4, 8].map(candle)}
+      {/* 꺼지면 전구가 꺼진 그림을, 방의 다른 가구처럼 조금 어둡게 */}
+      {!lit && (
+        <defs>
+          <filter id={`${id}d`} colorInterpolationFilters="sRGB">
+            <feColorMatrix values={DIM} />
+          </filter>
+        </defs>
+      )}
+      <image
+        href={furnitureUrl(lit ? "penthouse-chandelier" : "penthouse-chandelier-off", res)}
+        x={x - w / 2}
+        y={top - u * 0.6}
+        width={w}
+        height={h}
+        preserveAspectRatio="none"
+        filter={lit ? undefined : `url(#${id}d)`}
+      />
     </g>
   );
 }
@@ -66,48 +93,64 @@ export function Skyline({ x, y, w, h, lit, ink, sw }: { x: number; y: number; w:
   );
 }
 
-export function Plant({ x, y, u, ink }: { x: number; y: number; u: number; ink: string }) {
-  const sw = 0.8 * u;
-  const leaf = (dx: number, dy: number, r: number) => (
-    <ellipse key={`${dx},${dy}`} cx={x + dx * u} cy={y + dy * u} rx={3.6 * u} ry={2.2 * u} transform={`rotate(${r} ${x + dx * u} ${y + dy * u})`} fill="#5E9F57" stroke={ink} strokeWidth={sw} />
-  );
+/** 금색 화분에 심은 키 큰 식물(생성 그림). (x, y) = 화분 바닥 가운데 */
+export function Plant({ x, y, u, res = "full" }: { x: number; y: number; u: number; res?: FurnitureRes }) {
+  const h = 30 * u;
+  const w = h * (204 / 329);
   return (
     <g data-part="plant">
-      <path d={`M${x} ${y - 5 * u} Q${x + 0.5 * u} ${y - 14 * u} ${x} ${y - 22 * u}`} stroke="#6B4C2E" strokeWidth={sw * 1.2} fill="none" />
-      {[leaf(-3.5, -20, -30), leaf(3.5, -22, 30), leaf(-4, -14, -20), leaf(4, -15, 25), leaf(-3, -9, -35), leaf(3.5, -8.5, 30), leaf(0, -25, 0)]}
-      <path d={`M${x - 4.5 * u} ${y - 6 * u} L${x + 4.5 * u} ${y - 6 * u} L${x + 3.6 * u} ${y} L${x - 3.6 * u} ${y} Z`} fill={GOLD} stroke={ink} strokeWidth={sw} strokeLinejoin="round" />
-      <path d={`M${x - 3.5 * u} ${y - 3.5 * u} l1.5 ${-1 * u} l1.5 ${1 * u} l1.5 ${-1 * u} l1.5 ${1 * u}`} stroke={GOLD_D} strokeWidth={sw * 0.7} fill="none" />
+      <ellipse cx={x} cy={y - 0.4 * u} rx={w * 0.3} ry={1.2 * u} fill="#3A2420" opacity="0.18" />
+      <image href={furnitureUrl("penthouse-plant", res)} x={x - w / 2} y={y - h} width={w} height={h} preserveAspectRatio="none" />
     </g>
   );
 }
 
-export function Sofa({ x, y, u, ink }: { x: number; y: number; u: number; ink: string }) {
-  const sw = 0.8 * u;
-  const TEAL = "#1F6F8B";
-  const TEAL_D = "#175A72";
+/** 금색 다리의 청록 벨벳 소파(생성 그림). (x, y) = 소파 바닥 가운데 */
+export function Sofa({ x, y, u, res = "full" }: { x: number; y: number; u: number; res?: FurnitureRes }) {
+  const w = 36 * u;
+  const h = w * (231 / 300);
   return (
-    <g data-part="sofa" stroke={ink} strokeWidth={sw} strokeLinejoin="round">
-      <rect x={x - 15 * u} y={y - 14 * u} width={30 * u} height={9 * u} rx={3 * u} fill={TEAL_D} />
-      <rect x={x - 15 * u} y={y - 7 * u} width={30 * u} height={5.5 * u} rx={1.6 * u} fill={TEAL} />
-      <rect x={x - 17.5 * u} y={y - 10 * u} width={4.6 * u} height={9 * u} rx={2.2 * u} fill={TEAL} />
-      <rect x={x + 12.9 * u} y={y - 10 * u} width={4.6 * u} height={9 * u} rx={2.2 * u} fill={TEAL} />
-      <rect x={x - 11 * u} y={y - 13.5 * u} width={6 * u} height={5.4 * u} rx={1.4 * u} fill="#5D86A0" transform={`rotate(-8 ${x - 8 * u} ${y - 11 * u})`} />
-      <line x1={x - 15 * u} y1={y} x2={x - 15 * u} y2={y - 1.5 * u} stroke={GOLD} strokeWidth={sw * 1.6} />
-      <line x1={x + 15 * u} y1={y} x2={x + 15 * u} y2={y - 1.5 * u} stroke={GOLD} strokeWidth={sw * 1.6} />
+    <g data-part="sofa">
+      <ellipse cx={x} cy={y - 0.6 * u} rx={w * 0.44} ry={1.8 * u} fill="#3A2420" opacity="0.2" />
+      <image href={furnitureUrl("penthouse-sofa", res)} x={x - w / 2} y={y - h} width={w} height={h} preserveAspectRatio="none" />
     </g>
   );
 }
 
-/** 상자 안에 펜트하우스 소품 배치 */
-export function PenthouseDecor({ g, u, lit, ink, sw }: { g: Geom; u: number; lit: boolean; ink: string; sw: number }) {
+/**
+ * 상자 안에 펜트하우스 소품 배치. 오른쪽 뒷벽에 야경 창, 그 앞에 화분 · 소파.
+ * detail: 방 상세는 넓은 방이라 소파를 창 아래 뒷벽에 붙이고 화분은 오른쪽 구석에 둔다.
+ */
+export function PenthouseDecor({ g, u, lit, ink, sw, detail = false, res = "full" }: { g: Geom; u: number; lit: boolean; ink: string; sw: number; detail?: boolean; res?: FurnitureRes }) {
   const bw = g.bx1 - g.bx0;
+  const fd = g.H - g.by1;
   const wx = g.bx1 - bw * 0.3;
   const ww = bw * 0.24;
+  const id = useId().replace(/:/g, "");
   return (
     <g>
       <Skyline x={wx} y={g.by0 + sw * 2} w={ww} h={g.by1 - g.by0 - sw * 2} lit={lit} ink={ink} sw={sw} />
-      <Plant x={wx - 6 * u} y={g.by1 + 1 * u} u={u} ink={ink} />
-      <Sofa x={g.bx1 - 4 * u} y={g.by1 + 14 * u} u={u} ink={ink} />
+      {/* 꺼진 방에서는 방에 놓은 가구처럼 소파 · 화분을 어둡게 */}
+      {!lit && (
+        <defs>
+          <filter id={`${id}d`} colorInterpolationFilters="sRGB">
+            <feColorMatrix values={DIM} />
+          </filter>
+        </defs>
+      )}
+      <g filter={lit ? undefined : `url(#${id}d)`}>
+        {detail ? (
+          <>
+            <Plant x={g.bx1 - 6.5 * u} y={g.by1 + fd * 0.05} u={u} res={res} />
+            <Sofa x={wx + ww * 0.42} y={g.by1 + fd * 0.12} u={u} res={res} />
+          </>
+        ) : (
+          <>
+            <Plant x={wx - 6 * u} y={g.by1 + 1 * u} u={u} res={res} />
+            <Sofa x={g.bx1 - 4 * u} y={g.by1 + 14 * u} u={u} res={res} />
+          </>
+        )}
+      </g>
     </g>
   );
 }
