@@ -46,20 +46,29 @@ export function Confetti({ pieces }: { pieces: [number, number, number][] }) {
   );
 }
 
-/** 우승컵. (x, y) = 손잡이를 쥔 손 위치(받침 아래 가운데) */
-export function Trophy({ x, y }: { x: number; y: number }) {
+/** 리그 1 · 2 · 3위 컵 색 (금 · 은 · 동) */
+export const METALS = {
+  gold: { fill: GOLD, dark: GOLD_DARK, hi: GOLD_HI },
+  silver: { fill: "#CBD3DE", dark: "#9AA6B6", hi: "#EEF2F7" },
+  bronze: { fill: "#E2A472", dark: "#B97847", hi: "#F6D2B2" },
+} as const;
+export type Metal = keyof typeof METALS;
+
+/** 우승컵. (x, y) = 손잡이를 쥔 손 위치(받침 아래 가운데). metal: 금 · 은 · 동 (기본 금) */
+export function Trophy({ x, y, metal = "gold" }: { x: number; y: number; metal?: Metal }) {
+  const m = METALS[metal];
   return (
-    <g data-part="trophy" transform={`translate(${x} ${y})`}>
+    <g data-part="trophy" data-metal={metal} transform={`translate(${x} ${y})`}>
       <path d="M-11 -46 C-22 -46 -22 -30 -9 -28" fill="none" stroke={INK} strokeWidth="5.2" strokeLinecap="round" />
       <path d="M11 -46 C22 -46 22 -30 9 -28" fill="none" stroke={INK} strokeWidth="5.2" strokeLinecap="round" />
-      <path d="M-11 -46 C-22 -46 -22 -30 -9 -28" fill="none" stroke={GOLD} strokeWidth="2.6" strokeLinecap="round" />
-      <path d="M11 -46 C22 -46 22 -30 9 -28" fill="none" stroke={GOLD} strokeWidth="2.6" strokeLinecap="round" />
-      <path d="M-14 -50 H14 Q14 -26 2.5 -21 L2.5 -14 H-2.5 L-2.5 -21 Q-14 -26 -14 -50 Z" fill={GOLD} {...line} />
-      <path d="M-9 -46 Q-9 -32 -2 -27" fill="none" stroke={GOLD_HI} strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M-15 -51 H15" stroke={GOLD_DARK} strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M-8 -14 H8 L9 -9 H-9 Z" fill={GOLD_DARK} {...line} strokeWidth={1.2} />
+      <path d="M-11 -46 C-22 -46 -22 -30 -9 -28" fill="none" stroke={m.fill} strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M11 -46 C22 -46 22 -30 9 -28" fill="none" stroke={m.fill} strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M-14 -50 H14 Q14 -26 2.5 -21 L2.5 -14 H-2.5 L-2.5 -21 Q-14 -26 -14 -50 Z" fill={m.fill} {...line} />
+      <path d="M-9 -46 Q-9 -32 -2 -27" fill="none" stroke={m.hi} strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M-15 -51 H15" stroke={m.dark} strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M-8 -14 H8 L9 -9 H-9 Z" fill={m.dark} {...line} strokeWidth={1.2} />
       <rect x="-11" y="-9" width="22" height="9" rx="2" fill="#7A5236" {...line} strokeWidth={1.2} />
-      <rect x="-5" y="-6.5" width="10" height="4" rx="1" fill={GOLD} />
+      <rect x="-5" y="-6.5" width="10" height="4" rx="1" fill={m.fill} />
     </g>
   );
 }

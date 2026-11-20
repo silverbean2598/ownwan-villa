@@ -15,6 +15,8 @@ import { RoomBoard } from "./pages/RoomBoard";
 import { Shop } from "./pages/Shop";
 import { Settings } from "./pages/Settings";
 import { City } from "./pages/City";
+import { Ranking } from "./pages/Ranking";
+import { Battle } from "./pages/Battle";
 import { Terms } from "./pages/Terms";
 import { Privacy } from "./pages/Privacy";
 import { EventCenter } from "./components/EventCenter";
@@ -40,6 +42,8 @@ export function App() {
         <Route path="/shop" element={<Shop />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/city" element={<City />} />
+        <Route path="/ranking" element={<Ranking />} />
+        <Route path="/battle/:id" element={<Battle />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
       </Routes>

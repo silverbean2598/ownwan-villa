@@ -31,7 +31,7 @@ const CONFETTI: [number, number, number][] = [
 ];
 
 /** 전체 화면 카드 그림 (240 × 200). spec = 보는 사람 자신의 캐릭터 */
-export function CardArt({ type, spec }: { type: CardType; spec: AvatarSpec }) {
+export function CardArt({ type, spec, variant }: { type: CardType; spec: AvatarSpec; /** league_rank: "1"~"3", battle_result: won · lost · draw */ variant?: string }) {
   const s = parseAvatar(spec) ?? DEFAULT_AVATAR;
   const skin = AVATAR_OPTIONS.skin[s.skin];
   let body: ReactNode;
@@ -198,6 +198,80 @@ export function CardArt({ type, spec }: { type: CardType; spec: AvatarSpec }) {
       );
       break;
     }
+    case "league_rank": {
+      // 연속 기록 카드처럼 컵을 번쩍 든다. 컵 색 = 순위 (금 · 은 · 동)
+      const X = 60, Y = 24;
+      const hand = add(handAt("R", -128, 0), X, Y);
+      const metal = variant === "2" ? "silver" : variant === "3" ? "bronze" : "gold";
+      body = (
+        <>
+          <Confetti pieces={CONFETTI} />
+          <MiniVilla x={204} y={178} w={46} floors={2} />
+          <Shadow x={120} y={181} />
+          <Figure x={X} y={Y} spec={s} face={metal === "gold" ? "tears" : "proud"} joints={{ armR: -128, elbR: 0, armL: 22 }} />
+          <Trophy x={hand[0]} y={hand[1] + 4} metal={metal} />
+          <Fist at={hand} skin={skin} />
+          <Sparkle cx={40} cy={62} r={5} />
+        </>
+      );
+      break;
+    }
+    case "battle_challenged": {
+      // 도전장(편지)을 받고 눈을 반짝인다. 뒤에 빌라 두 채가 마주 본다
+      const X = 48, Y = 24;
+      const hand = add(handAt("R", -40, -20), X, Y);
+      body = (
+        <>
+          <MiniVilla x={196} y={150} w={40} floors={3} />
+          <MiniVilla x={226} y={162} w={28} floors={2} />
+          <Burst x={210} y={96} dir={1} color="#F39A5B" />
+          <Shadow x={108} y={181} />
+          <Figure x={X} y={Y} spec={s} face="determined" joints={{ armR: -40, elbR: -20, armL: 14 }} />
+          <Letter x={hand[0] + 10} y={hand[1] - 8} rot={-12} />
+          <Fist at={hand} skin={skin} />
+        </>
+      );
+      break;
+    }
+    case "battle_result": {
+      if (variant === "won") {
+        // 이겼다: 컵 들고 점프 + 색종이
+        const X = 60, Y = 10;
+        const hand = add(handAt("R", -128, 0), X, Y);
+        body = (
+          <>
+            <Confetti pieces={CONFETTI} />
+            <Shadow x={120} y={186} rx={24} className="cel-shadow" />
+            <g className="cel-jump">
+              <Figure x={X} y={Y} spec={s} face="happy" joints={{ armR: -128, elbR: 0, armL: 128, elbL: 28, legL: 26, legR: -34 }} />
+              <Trophy x={hand[0]} y={hand[1] + 4} />
+              <Fist at={hand} skin={skin} />
+            </g>
+            <UpArrow x={208} y={52} />
+          </>
+        );
+      } else if (variant === "lost") {
+        // 졌다: 아쉽지만 주먹 쥐고 다음을 다짐
+        body = (
+          <>
+            <Shadow x={120} y={181} />
+            <Figure x={60} y={24} spec={s} face="determined" joints={{ armL: 20, elbL: -100, armR: -20, elbR: 100 }} />
+            <Bubbles x={196} y={58} />
+          </>
+        );
+      } else {
+        // 무승부: 서로 박수
+        body = (
+          <>
+            <Shadow x={120} y={181} />
+            <Figure x={60} y={24} spec={s} face="laugh" joints={{ armL: 40, elbL: -90, armR: -40, elbR: 90 }} />
+            <ClapLines x={120} y={96} />
+            <Sparkle cx={190} cy={50} r={6} />
+          </>
+        );
+      }
+      break;
+    }
   }
   return (
     <svg className={`cel-art cel-${type}`} viewBox="0 0 240 200" width="100%" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -284,6 +358,21 @@ export function ToastArt({ type, spec, friend }: { type: ToastType; spec: Avatar
         </svg>
       );
     }
+    case "battle_started":
+      return (
+        <Head spec={spec} face="determined">
+          <Burst x={22} y={50} dir={-1} color="#F39A5B" />
+          <Burst x={98} y={50} dir={1} color="#F39A5B" />
+        </Head>
+      );
+    case "battle_declined":
+    case "battle_expired":
+    case "battle_cancelled":
+      return (
+        <Head spec={spec} face="shy">
+          <Letter x={98} y={36} s={0.55} rot={14} />
+        </Head>
+      );
     case "application_closed":
       return (
         <Head spec={spec} face="shy">

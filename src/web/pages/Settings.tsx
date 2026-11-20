@@ -356,6 +356,17 @@ export function Settings() {
       )}
 
       {villa && (
+        <Section title={villas.length > 1 ? `${villa.name} 집값 대결` : "집값 대결"}>
+          <p className="muted small">
+            {isOwner
+              ? "다른 공개 빌라에 7일 집값 대결을 신청하거나, 받은 신청에 답할 수 있어요."
+              : "우리 빌라 대결 상황을 볼 수 있어요. 신청하고 받는 건 방장이 해요."}
+          </p>
+          <Link className="text-link" to={`/battle/${villa.id}`} style={{ marginTop: 0 }}>대결 화면 열기</Link>
+        </Section>
+      )}
+
+      {villa && (
         <RecruitSettings
           villa={villa}
           isOwner={isOwner}

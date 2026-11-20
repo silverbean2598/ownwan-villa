@@ -6,11 +6,14 @@ export type AppEvent = { id: string; type: string; payload: Record<string, unkno
 /** 전체 화면 카드 (그림 + 한 줄 + [좋아요]) */
 export const CARD_TYPES = [
   "streak7", "floor_up", "penthouse_in", "penthouse_out", "floor_down", "welcome", "kicked", "owner_in", "dissolved", "application_rejected",
+  // 집값 대결: 리그 1~3위 · 대결 신청 받음(방장) · 대결 결과
+  "league_rank", "battle_challenged", "battle_result",
 ] as const;
 /** 위쪽 토스트 (3초 뒤 사라짐) */
 export const TOAST_TYPES = [
   "certified", "streak6", "bought", "friend_joined", "owner_changed", "night_reminder", "cheered", "commented",
   "application_received", "application_closed",
+  "battle_started", "battle_declined", "battle_expired", "battle_cancelled",
 ] as const;
 export type CardType = (typeof CARD_TYPES)[number];
 export type ToastType = (typeof TOAST_TYPES)[number];
@@ -43,6 +46,12 @@ export function objParticle(word: string): "을" | "를" | "을(를)" {
 export function subjParticle(word: string): "이" | "가" | "이(가)" {
   const f = hasFinal(word);
   return f === null ? "이(가)" : f ? "이" : "가";
+}
+
+/** 공동격 조사: 받침 있으면 "과", 없으면 "와". 끝 글자를 읽을 수 없으면 "와(과)" */
+export function withParticle(word: string): "과" | "와" | "와(과)" {
+  const f = hasFinal(word);
+  return f === null ? "와(과)" : f ? "과" : "와";
 }
 
 /** 보조사: 받침 있으면 "은", 없으면 "는". 끝 글자를 읽을 수 없으면 "은(는)" */
@@ -124,6 +133,32 @@ export function eventCopy(e: AppEvent): string {
       return `이번에는 ${str(p.villaName, "그 빌라")}에 함께하지 못하게 됐어요. 다른 빌라도 둘러봐요`;
     case "application_closed":
       return closedCopy(str(p.villaName, "빌라"), str(p.reason));
+    case "league_rank": {
+      const where = villa ? `${villa} ` : "우리 빌라 ";
+      const pts = typeof p.points === "number" && p.points > 0 ? ` 입주민 모두 +${p.points}P` : " (이번 주에 입주해서 포인트는 다음 기회에)";
+      return `지난주 집값 리그 ${str(p.rank)}위! ${where}건물에 ${["금", "은", "동"][Number(p.rank) - 1] ?? ""} 트로피가 달렸어요.${pts}`;
+    }
+    case "battle_challenged": {
+      const from = str(p.fromName, "다른 빌라");
+      return `${from}에서 ${villa ? `${villa}에 ` : ""}집값 대결을 신청했어요! 48시간 안에 답해 주세요`;
+    }
+    case "battle_result": {
+      const other = str(p.opponentName, "상대 빌라");
+      const pts = typeof p.points === "number" && p.points > 0 ? ` 입주민 모두 +${p.points}P` : "";
+      if (p.result === "won") return `${villa ? `${villa}, ` : ""}${other}${objParticle(other)} 이겼어요! 집값 대결 승리${pts}`;
+      if (p.result === "lost") return `${villa ? `${villa}, ` : ""}아쉽게 ${other}에 졌어요. 다음 대결에서 다시 해 봐요`;
+      return `${villa ? `${villa}, ` : ""}${other}${withParticle(other)} 무승부예요. 오른 집값이 똑같았어요`;
+    }
+    case "battle_started":
+      return `${villa ? `${villa}, ` : ""}${str(p.opponentName, "상대 빌라")}${withParticle(str(p.opponentName, "상대 빌라"))} 집값 대결이 내일부터 7일 동안 열려요`;
+    case "battle_declined":
+      return `${str(p.opponentName, "상대 빌라")}에서 대결 신청을 거절했어요`;
+    case "battle_expired":
+      return `${str(p.opponentName, "상대 빌라")}에 보낸 대결 신청이 48시간이 지나 만료됐어요`;
+    case "battle_cancelled": {
+      const other = str(p.opponentName, "상대 빌라");
+      return p.reason === "no_price" ? `${other}${withParticle(other)} 대결이 집값 계산 문제로 취소됐어요` : `${other}${withParticle(other)} 대결이 취소됐어요`;
+    }
     default:
       return "";
   }
@@ -146,7 +181,12 @@ function closedCopy(name: string, reason: string): string {
 }
 
 /** 카드 버튼 문구 (기본 "좋아요") */
-export const cardButton = (type: string) => (type === "application_rejected" ? "알겠어요" : "좋아요");
+export const cardButton = (type: string) =>
+  type === "application_rejected" ? "알겠어요" : type === "battle_challenged" ? "대결 보러 가기" : "좋아요";
+
+/** 카드를 닫으면 갈 화면 (대결 신청을 받은 방장 → 그 빌라 대결 화면). 없으면 null */
+export const cardLink = (e: AppEvent): string | null =>
+  e.type === "battle_challenged" && typeof e.payload.villaId === "string" ? `/battle/${e.payload.villaId}` : null;
 
 /**
  * 받아 온 이벤트를 카드 · 토스트로 나눈다 (순서 유지).

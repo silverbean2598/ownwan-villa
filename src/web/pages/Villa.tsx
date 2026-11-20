@@ -7,6 +7,10 @@ import { Building, CAPACITY, type Member } from "../components/Building";
 import { VillaSwitcher } from "../components/VillaSwitcher";
 import { loadMyVillas, pickVilla, villaPath, writeCurrentVilla } from "../villa/current";
 import type { MyVilla } from "../../shared/villa";
+import type { BattleView } from "../../shared/price";
+import { PriceTag } from "../components/price/PriceTag";
+import { formatDelta } from "../../shared/rules/price";
+import { withParticle } from "../events/plan";
 
 type VillaData = {
   id: string;
@@ -15,6 +19,10 @@ type VillaData = {
   penthouseUserId: string | null;
   inviteToken?: string;
   members: Member[];
+  /** 집값 대결 (예전 서버 응답에는 없다) */
+  price?: number | null;
+  priceChange?: number | null;
+  battle?: BattleView | null;
 };
 type Me = { id: string; sport: string | null };
 
@@ -128,6 +136,7 @@ export function Villa() {
           <span className="chip"><span>입주 <b>{villa.members.length}</b>/{CAPACITY}명</span></span>
           <span className="chip"><span>오늘 완료 <b>{done}</b>명</span></span>
         </div>
+        {"price" in villa && <VillaPriceRows villa={villa} />}
         <div className="villa-actions">
           {mine && <CertifyButton certifiedToday={mine.certifiedToday} certifiedElsewhere={!!mine.certifiedAnywhere && villas.length > 1} villaId={villa.id} />}
           <Link className="btn ghost" to="/shop">가구 상점</Link>
@@ -146,5 +155,40 @@ export function Villa() {
       </header>
       <Building members={villa.members} penthouseUserId={villa.penthouseUserId} ownerId={villa.ownerId} meId={me.id} villaId={villa.id} />
     </main>
+  );
+}
+
+/** 빌라 화면 위쪽: 집값 · 전날 대비(→ 집값 순위), 대결이 있으면 한 줄(→ 대결 화면). 입주민 모두 본다 */
+function VillaPriceRows({ villa }: { villa: VillaData }) {
+  const b = villa.battle;
+  let battle: JSX.Element | null = null;
+  if (b?.status === "active") {
+    battle = (
+      <span className="txt">
+        <b>{b.them.name}</b>{withParticle(b.them.name)} 대결 중 · {b.started ? `${b.daysLeft}일 남음 · 우리 ${formatDelta(b.me.delta ?? 0)} vs ${formatDelta(b.them.delta ?? 0)}` : "내일 시작"}
+      </span>
+    );
+  } else if (b?.status === "pending") {
+    battle =
+      b.side === "opponent" ? (
+        <span className="txt"><b>{b.them.name}</b>에서 대결 신청이 왔어요</span>
+      ) : (
+        <span className="txt"><b>{b.them.name}</b>에 대결을 신청했어요 · 답을 기다리는 중</span>
+      );
+  }
+  return (
+    <div className="villa-price">
+      <Link className="vp-row" to="/ranking">
+        <span className="vp-left">
+          <span className="lbl">우리 빌라 집값</span>
+          <PriceTag price={villa.price} change={villa.priceChange} />
+        </span>
+        <span className="go">순위 보기 ›</span>
+      </Link>
+      <Link className={`vp-row battle${b?.status === "pending" && b.side === "opponent" ? " incoming" : ""}`} to={`/battle/${villa.id}`}>
+        {battle ?? <span className="txt">집값 대결 · 다른 빌라와 7일 동안 겨뤄요</span>}
+        <span className="go">{b?.status === "pending" && b.side === "opponent" ? "답하기 ›" : "보기 ›"}</span>
+      </Link>
+    </div>
   );
 }

@@ -8,6 +8,9 @@ import type { CityMine, CityResponse, CityVilla } from "../../shared/city";
 import { topicParticle } from "../events/plan";
 import { RecruitCard } from "../components/city/RecruitCard";
 import type { MyApplication } from "../../shared/recruit";
+import { PriceBadges, PriceTag } from "../components/price/PriceTag";
+import { ChallengeBox } from "../components/price/ChallengeBox";
+import type { RankingMine } from "../../shared/price";
 
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
 const width = () => (typeof window === "undefined" ? 390 : Math.min(window.innerWidth, 1100));
@@ -17,10 +20,12 @@ const width = () => (typeof window === "undefined" ? 390 : Math.min(window.inner
  * 빈방 모집 중이면 모집 글과 [입주 신청]
  */
 function VillaCard({
-  v, mine, myApp, villaCount, onChanged, onClose,
+  v, mine, myApp, villaCount, myVillas, onChanged, onClose,
 }: {
   v: CityVilla;
   mine: boolean;
+  /** 내가 사는 빌라 (대결 신청 버튼) */
+  myVillas: RankingMine[];
   myApp: MyApplication | null;
   villaCount: number;
   onChanged: () => Promise<void>;
@@ -43,15 +48,26 @@ function VillaCard({
           <div>
             {mine && <span className="mine-tag">우리 빌라</span>}
             <h2>{v.name}</h2>
+            <PriceBadges trophy={v.trophy} battleWin={v.battleWin} inBattle={v.inBattle} />
           </div>
           <button type="button" className="x" aria-label="닫기" onClick={onClose}>×</button>
         </div>
+        {"price" in v && (
+          <div className="city-price">
+            <span className="city-price-left">
+              <span className="lbl">집값 (어제 자정 기준)</span>
+              <PriceTag price={v.price} change={v.priceChange} />
+            </span>
+            <Link className="text-link" to="/ranking?from=city" style={{ marginTop: 0 }}>순위 보기</Link>
+          </div>
+        )}
         <ul className="city-facts">
           <li>입주 인원<b>{v.memberCount}/{VILLA_CAPACITY}명</b></li>
           <li className="lit">오늘 불 켜진 방<b>{v.litCount}개</b></li>
           <li className="ph">펜트하우스 주인<b>{v.penthouseNickname ?? "아직 없어요"}</b></li>
           <li>가장 높은 층<b>{v.topFloor}층</b></li>
         </ul>
+        {"price" in v && <ChallengeBox key={`c${v.id}`} target={{ id: v.id, name: v.name, inBattle: !!v.inBattle }} mine={myVillas} compact />}
         <RecruitCard key={v.id} v={v} mine={mine} myApp={myApp} villaCount={villaCount} onChanged={onChanged} />
         {!mine && <p className="note">사진과 루틴은 그 빌라 입주민끼리만 봐요.</p>}
       </div>
@@ -125,7 +141,10 @@ export function City() {
   return (
     <main className="city-page">
       <header className="city-head">
-        <Link className="back" to="/villa">← 빌라로</Link>
+        <div className="city-head-links">
+          <Link className="back" to="/villa">← 빌라로</Link>
+          <Link className="rank-link" to="/ranking?from=city">집값 순위 ›</Link>
+        </div>
         <h1>도시</h1>
         <p>
           {villas.length ? `공개한 빌라 ${villas.length}곳이 모여 있어요. ` : "아직 공개한 빌라가 없어요. "}
@@ -185,6 +204,7 @@ export function City() {
           mine={mineIds.includes(sel.id)}
           myApp={data.myApplication ?? null}
           villaCount={mineAll.length}
+          myVillas={mineAll.map((m) => ({ villaId: m.villaId, name: m.name, isOwner: m.isOwner, public: m.public, inBattle: !!m.inBattle }))}
           onChanged={load}
           onClose={() => setSelected(null)}
         />

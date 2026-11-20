@@ -14,7 +14,43 @@ export const shortName = (s: string, max = 8) => (Array.from(s).length > max ? `
 
 /** 화면 낭독기용 설명 */
 export const buildingLabel = (v: CityVilla, mine: boolean) =>
-  `${mine ? "우리 빌라, " : ""}${v.name}, 오늘 불 켜진 방 ${v.litCount}개${v.recruit ? ", 입주자 모집 중" : ""}`;
+  `${mine ? "우리 빌라, " : ""}${v.name}, 오늘 불 켜진 방 ${v.litCount}개${v.trophy ? `, 지난주 집값 ${v.trophy}위` : ""}${v.battleWin ? ", 대결 승리" : ""}${v.recruit ? ", 입주자 모집 중" : ""}`;
+
+const CUPS = {
+  1: { fill: GOLD, dark: "#C9952A", hi: "#FCE59A" },
+  2: { fill: "#CBD3DE", dark: "#8E9AAB", hi: "#F1F4F8" },
+  3: { fill: "#E2A472", dark: "#A9683A", hi: "#F6D2B2" },
+} as const;
+
+/** 리그 트로피: 지붕 왼쪽 모서리에 올린 큰 컵 (금 · 은 · 동) + 번쩍임. (x, y) = 받침 아래 가운데 */
+export function RoofTrophy({ x, y, rank }: { x: number; y: number; rank: 1 | 2 | 3 }) {
+  const m = CUPS[rank];
+  return (
+    <g className="cb-trophy" data-trophy={rank} transform={`translate(${x} ${y})`} aria-hidden="true">
+      <circle cx="0" cy="-17" r="15" fill={m.hi} opacity=".22" />
+      <path d="M-7 -26 C-14 -26 -14 -16 -6 -15 M7 -26 C14 -26 14 -16 6 -15" fill="none" stroke={INK} strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M-9 -28 H9 Q9 -14 1.6 -11.5 V-7 H-1.6 V-11.5 Q-9 -14 -9 -28 Z" fill={m.fill} stroke={INK} strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M-5.5 -25 Q-5.5 -17 -1.5 -14" fill="none" stroke={m.hi} strokeWidth="1.5" strokeLinecap="round" />
+      <rect x="-6.5" y="-7" width="13" height="3" rx="1" fill={m.dark} stroke={INK} strokeWidth="1" />
+      <rect x="-8" y="-4" width="16" height="4.5" rx="1.2" fill="#7A5236" stroke={INK} strokeWidth="1" />
+      <text x="0" y="-17" textAnchor="middle" fontSize="8" fontWeight="900" fill="#5B3B12">{rank}</text>
+      <path className="cb-glint" d="M12 -30 l1.2 3 3 1.2 -3 1.2 -1.2 3 -1.2 -3 -3 -1.2 3 -1.2 Z" fill="#FFF6D6" />
+    </g>
+  );
+}
+
+/** 1:1 대결 승리 배지: 건물 앞면 오른쪽 위에 단 리본 메달. (x, y) = 메달 가운데 */
+export function BattleMedal({ x, y }: { x: number; y: number }) {
+  return (
+    <g className="cb-medal" transform={`translate(${x} ${y})`} aria-hidden="true">
+      <path d="M-6 4 L-9 17 L-5 14.5 L-2 18 L0 6 Z" fill="#E5383B" stroke={INK} strokeWidth="1" strokeLinejoin="round" />
+      <path d="M6 4 L9 17 L5 14.5 L2 18 L0 6 Z" fill="#C42B2E" stroke={INK} strokeWidth="1" strokeLinejoin="round" />
+      <circle r="10" fill="#FF7A59" stroke={INK} strokeWidth="1.3" />
+      <circle r="7" fill="#FFE08A" stroke="#C2512F" strokeWidth="1" />
+      <text x="0" y="3.4" textAnchor="middle" fontSize="9" fontWeight="900" fill="#8A2E14">승</text>
+    </g>
+  );
+}
 
 const FLAG = "#FF7A59";
 
@@ -105,6 +141,8 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
       data-lit={villa.litCount}
       data-stories={shape.stories}
       data-recruit={villa.recruit ? "1" : undefined}
+      data-trophy={villa.trophy}
+      data-battle-win={villa.battleWin ? "1" : undefined}
     >
       {/* 누르기 쉬운 넓은 영역 + 포커스 테두리 */}
       <rect className="cb-ring" x={-W / 2 - 8} y={phTop - 14} width={W + 16} height={-phTop + 20} rx="12" />
@@ -148,9 +186,12 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
         <rect x={-phW / 2 - 3} y={phTop - 4} width={phW + 6} height="5" rx="2" fill={GOLD} {...ln} strokeWidth={1.2} />
         <rect x={-phW / 2 + 5} y={phTop + 6} width="7" height={d.ph - 6} rx="1" fill="#34406A" stroke={INK} strokeWidth="1" />
         <rect x={phW / 2 - 14} y={phTop + 6} width="9" height="8" rx="1" fill={DARK} stroke={GOLD} strokeWidth="1.6" />
-        <Bush x={-W / 2 + 10} y={roof} s={0.85} />
+        {!villa.trophy && <Bush x={-W / 2 + 10} y={roof} s={0.85} />}
         <Bush x={W / 2 - 10} y={roof} s={0.85} />
       </g>
+
+      {villa.trophy && <RoofTrophy x={-W / 2 + 13} y={roof} rank={villa.trophy} />}
+      {villa.battleWin && <BattleMedal x={W / 2 - 1} y={bodyTop + 13} />}
 
       {villa.recruit && <RecruitFlag x={W / 2 - 18} y={roof} />}
 

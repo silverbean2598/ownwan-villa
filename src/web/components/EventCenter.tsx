@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { DEFAULT_AVATAR, parseAvatar, type AvatarSpec } from "../../shared/avatar";
 import { kstDay } from "../../shared/rules/day";
-import { cardButton, eventCopy, isCard, planEvents, shouldNightRemind, type AppEvent, type CardType, type ToastType } from "../events/plan";
+import { cardButton, cardLink, eventCopy, isCard, planEvents, shouldNightRemind, type AppEvent, type CardType, type ToastType } from "../events/plan";
 import { EVENTS_POKE } from "../events/poke";
 import { CardArt, ToastArt } from "./celebrate/CelebrationArt";
 import "./celebrate/celebrate.css";
@@ -132,8 +132,16 @@ export function EventCenter({ now = Date.now }: { now?: () => number }) {
   );
 }
 
-function Card({ event, type, spec, onClose }: { event: AppEvent; type: CardType; spec: AvatarSpec; onClose: () => void }) {
+function Card({ event, type, spec, onClose: close }: { event: AppEvent; type: CardType; spec: AvatarSpec; onClose: () => void }) {
   const btn = useRef<HTMLButtonElement>(null);
+  const nav = useNavigate();
+  // 대결 신청 카드: 닫으면서 그 빌라 대결 화면으로 (받기 · 거절은 그 화면에서)
+  const link = cardLink(event);
+  const onGo = () => {
+    close();
+    if (link) nav(link);
+  };
+  const onClose = close;
   useEffect(() => {
     btn.current?.focus();
   }, []);
@@ -149,9 +157,9 @@ function Card({ event, type, spec, onClose }: { event: AppEvent; type: CardType;
   return (
     <div className="cel-overlay" onKeyDown={onKey}>
       <div className="cel-card" role="dialog" aria-modal="true" aria-labelledby={`cel-${event.id}`}>
-        <CardArt type={type} spec={spec} />
+        <CardArt type={type} spec={spec} variant={typeof event.payload.result === "string" ? event.payload.result : typeof event.payload.rank === "number" ? String(event.payload.rank) : undefined} />
         <p id={`cel-${event.id}`}>{text}</p>
-        <button ref={btn} type="button" className="btn" onClick={onClose}>
+        <button ref={btn} type="button" className="btn" onClick={onGo}>
           {cardButton(type)}
         </button>
       </div>
