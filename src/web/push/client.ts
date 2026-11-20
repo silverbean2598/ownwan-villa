@@ -123,3 +123,19 @@ export async function dropSubscription(): Promise<void> {
     // 못 풀어도 서버에서는 이미 지웠다
   }
 }
+
+/**
+ * 로그인한 뒤: 이 브라우저에 이미 알림 구독이 있으면 지금 로그인한 계정으로 옮긴다 (같은 기기를 함께 쓰는 경우).
+ * 알림 권한이 없거나 지원하지 않으면 아무것도 하지 않고, 실패해도 조용히 넘어간다
+ */
+export async function resyncAfterLogin(): Promise<boolean> {
+  try {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return false;
+    const sub = await currentSubscription();
+    if (!sub) return false;
+    await syncSubscription(sub);
+    return true;
+  } catch {
+    return false;
+  }
+}

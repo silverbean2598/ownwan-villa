@@ -61,8 +61,16 @@ export const RATE_MS = 10 * 60_000;
 /** 조용한 시간(KST 23시 ~ 다음 날 8시)에는 앱 알림만 남기고 푸시는 보내지 않는다 [확정] */
 export const QUIET_START = 23;
 export const QUIET_END = 8;
-/** 한 번 실행에서 보내는 푸시 수 상한 (Workers 무료 요금제의 하위 요청 50개 한도 안에서) [제안] */
+/** 한 번 실행에서 보내는 푸시 수 상한 (Workers 무료 요금제의 하위 요청 50개 · CPU 10ms 안에서) [제안] */
 export const MAX_SENDS = 40;
+/** 저녁 운동 알림 크론 한 번에 보내는 푸시 수 (넘치는 사람은 다음 날 먼저 받는다) [제안] */
+export const REMINDER_MAX_SENDS = 25;
+/** 알림 하나를 보내는 기기 수 (최근에 잘 받은 기기부터) [제안] */
+export const DEVICES_PER_MESSAGE = 2;
+/** 푸시 서비스 요청 시간 제한 */
+export const SEND_TIMEOUT_MS = 8000;
+/** 잠금 화면에 댓글 내용을 보이지 않게: 댓글 알림은 이 문구로 [제안] */
+export const COMMENT_BODY = "새 댓글이 달렸어요";
 /** 한 사람이 알림을 켤 수 있는 기기 수 [제안] */
 export const MAX_DEVICES = 5;
 
@@ -147,7 +155,8 @@ export async function dispatchEventPushes(env: Env, events: NewEvent[], t: numbe
   for (const e of events) {
     const category = categoryOf(e);
     if (!category) continue;
-    const body = eventCopy({ id: "", type: e.type, payload: e.payload ?? {}, createdAt: t });
+    // 댓글은 잠금 화면에 내용이 보이지 않게 일반 문구로 (내용은 앱에서)
+    const body = e.type === "commented" ? COMMENT_BODY : eventCopy({ id: "", type: e.type, payload: e.payload ?? {}, createdAt: t });
     if (!body) continue;
     latest.set(`${e.userId}:${category}`, { userId: e.userId, category, body, url: urlOf(e) });
   }
@@ -189,36 +198,48 @@ function chunks<T>(xs: T[], n: number): T[][] {
 
 type SubRow = PushTarget & { id: string; userId: string };
 
+export type SendResult = { sent: number; removed: number; skipped: number };
+
 /**
- * 메시지를 그 사람의 기기 모두에 보낸다. 보내기 전에 보낸 기록(push_log)을 먼저 남겨 동시에 돌아도 겹쳐 보내지 않게 하고,
- * 404/410(구독이 사라짐)이면 그 기기 행을 지운다. 성공하면 last_ok_at 을 채운다
+ * 메시지를 그 사람의 기기에 보낸다 (최근에 잘 받은 기기부터 DEVICES_PER_MESSAGE 대까지, 모두 합쳐 cap 개까지).
+ * cap 을 넘는 메시지는 통째로 건너뛴다(skipped). 404/410(구독이 사라짐)이면 그 기기 행을 지우고, 성공하면 last_ok_at 을 채운다.
+ * 보낸 기록(push_log)은 기기 하나라도 받은 메시지만 남긴다 — 모두 실패하면 10분 제한 · 하루 한 번에 걸리지 않고 다음에 다시 보낸다.
+ * (동시에 두 번 돌면 겹쳐 보낼 수 있다: 같은 tag 라 기기에서는 하나로 바뀐다)
  */
-export async function sendMessages(env: Env, msgs: Msg[], t: number): Promise<{ sent: number; removed: number }> {
+export async function sendMessages(env: Env, msgs: Msg[], t: number, cap = MAX_SENDS): Promise<SendResult> {
   const keys = vapidOf(env);
-  if (!keys || !msgs.length) return { sent: 0, removed: 0 };
+  if (!keys || !msgs.length) return { sent: 0, removed: 0, skipped: 0 };
   const users = [...new Set(msgs.map((m) => m.userId))];
   const subs = new Map<string, SubRow[]>();
   for (const part of chunks(users, 90)) {
     const { results } = await env.DB.prepare(
-      `SELECT id, user_id AS userId, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id IN (${part.map(() => "?").join(",")})`,
+      `SELECT id, user_id AS userId, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id IN (${part.map(() => "?").join(",")})
+       ORDER BY last_ok_at IS NULL, last_ok_at DESC, created_at DESC`,
     )
       .bind(...part)
       .all<SubRow>();
     for (const r of results) subs.set(r.userId, [...(subs.get(r.userId) ?? []), r]);
   }
   const jobs: { msg: Msg; sub: SubRow }[] = [];
-  for (const msg of msgs) for (const sub of subs.get(msg.userId) ?? []) jobs.push({ msg, sub });
-  if (!jobs.length) return { sent: 0, removed: 0 };
-  if (jobs.length > MAX_SENDS) console.warn(`push: ${jobs.length} sends, capped at ${MAX_SENDS}`);
-  const run = jobs.slice(0, MAX_SENDS);
-  const logged = [...new Map(run.map((j) => [`${j.msg.userId}:${j.msg.category}`, j.msg])).values()];
-  await env.DB.batch(logged.map((m) => env.DB.prepare("INSERT INTO push_log (user_id, category, sent_at) VALUES (?, ?, ?)").bind(m.userId, m.category, t)));
+  let skipped = 0;
+  for (const msg of msgs) {
+    const mine = (subs.get(msg.userId) ?? []).slice(0, DEVICES_PER_MESSAGE);
+    if (!mine.length) continue;
+    if (jobs.length + mine.length > cap) {
+      skipped++;
+      continue;
+    }
+    for (const sub of mine) jobs.push({ msg, sub });
+  }
+  if (skipped) console.warn(`push: cap ${cap} reached, skipped ${skipped} messages`);
+  if (!jobs.length) return { sent: 0, removed: 0, skipped };
 
   const doFetch = fetchOverride ?? fetch;
   const ok: string[] = [];
   const gone: string[] = [];
+  const delivered = new Map<string, Msg>();
   await Promise.all(
-    run.map(async ({ msg, sub }) => {
+    jobs.map(async ({ msg, sub }) => {
       try {
         const payload = JSON.stringify({ title: TITLE, body: msg.body, url: msg.url, tag: `ownwan-${msg.category}` });
         const { url, init } = await buildPushRequest(sub, payload, keys, Math.floor(t / 1000), {
@@ -226,21 +247,26 @@ export async function sendMessages(env: Env, msgs: Msg[], t: number): Promise<{ 
           ttl: msg.category === "reminder" ? 3 * 3600 : 12 * 3600,
           urgency: msg.category === "reminder" ? "high" : "normal",
         });
-        const res = await doFetch(url, init);
+        const res = await doFetch(url, { ...init, redirect: "manual", signal: AbortSignal.timeout(SEND_TIMEOUT_MS) });
+        // 응답 본문은 쓰지 않는다: 연결을 바로 돌려준다
+        await res.body?.cancel().catch(() => {});
         if (res.status === 404 || res.status === 410) gone.push(sub.id);
-        else if (res.ok) ok.push(sub.id);
-        else console.warn(`push send ${res.status} (${new URL(sub.endpoint).host})`);
+        else if (res.ok) {
+          ok.push(sub.id);
+          delivered.set(`${msg.userId}:${msg.category}`, msg);
+        } else console.warn(`push send ${res.status} (${new URL(sub.endpoint).host})`);
       } catch (err) {
         console.warn(`push send error (${msg.category})`, err);
       }
     }),
   );
   const stmts = [
+    ...[...delivered.values()].map((m) => env.DB.prepare("INSERT INTO push_log (user_id, category, sent_at) VALUES (?, ?, ?)").bind(m.userId, m.category, t)),
     ...gone.map((id) => env.DB.prepare("DELETE FROM push_subscriptions WHERE id = ?").bind(id)),
     ...ok.map((id) => env.DB.prepare("UPDATE push_subscriptions SET last_ok_at = ? WHERE id = ?").bind(t, id)),
   ];
   if (stmts.length) await env.DB.batch(stmts);
-  return { sent: ok.length, removed: gone.length };
+  return { sent: ok.length, removed: gone.length, skipped };
 }
 
 /** KST 날짜가 시작되는 시각(00:00 KST)의 UTC ms */
@@ -252,21 +278,26 @@ function dayStartMs(day: string): number {
  * 저녁 9시(KST) 운동 알림 [확정]: 알림을 켠 기기가 있고 · 운동 알림을 끄지 않았고 · 오늘 사진 인증을 아직 안 했고 ·
  * 오늘 이미 받지 않은 사람에게 한 번. 크론(12:00 UTC)이 부른다
  */
-export async function sendReminders(env: Env, t: number): Promise<{ sent: number; users: number }> {
-  if (!vapidOf(env)) return { sent: 0, users: 0 };
+export async function sendReminders(env: Env, t: number): Promise<{ sent: number; users: number; skipped: number }> {
+  if (!vapidOf(env)) return { sent: 0, users: 0, skipped: 0 };
   const day = kstDay(t);
   const { results } = await env.DB.prepare(
-    `SELECT DISTINCT s.user_id AS userId FROM push_subscriptions s
+    `SELECT s.user_id AS userId FROM push_subscriptions s
      LEFT JOIN push_prefs p ON p.user_id = s.user_id
      WHERE COALESCE(p.reminder, 1) = 1
        AND NOT EXISTS (SELECT 1 FROM certs c WHERE c.user_id = s.user_id AND c.day = ?1 AND ${CERTIFIED_PHOTO})
-       AND NOT EXISTS (SELECT 1 FROM push_log l WHERE l.user_id = s.user_id AND l.category = 'reminder' AND l.sent_at >= ?2)`,
+       AND NOT EXISTS (SELECT 1 FROM push_log l WHERE l.user_id = s.user_id AND l.category = 'reminder' AND l.sent_at >= ?2)
+     GROUP BY s.user_id
+     -- 한 번에 다 못 보낼 때 돌아가며: 운동 알림을 가장 오래전에 받은(또는 받은 기록이 없는) 사람부터
+     ORDER BY (SELECT MAX(l.sent_at) FROM push_log l WHERE l.user_id = s.user_id AND l.category = 'reminder') IS NOT NULL,
+       (SELECT MAX(l.sent_at) FROM push_log l WHERE l.user_id = s.user_id AND l.category = 'reminder'), s.user_id`,
   )
     .bind(day, dayStartMs(day))
     .all<{ userId: string }>();
   const msgs: Msg[] = results.map((r) => ({ userId: r.userId, category: "reminder", body: REMINDER_BODY, url: "/certify" }));
-  const { sent } = await sendMessages(env, msgs, t);
-  return { sent, users: msgs.length };
+  const { sent, skipped } = await sendMessages(env, msgs, t, REMINDER_MAX_SENDS);
+  if (skipped) console.warn(`reminder push: skipped ${skipped} users over cap ${REMINDER_MAX_SENDS} (they go first tomorrow)`);
+  return { sent, users: msgs.length, skipped };
 }
 
 /** 보낸 기록 정리: 2일 지난 줄 (매일 밤 크론) */

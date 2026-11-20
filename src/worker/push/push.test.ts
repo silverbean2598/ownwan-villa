@@ -5,7 +5,7 @@ import { setNow } from "../clock";
 import { logEvents } from "../events/log";
 import { b64urlEncode, type Bytes } from "./webpush";
 import { decryptPayload, newSubscriptionKeys, newVapidKeys } from "./test-helpers";
-import { flushPushes, REMINDER_BODY, setPushFetch } from "./service";
+import { flushPushes, REMINDER_BODY, REMINDER_MAX_SENDS, setPushFetch } from "./service";
 
 // 키는 테스트마다 새로 만든다 (저장소에 비밀키를 두지 않는다)
 let E: Env;
@@ -239,7 +239,8 @@ describe("앱 알림 → 휴대폰 푸시", () => {
     await send("POST", `/api/certs/${certId}/comments`, friend.cookie, { body: "두 번째 댓글" });
     await flushPushes();
     expect(to(d)).toHaveLength(2);
-    expect((await payloadOf(to(d)[1], d)).body).toBe("이웃 님: 두 번째 댓글");
+    // 잠금 화면에는 댓글 내용 없이
+    expect((await payloadOf(to(d)[1], d)).body).toBe("새 댓글이 달렸어요");
   });
 
   it("other_category_is_not_rate_limited_by_cheer", async () => {
@@ -392,5 +393,109 @@ describe("시험 알림 · 로그아웃 · 탈퇴", () => {
     for (const t of ["push_subscriptions", "push_prefs", "push_log"]) {
       expect(await count(`SELECT COUNT(*) AS n FROM ${t} WHERE user_id = ?`, u.id)).toBe(0);
     }
+  });
+});
+
+describe("리뷰 반영: CPU · 기록 · 기기 수", () => {
+  async function setup() {
+    const author = await signup("작가");
+    const friend = await signup("이웃");
+    await villaOf(author, friend);
+    const certId = await photo(author);
+    await flushPushes();
+    calls = [];
+    return { author, friend, certId };
+  }
+
+  it("comment_push_hides_comment_text_on_lock_screen", async () => {
+    const { author, friend, certId } = await setup();
+    const d = await device(author);
+    await send("POST", `/api/certs/${certId}/comments`, friend.cookie, { body: "비밀 이야기" });
+    await flushPushes();
+    const p = await payloadOf(to(d)[0], d);
+    expect(p.body).toBe("새 댓글이 달렸어요");
+    expect(JSON.stringify(p)).not.toContain("비밀");
+  });
+
+  it("sends_to_at_most_two_most_recently_ok_devices", async () => {
+    const { author } = await setup();
+    const a = await device(author);
+    const b = await device(author);
+    const c = await device(author);
+    await env.DB.prepare("UPDATE push_subscriptions SET last_ok_at = ? WHERE endpoint = ?").bind(DAY_T - 1000, a.endpoint).run();
+    await env.DB.prepare("UPDATE push_subscriptions SET last_ok_at = ? WHERE endpoint = ?").bind(DAY_T - 5000, c.endpoint).run();
+    await logEvents(E, [{ userId: author.id, type: "cheered", payload: { nickname: "가" } }]);
+    await flushPushes();
+    expect(to(a)).toHaveLength(1);
+    expect(to(c)).toHaveLength(1);
+    expect(to(b)).toHaveLength(0); // 한 번도 잘 받은 적 없는 기기는 뒤로
+  });
+
+  it("push_fetch_uses_manual_redirect_and_timeout_signal", async () => {
+    const { author } = await setup();
+    const d = await device(author);
+    await logEvents(E, [{ userId: author.id, type: "cheered", payload: { nickname: "가" } }]);
+    await flushPushes();
+    expect(to(d)[0].init.redirect).toBe("manual");
+    expect(to(d)[0].init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("total_failure_leaves_no_rate_limit_row_so_next_event_still_pushes", async () => {
+    const { author } = await setup();
+    const d = await device(author);
+    status = 500;
+    await logEvents(E, [{ userId: author.id, type: "cheered", payload: { nickname: "가" } }]);
+    await flushPushes();
+    expect(to(d)).toHaveLength(1);
+    expect(await count("SELECT COUNT(*) AS n FROM push_log WHERE user_id = ?", author.id)).toBe(0);
+    status = 201;
+    setNow(() => DAY_T + 60_000);
+    await logEvents(E, [{ userId: author.id, type: "cheered", payload: { nickname: "나" } }]);
+    await flushPushes();
+    expect(to(d)).toHaveLength(2);
+    expect(await count("SELECT COUNT(*) AS n FROM push_log WHERE user_id = ? AND category = 'cheer'", author.id)).toBe(1);
+  });
+
+  it("vapid_jwt_is_reused_per_origin_for_up_to_11_hours", async () => {
+    const { author } = await setup();
+    const d = await device(author);
+    const jwtOf = (c: Call) => (c.init.headers as Record<string, string>).authorization.split(" ")[1];
+    // 오전 10시에 시작해 11시간 뒤(밤 9시)도 조용한 시간이 아니게
+    const T = DAY_T - 4 * 3600_000;
+    setNow(() => T);
+    await logEvents(E, [{ userId: author.id, type: "cheered", payload: { nickname: "가" } }]);
+    await flushPushes();
+    setNow(() => T + 3600_000);
+    await logEvents(E, [{ userId: author.id, type: "cheered", payload: { nickname: "나" } }]);
+    await flushPushes();
+    setNow(() => T + 11 * 3600_000 + 1000);
+    await logEvents(E, [{ userId: author.id, type: "friend_joined", payload: { nickname: "다" } }]);
+    await flushPushes();
+    const c = to(d);
+    expect(c).toHaveLength(3);
+    // ECDSA 서명은 매번 달라지므로 같은 문자열이면 다시 쓴 것
+    expect(jwtOf(c[1])).toBe(jwtOf(c[0]));
+    expect(jwtOf(c[2])).not.toBe(jwtOf(c[0]));
+  });
+
+  it("reminder_cap_rotates_skipped_users_first_next_day", async () => {
+    await env.DB.prepare("DELETE FROM push_subscriptions").run();
+    const NINE_PM = Date.parse("2026-11-22T21:00:00+09:00");
+    const devs: { u: U; d: Dev }[] = [];
+    for (let i = 0; i < REMINDER_MAX_SENDS + 2; i++) {
+      const u = await signup(`회원${i}`);
+      devs.push({ u, d: await device(u) });
+    }
+    calls = [];
+    setNow(() => NINE_PM);
+    await scheduled({ cron: REMINDER_CRON }, E);
+    expect(calls).toHaveLength(REMINDER_MAX_SENDS);
+    const skipped = devs.filter((x) => to(x.d).length === 0);
+    expect(skipped).toHaveLength(2);
+    calls = [];
+    setNow(() => NINE_PM + 24 * 3600_000);
+    await scheduled({ cron: REMINDER_CRON }, E);
+    expect(calls).toHaveLength(REMINDER_MAX_SENDS);
+    for (const x of skipped) expect(to(x.d)).toHaveLength(1);
   });
 });

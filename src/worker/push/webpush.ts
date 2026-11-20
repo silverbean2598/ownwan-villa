@@ -129,15 +129,51 @@ export function validVapid(publicKey?: string, privateKey?: string): boolean {
  * ES256 서명은 WebCrypto 가 주는 r|s(64바이트) 그대로가 JWS 형식이다
  */
 export async function vapidJwt(keys: VapidKeys, audience: string, nowSec: number): Promise<string> {
-  const pub = b64urlDecode(keys.publicKey);
-  const key = await crypto.subtle.importKey(
-    "jwk", jwkOf(pub, b64urlDecode(keys.privateKey)), { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"],
-  );
+  const key = await signingKey(keys);
   const header = b64urlEncode(enc.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
   const claims = b64urlEncode(enc.encode(JSON.stringify({ aud: audience, exp: nowSec + 12 * 3600, sub: keys.subject })));
   const input = `${header}.${claims}`;
   const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(input));
   return `${input}.${b64urlEncode(sig)}`;
+}
+
+// ── CPU 아끼기 (무료 요금제 요청당 CPU 10ms) ──
+// 가져온 ECDSA 서명 키와 푸시 서비스(origin)별 서명한 JWT 를 모듈 안에 들고 있다가 다시 쓴다.
+// JWT 는 12시간짜리라 11시간까지만 다시 쓴다 (남은 1시간은 푸시 서비스와 시계가 어긋나도 괜찮게)
+let keyCache: { id: string; key: Promise<CryptoKey> } | null = null;
+const jwtCache = new Map<string, { jwt: string; madeAt: number }>();
+export const JWT_REUSE_SEC = 11 * 3600;
+
+function signingKey(keys: VapidKeys): Promise<CryptoKey> {
+  const id = `${keys.publicKey}|${keys.privateKey}`;
+  if (keyCache?.id !== id) {
+    const key = crypto.subtle.importKey(
+      "jwk", jwkOf(b64urlDecode(keys.publicKey), b64urlDecode(keys.privateKey)), { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"],
+    );
+    // 실패한 가져오기는 들고 있지 않는다
+    key.catch(() => {
+      if (keyCache?.key === key) keyCache = null;
+    });
+    keyCache = { id, key };
+  }
+  return keyCache.key;
+}
+
+/** 푸시 서비스 origin 마다 JWT 를 11시간까지 다시 쓴다 */
+export async function cachedVapidJwt(keys: VapidKeys, audience: string, nowSec: number): Promise<string> {
+  const id = `${keys.publicKey}|${keys.subject}|${audience}`;
+  const hit = jwtCache.get(id);
+  if (hit && nowSec >= hit.madeAt && nowSec - hit.madeAt < JWT_REUSE_SEC) return hit.jwt;
+  const jwt = await vapidJwt(keys, audience, nowSec);
+  if (jwtCache.size > 20) jwtCache.clear();
+  jwtCache.set(id, { jwt, madeAt: nowSec });
+  return jwt;
+}
+
+/** 테스트용: 들고 있는 키 · JWT 를 비운다 */
+export function clearVapidCache(): void {
+  keyCache = null;
+  jwtCache.clear();
 }
 
 export type PushTarget = { endpoint: string; p256dh: string; auth: string };
@@ -148,7 +184,7 @@ export async function buildPushRequest(
   target: PushTarget, payload: string, keys: VapidKeys, nowSec: number, opts: PushOptions = {},
 ): Promise<{ url: string; init: RequestInit }> {
   const body = await encryptPayload(enc.encode(payload), b64urlDecode(target.p256dh), b64urlDecode(target.auth));
-  const jwt = await vapidJwt(keys, new URL(target.endpoint).origin, nowSec);
+  const jwt = await cachedVapidJwt(keys, new URL(target.endpoint).origin, nowSec);
   const headers: Record<string, string> = {
     "content-type": "application/octet-stream",
     "content-encoding": "aes128gcm",

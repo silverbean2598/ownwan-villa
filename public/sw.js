@@ -21,7 +21,8 @@ self.addEventListener("push", (event) => {
       // 같은 종류는 새 알림이 예전 알림을 바꾼다
       tag: data.tag || "ownwan",
       renotify: !!data.tag,
-      data: { url: typeof data.url === "string" && data.url.startsWith("/") ? data.url : "/villa" },
+      // 우리 사이트 안의 경로만 ("//다른곳" 같은 주소는 받지 않는다)
+      data: { url: typeof data.url === "string" && data.url.startsWith("/") && !data.url.startsWith("//") ? data.url : "/villa" },
     }),
   );
 });

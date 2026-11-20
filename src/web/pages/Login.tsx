@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
+import { resyncAfterLogin } from "../push/client";
 import { safeNext } from "../next";
 import { KAKAO_NOTICE, KakaoButton } from "../components/kakao/KakaoButton";
 
@@ -27,6 +28,8 @@ export function Login() {
     setBusy(true);
     try {
       await api("/api/login", { method: "POST", body: JSON.stringify({ username, password }) });
+      // 이 기기에 알림이 켜져 있으면 지금 계정으로 옮긴다 (기다리지 않는다)
+      void resyncAfterLogin();
       nav(next, { replace: true });
     } catch (e) {
       setErrors({ form: e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요" });

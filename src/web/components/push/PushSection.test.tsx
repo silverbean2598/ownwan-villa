@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { detectPushEnv, pushState, type PushEnv } from "../../push/client";
+import { detectPushEnv, pushState, resyncAfterLogin, type PushEnv } from "../../push/client";
 import { DEFAULT_PREFS, PushSection, PushSectionView } from "./PushSection";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -130,5 +130,41 @@ describe("PushSection (불러오기)", () => {
     await mount("BKEY");
     // jsdom 에는 서비스 워커 · PushManager 가 없다
     expect(host.querySelector("[data-push-state]")?.getAttribute("data-push-state")).toBe("unsupported");
+  });
+});
+
+describe("로그인 뒤 알림 구독 옮기기", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete (navigator as unknown as { serviceWorker?: unknown }).serviceWorker;
+  });
+  const sub = { endpoint: "https://fcm.googleapis.com/fcm/send/x", toJSON: () => ({ endpoint: "https://fcm.googleapis.com/fcm/send/x", keys: { p256dh: "p", auth: "a" } }) };
+  function stub(permission: NotificationPermission, hasSub: boolean) {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("Notification", { permission });
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: { getRegistration: async () => ({ pushManager: { getSubscription: async () => (hasSub ? sub : null) } }) },
+    });
+    return fetchMock;
+  }
+
+  it("existing_subscription_is_posted_for_the_new_account", async () => {
+    const f = stub("granted", true);
+    expect(await resyncAfterLogin()).toBe(true);
+    expect(f).toHaveBeenCalledTimes(1);
+    const [path, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    expect(path).toBe("/api/push/subscribe");
+    expect(JSON.parse(String(init.body)).endpoint).toBe(sub.endpoint);
+  });
+
+  it("does_nothing_without_permission_or_subscription", async () => {
+    let f = stub("default", true);
+    expect(await resyncAfterLogin()).toBe(false);
+    expect(f).not.toHaveBeenCalled();
+    f = stub("granted", false);
+    expect(await resyncAfterLogin()).toBe(false);
+    expect(f).not.toHaveBeenCalled();
   });
 });

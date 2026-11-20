@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { b64urlDecode, b64urlEncode, buildPushRequest, concat, encryptPayload, validVapid, vapidJwt, type Bytes } from "./webpush";
+import { b64urlDecode, b64urlEncode, buildPushRequest, cachedVapidJwt, clearVapidCache, concat, encryptPayload, validVapid, vapidJwt, type Bytes } from "./webpush";
 import { decryptPayload, newVapidKeys, newSubscriptionKeys } from "./test-helpers";
 
 // RFC 8291 부록 A 의 예시 값
@@ -105,4 +105,22 @@ describe("VAPID", () => {
 
 it("concat_joins_bytes", () => {
   expect(concat(new Uint8Array([1]), new Uint8Array([2, 3]))).toEqual(new Uint8Array([1, 2, 3]));
+});
+
+describe("VAPID 캐시", () => {
+  it("reuses_jwt_per_audience_and_key_until_11h", async () => {
+    clearVapidCache();
+    const keys = { ...(await newVapidKeys()), subject: "https://example.com" };
+    const a = await cachedVapidJwt(keys, "https://fcm.googleapis.com", 1000);
+    expect(await cachedVapidJwt(keys, "https://fcm.googleapis.com", 1000 + 10 * 3600)).toBe(a);
+    expect(await cachedVapidJwt(keys, "https://web.push.apple.com", 1000)).not.toBe(a);
+    expect(await cachedVapidJwt(keys, "https://fcm.googleapis.com", 1000 + 11 * 3600)).not.toBe(a);
+    // 키가 바뀌면 새로
+    const other = { ...(await newVapidKeys()), subject: "https://example.com" };
+    const b = await cachedVapidJwt(other, "https://fcm.googleapis.com", 1000);
+    expect(b.split(".")[2]).not.toBe(a.split(".")[2]);
+    const pub = await crypto.subtle.importKey("raw", b64urlDecode(other.publicKey), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+    const [h, c, s] = b.split(".");
+    expect(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pub, b64urlDecode(s), new TextEncoder().encode(`${h}.${c}`))).toBe(true);
+  });
 });
