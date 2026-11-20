@@ -7,8 +7,9 @@ import { isMember, myActive, tagVilla } from "../villa/membership";
 import { kstDay, prevDay } from "../../shared/rules/day";
 import { battleDays } from "../../shared/rules/price";
 import type { RankingMine, RankingResponse, RankingRow, Trophy, VillaBattles, VillaPrice } from "../../shared/price";
+import { MIN_MEMBERS_FOR_COMPETITION, MIN_MEMBERS_MSG } from "../../shared/rules/price";
 import {
-  BATTLE_WIN, IN_BATTLE, OPEN, PRICE_AT, TROPHY, badgeSince, battleView, challengeCutoff, currentBattleRow, expireChallenges,
+  BATTLE_WIN, IN_BATTLE, MEMBERS, OPEN, PRICE_AT, TROPHY, badgeSince, battleView, challengeCutoff, currentBattleRow, expireChallenges,
   lastSettledDay, recentBattleRows,
 } from "./service";
 
@@ -46,7 +47,7 @@ price.get("/api/ranking", requireUser, async (c) => {
        ORDER BY p.price IS NULL, p.price DESC, p.cert_days DESC, memberCount DESC, v.created_at ASC LIMIT ${RANK_LIMIT}`,
     ).bind(day ?? "", day ? prevDay(day) : "", badgeSince(t), challengeCutoff(t)),
     c.env.DB.prepare(
-      `SELECT v.id AS villaId, v.name, v.owner_id = ?1 AS isOwner, v.public, ${IN_BATTLE("v.id", "?2")} AS inBattle
+      `SELECT v.id AS villaId, v.name, v.owner_id = ?1 AS isOwner, v.public, ${IN_BATTLE("v.id", "?2")} AS inBattle, ${MEMBERS("v.id")} AS memberCount
        FROM ${myActive("?1")} ORDER BY m.joined_at ASC, m.rowid ASC`,
     ).bind(me, challengeCutoff(t)),
     c.env.DB.prepare("SELECT MAX(week) AS week FROM league_results"),
@@ -64,12 +65,13 @@ price.get("/api/ranking", requireUser, async (c) => {
     ...(r.battleWin ? { battleWin: true } : {}),
     inBattle: !!r.inBattle,
   }));
-  const my: RankingMine[] = (mine.results as { villaId: string; name: string; isOwner: number; public: number; inBattle: number }[]).map((m) => ({
+  const my: RankingMine[] = (mine.results as { villaId: string; name: string; isOwner: number; public: number; inBattle: number; memberCount: number }[]).map((m) => ({
     villaId: m.villaId,
     name: m.name,
     isOwner: !!m.isOwner,
     public: !!m.public,
     inBattle: !!m.inBattle,
+    memberCount: m.memberCount,
   }));
   return c.json({ day, villas, mine: my, leagueWeek: (week.results[0] as { week: string | null } | undefined)?.week ?? null } satisfies RankingResponse);
 });
@@ -102,7 +104,9 @@ price.get("/api/villas/:id/battles", requireUser, async (c) => {
 });
 
 export async function villaBattles(env: Bindings, villaId: string, userId: string): Promise<VillaBattles> {
-  const v = await env.DB.prepare("SELECT owner_id AS ownerId, public FROM villas WHERE id = ?").bind(villaId).first<{ ownerId: string; public: number }>();
+  const v = await env.DB.prepare(`SELECT owner_id AS ownerId, public, ${MEMBERS("id")} AS memberCount FROM villas WHERE id = ?`)
+    .bind(villaId)
+    .first<{ ownerId: string; public: number; memberCount: number }>();
   const today = kstDay(now());
   const last = await lastSettledDay(env);
   const cur = await currentBattleRow(env, villaId);
@@ -112,6 +116,7 @@ export async function villaBattles(env: Bindings, villaId: string, userId: strin
     public: !!v?.public,
     current: cur ? await battleView(env, cur, villaId, today, last) : null,
     recent: await Promise.all(recent.map((r) => battleView(env, r, villaId, today, last))),
+    memberCount: v?.memberCount ?? 0,
   };
 }
 
@@ -143,9 +148,10 @@ price.post("/api/villas/:id/battles", requireUser, async (c) => {
        WHERE ?2 != ?3
          AND EXISTS (SELECT 1 FROM villas WHERE id = ?2 AND owner_id = ?4 AND dissolved_at IS NULL AND public = 1)
          AND EXISTS (SELECT 1 FROM villas WHERE id = ?3 AND owner_id != ?4 AND dissolved_at IS NULL AND public = 1)
+         AND ${MEMBERS("?2")} >= ?6 AND ${MEMBERS("?3")} >= ?6
          AND NOT EXISTS (SELECT 1 FROM battles WHERE status IN ${OPEN} AND (challenger_villa_id IN (?2, ?3) OR opponent_villa_id IN (?2, ?3)))`,
     )
-      .bind(battleId, id, target, me, t)
+      .bind(battleId, id, target, me, t, MIN_MEMBERS_FOR_COMPETITION)
       .run();
     changes = res.meta.changes;
   } catch (e) {
@@ -172,6 +178,9 @@ async function challengeRefusal(c: Context<AppEnv>, id: string, target: string, 
   if (!other || !other.public) return jsonError(c, 404, "상대 빌라를 찾을 수 없어요. 지도에 공개된 빌라만 대결할 수 있어요");
   if (!myPublic) return jsonError(c, 409, NEED_PUBLIC);
   if (other.ownerId === me) return jsonError(c, 409, "내가 방장인 빌라끼리는 대결할 수 없어요");
+  const counts = await c.env.DB.prepare(`SELECT ${MEMBERS("?1")} AS a, ${MEMBERS("?2")} AS b`).bind(id, target).first<{ a: number; b: number }>();
+  if ((counts?.a ?? 0) < MIN_MEMBERS_FOR_COMPETITION) return jsonError(c, 409, MIN_MEMBERS_MSG);
+  if ((counts?.b ?? 0) < MIN_MEMBERS_FOR_COMPETITION) return jsonError(c, 409, `입주민이 ${MIN_MEMBERS_FOR_COMPETITION}명 이상인 빌라와만 대결할 수 있어요`);
   if (await currentBattleRow(c.env, id)) return jsonError(c, 409, "우리 빌라는 이미 대결 중이거나 신청이 오가는 중이에요. 대결은 한 번에 하나만 해요");
   if (await currentBattleRow(c.env, target)) return jsonError(c, 409, "상대 빌라가 지금 다른 대결 중이에요");
   return jsonError(c, 409, "신청하지 못했어요. 다시 해 주세요");
@@ -196,6 +205,9 @@ async function actionRefusal(c: Context<AppEnv>, bid: string, villaCol: "c" | "o
   }
   const other = await ownedVilla(c.env, b[villaCol === "c" ? "o" : "c"]);
   if (!v.public || !other?.public) return jsonError(c, 409, NEED_PUBLIC);
+  const counts = await c.env.DB.prepare(`SELECT ${MEMBERS("?1")} AS mine, ${MEMBERS("?2")} AS theirs`).bind(b[villaCol], b[villaCol === "c" ? "o" : "c"]).first<{ mine: number; theirs: number }>();
+  if ((counts?.mine ?? 0) < MIN_MEMBERS_FOR_COMPETITION) return jsonError(c, 409, MIN_MEMBERS_MSG);
+  if ((counts?.theirs ?? 0) < MIN_MEMBERS_FOR_COMPETITION) return jsonError(c, 409, `상대 빌라 입주민이 ${MIN_MEMBERS_FOR_COMPETITION}명보다 적어 지금은 받을 수 없어요`);
   return jsonError(c, 409, "처리하지 못했어요. 다시 해 주세요");
 }
 
@@ -209,9 +221,10 @@ price.post("/api/battles/:bid/accept", requireUser, async (c) => {
      WHERE id = ?4 AND status = 'pending' AND created_at > ?5
        AND EXISTS (SELECT 1 FROM villas WHERE id = battles.opponent_villa_id AND owner_id = ?6 AND dissolved_at IS NULL AND public = 1)
        AND EXISTS (SELECT 1 FROM villas WHERE id = battles.challenger_villa_id AND dissolved_at IS NULL AND public = 1)
+       AND ${MEMBERS("battles.opponent_villa_id")} >= ?7 AND ${MEMBERS("battles.challenger_villa_id")} >= ?7
      RETURNING challenger_villa_id AS c, opponent_villa_id AS o`,
   )
-    .bind(t, start, end, bid, challengeCutoff(t), c.get("userId"))
+    .bind(t, start, end, bid, challengeCutoff(t), c.get("userId"), MIN_MEMBERS_FOR_COMPETITION)
     .all<{ c: string; o: string }>();
   if (!results.length) return actionRefusal(c, bid, "o");
   const { c: cv, o: ov } = results[0];

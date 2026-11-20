@@ -89,6 +89,9 @@ describe("challengeBlock", () => {
     expect(challengeBlock({ id: "b", inBattle: false }, { ...mine, inBattle: true })).toContain("이미 대결");
     expect(challengeBlock({ id: "b", inBattle: true }, mine)).toContain("다른 대결");
     expect(challengeBlock({ id: "b", inBattle: false }, mine, ["a", "b"])).toContain("내가 방장인 빌라끼리");
+    expect(challengeBlock({ id: "b", inBattle: false }, { ...mine, memberCount: 2 })).toBe("입주민이 3명 이상이어야 대결할 수 있어요");
+    expect(challengeBlock({ id: "b", inBattle: false, memberCount: 2 }, { ...mine, memberCount: 5 })).toContain("3명 이상인 빌라와만");
+    expect(challengeBlock({ id: "b", inBattle: false, memberCount: 3 }, { ...mine, memberCount: 3 })).toBeNull();
   });
 });
 
@@ -204,6 +207,20 @@ describe("Battle", () => {
     expect(host.querySelectorAll(".vs-days .done")).toHaveLength(3);
     expect(host.querySelector(".recent-row")!.textContent).toContain("승리");
     expect(host.querySelector(".recent-row")!.textContent).toContain("달빛빌라");
+  });
+
+  it("few_members_owner_sees_reason", async () => {
+    mockApi({ "/api/villas/a/battles": { isOwner: true, public: true, current: null, recent: [], memberCount: 2 }, "/api/villas/a/price": priceRes });
+    await mount("/battle/a");
+    expect(host.textContent).toContain("입주민이 3명 이상이어야 대결할 수 있어요");
+    expect(host.textContent).not.toContain("집값 순위에서 상대 찾기");
+  });
+
+  it("ranking_banner_when_my_villa_too_small", async () => {
+    mockApi({ "/api/ranking": { ...ranking, mine: [{ ...ranking.mine[0], memberCount: 2 }] } });
+    await mount("/ranking");
+    expect(host.querySelector(".rank-hint.fight")!.textContent).toContain("입주민이 3명 이상이어야 대결할 수 있어요");
+    expect(host.querySelector(".challenge-btn")).toBeNull();
   });
 
   it("none_owner_private_points_to_settings_member_sees_note", async () => {

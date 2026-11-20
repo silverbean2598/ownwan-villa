@@ -42,6 +42,16 @@ async function create(u: U, name: string) {
   return (await res.json()) as { id: string; inviteToken: string };
 }
 const join = async (u: U, token: string) => expect((await send("POST", `/api/invite/${token}/join`, undefined, u.cookie)).status).toBe(200);
+/** 이웃 n명을 입주시킨다 (대결 · 리그는 입주민 3명 이상) */
+async function fill(token: string, n: number) {
+  const out: U[] = [];
+  for (let i = 0; i < n; i++) {
+    const u = await signup(`이웃${i}`);
+    await join(u, token);
+    out.push(u);
+  }
+  return out;
+}
 const setPublic = (u: U, vid: string, value: boolean) => send("PUT", `/api/villas/${vid}/public`, { public: value }, u.cookie);
 const get = async <T>(u: U, path: string) => (await (await send("GET", path, undefined, u.cookie)).json()) as T;
 const points = async (u: U) => (await env.DB.prepare("SELECT points FROM users WHERE id = ?").bind(u.id).first<{ points: number }>())!.points;
@@ -193,7 +203,7 @@ describe("ranking & city", () => {
       ["나빌라", 1, 12, 0],
       ["가빌라", 2, 11, 0],
     ]);
-    expect(r.mine).toEqual([{ villaId: A.id, name: "가빌라", isOwner: true, public: true, inBattle: false }]);
+    expect(r.mine).toEqual([{ villaId: A.id, name: "가빌라", isOwner: true, public: true, inBattle: false, memberCount: 1 }]);
     const raw = JSON.stringify(r);
     for (const u of [b, c]) expect(raw).not.toContain(u.id);
     expect(raw).not.toContain(C.id);
@@ -214,6 +224,8 @@ async function leagueSetup() {
   for (const i of [0, 1, 2, 4]) await setPublic(owners[i], V[i].id, true);
   const mate = await signup("일등이웃");
   await join(mate, V[0].inviteToken);
+  await fill(V[0].inviteToken, 1);
+  for (const i of [1, 2, 4]) await fill(V[i].inviteToken, 2);
   const days = ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14", "2026-11-15"];
   for (const d of days.slice(0, 5)) await photo(owners[0], [V[0].id], d);
   for (const d of days.slice(0, 3)) await photo(owners[1], [V[1].id], d);
@@ -254,7 +266,8 @@ describe("weekly league", () => {
     expect(await settleLeague(env, "2026-11-15")).toEqual({ settled: false });
     await settleThrough(env, "2026-11-16");
     expect(await points(owners[0])).toBe(100);
-    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM price_rewards").first<{ n: number }>())!.n).toBe(4);
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM price_rewards").first<{ n: number }>())!.n).toBe(9);
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM events WHERE type = 'league_rank'").first<{ n: number }>())!.n).toBe(10);
 
     // 트로피: 순위 · 도시 · 빌라 화면
     const r = await get<RankingResponse>(owners[3], "/api/ranking");
@@ -275,6 +288,16 @@ describe("weekly league", () => {
     expect(await points(a)).toBe(0);
   });
 
+  it("villa_with_fewer_than_three_members_not_ranked", async () => {
+    const a = await signup();
+    const A = await create(a, "둘빌라");
+    await fill(A.inviteToken, 1);
+    await setPublic(a, A.id, true);
+    await photo(a, [A.id], "2026-11-10");
+    await settleDays("2026-11-09", "2026-11-15");
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM league_results").first<{ n: number }>())!.n).toBe(0);
+  });
+
   it("league_only_on_sunday", async () => {
     expect(await settleLeague(env, "2026-11-14")).toEqual({ settled: false });
   });
@@ -288,9 +311,11 @@ async function battlePair() {
   const A = await create(ao, "에이빌라");
   const B = await create(bo, "비빌라");
   await join(am, A.inviteToken);
+  await fill(A.inviteToken, 1);
+  const bm = await fill(B.inviteToken, 2);
   await setPublic(ao, A.id, true);
   await setPublic(bo, B.id, true);
-  return { ao, bo, am, A, B };
+  return { ao, bo, am, bm, A, B };
 }
 const challenge = (u: U, from: string, to: string) => send("POST", `/api/villas/${from}/battles`, { opponentVillaId: to }, u.cookie);
 const act = (u: U, bid: string, what: "accept" | "decline" | "cancel") => send("POST", `/api/battles/${bid}/${what}`, undefined, u.cookie);
@@ -336,6 +361,8 @@ describe("1:1 battle", () => {
     const doo = await signup();
     const C = await create(co, "씨빌라");
     const D = await create(doo, "디빌라");
+    await fill(C.inviteToken, 2);
+    await fill(D.inviteToken, 2);
     await setPublic(co, C.id, true);
     await setPublic(doo, D.id, true);
     // 둘이 동시에 비빌라에 신청 → 하나만
@@ -355,6 +382,8 @@ describe("1:1 battle", () => {
     const e2 = await signup();
     const E1 = await create(e1, "이원");
     const E2 = await create(e2, "이투");
+    await fill(E1.inviteToken, 2);
+    await fill(E2.inviteToken, 2);
     await setPublic(e1, E1.id, true);
     await setPublic(e2, E2.id, true);
     const both = await Promise.all([challenge(e1, E1.id, E2.id), challenge(e2, E2.id, E1.id)]);
@@ -462,31 +491,94 @@ describe("1:1 battle", () => {
     expect(await eventsOf(bo, "battle_result")).toMatchObject([{ result: "draw" }]);
   });
 
-  it("cancelled_when_villa_goes_private_or_dissolves", async () => {
+  it("private_blocked_while_active_pending_cancelled_by_private_and_dissolve_cancels", async () => {
     const { ao, bo, am, A, B } = await battlePair();
     setClock(at("2026-11-10"));
+    // 신청 중일 때는 비공개로 바꾸면 신청이 취소된다
+    const b0 = ((await (await challenge(ao, A.id, B.id)).json()) as VillaBattles).current!.id;
+    expect((await setPublic(bo, B.id, false)).status).toBe(200);
+    expect(await env.DB.prepare("SELECT status, reason FROM battles WHERE id = ?").bind(b0).first()).toEqual({ status: "cancelled", reason: "private" });
+    expect(await eventsOf(ao, "battle_cancelled")).toMatchObject([{ opponentName: "비빌라", reason: "private" }]);
+    await setPublic(bo, B.id, true);
+
+    // 진행 중에는 비공개로 바꿀 수 없다 (양쪽 모두)
     const b1 = ((await (await challenge(ao, A.id, B.id)).json()) as VillaBattles).current!.id;
     await act(bo, b1, "accept");
-    await setPublic(bo, B.id, false);
-    expect(await env.DB.prepare("SELECT status, reason FROM battles WHERE id = ?").bind(b1).first()).toEqual({ status: "cancelled", reason: "private" });
-    expect(await eventsOf(am, "battle_cancelled")).toMatchObject([{ opponentName: "비빌라", reason: "private" }]);
+    for (const [u, v] of [[bo, B], [ao, A]] as const) {
+      const r = await setPublic(u, v.id, false);
+      expect(r.status).toBe(409);
+      expect(((await r.json()) as { error: string }).error).toBe("대결이 끝난 뒤에 비공개로 바꿀 수 있어요");
+    }
+    expect(await env.DB.prepare("SELECT status, public FROM battles JOIN villas ON villas.id = ? WHERE battles.id = ?").bind(B.id, b1).first()).toEqual({ status: "active", public: 1 });
 
-    await setPublic(bo, B.id, true);
-    const b2 = ((await (await challenge(ao, A.id, B.id)).json()) as VillaBattles).current!.id;
-    await act(bo, b2, "accept");
     // 크론이 안전망: 다른 길로 해체된 경우
     await env.DB.prepare("UPDATE villas SET dissolved_at = 1 WHERE id = ?").bind(B.id).run();
     await settleDays("2026-11-10", "2026-11-17");
-    expect(await env.DB.prepare("SELECT status, reason FROM battles WHERE id = ?").bind(b2).first()).toEqual({ status: "cancelled", reason: "dissolved" });
+    expect(await env.DB.prepare("SELECT status, reason FROM battles WHERE id = ?").bind(b1).first()).toEqual({ status: "cancelled", reason: "dissolved" });
+    expect(await eventsOf(am, "battle_cancelled")).toMatchObject([{ reason: "dissolved" }]);
     expect(await points(ao)).toBe(0);
 
-    // 방장 해체도 바로 취소
+    // 방장 해체는 진행 중이어도 되고, 바로 취소
     const co = await signup();
     const C = await create(co, "씨빌라");
+    await fill(C.inviteToken, 2);
     await setPublic(co, C.id, true);
     setClock(at("2026-11-19"));
     const b3 = ((await (await challenge(co, C.id, A.id)).json()) as VillaBattles).current!.id;
+    await act(ao, b3, "accept");
     expect((await send("POST", `/api/villas/${C.id}/dissolve`, { confirmName: "씨빌라" }, co.cookie)).status).toBe(200);
     expect(await env.DB.prepare("SELECT status FROM battles WHERE id = ?").bind(b3).first()).toEqual({ status: "cancelled" });
+  });
+
+  it("needs_three_members_at_challenge_accept_and_finish", async () => {
+    const { ao, bo, am, bm, A, B } = await battlePair();
+    const x = await signup();
+    const X = await create(x, "둘빌라");
+    await fill(X.inviteToken, 1);
+    await setPublic(x, X.id, true);
+    setClock(at("2026-11-10"));
+    const r1 = await challenge(x, X.id, A.id);
+    expect(r1.status).toBe(409);
+    expect(((await r1.json()) as { error: string }).error).toBe("입주민이 3명 이상이어야 대결할 수 있어요");
+    const r2 = await challenge(ao, A.id, X.id);
+    expect(r2.status).toBe(409);
+    expect(((await r2.json()) as { error: string }).error).toContain("3명 이상인 빌라와만");
+
+    // 받기 전에 신청한 빌라가 2명이 되면 받을 수 없다
+    const b1 = ((await (await challenge(ao, A.id, B.id)).json()) as VillaBattles).current!.id;
+    expect((await send("POST", `/api/villas/${A.id}/leave`, undefined, am.cookie)).status).toBe(200);
+    const acc = await act(bo, b1, "accept");
+    expect(acc.status).toBe(409);
+    expect(((await acc.json()) as { error: string }).error).toContain("3명보다 적어");
+    await act(ao, b1, "cancel");
+
+    // 진행 중에 3명보다 적어지면 끝날 때 취소 (보상 없음)
+    await join(am, A.inviteToken);
+    const b2 = ((await (await challenge(ao, A.id, B.id)).json()) as VillaBattles).current!.id;
+    expect((await act(bo, b2, "accept")).status).toBe(200);
+    for (let d = "2026-11-11"; d <= "2026-11-17"; d = nextDay(d)) await photo(bo, [B.id], d);
+    expect((await send("POST", `/api/villas/${B.id}/leave`, undefined, bm[0].cookie)).status).toBe(200);
+    await settleDays("2026-11-10", "2026-11-17");
+    expect(await env.DB.prepare("SELECT status, reason FROM battles WHERE id = ?").bind(b2).first()).toEqual({ status: "cancelled", reason: "members" });
+    expect(await points(bo)).toBe(0);
+    expect(await eventsOf(bo, "battle_cancelled")).toMatchObject([{ reason: "members" }]);
+  });
+
+  it("one_broken_battle_does_not_stop_others_or_league", async () => {
+    const { ao, bo, A, B } = await battlePair();
+    setClock(at("2026-11-10"));
+    const bid = ((await (await challenge(ao, A.id, B.id)).json()) as VillaBattles).current!.id;
+    await act(bo, bid, "accept");
+    for (let d = "2026-11-09"; d <= "2026-11-17"; d = nextDay(d)) await photo(ao, [A.id], d);
+    // 깨진 진행 중 대결 (첫날이 없다) 하나를 먼저 둔다
+    await env.DB.prepare(
+      "INSERT INTO battles (id, challenger_villa_id, opponent_villa_id, challenger_user_id, status, created_at, end_day) VALUES ('broken', 'x1', 'x2', 'u', 'active', 0, '2026-11-01')",
+    ).run();
+    await settleDays("2026-11-09", "2026-11-17");
+    expect(await env.DB.prepare("SELECT status FROM battles WHERE id = ?").bind(bid).first()).toEqual({ status: "finished" });
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM league_results WHERE week = '2026-11-09'").first<{ n: number }>())!.n).toBe(1);
+    // 결과 카드는 보상과 같은 batch 에 들어간다
+    expect(await eventsOf(ao, "battle_result")).toMatchObject([{ result: "won", points: 50 }]);
+    expect(await eventsOf(ao, "league_rank")).toMatchObject([{ rank: 1, points: 100 }]);
   });
 });

@@ -28,7 +28,7 @@ export type CityVilla = {
 };
 
 /** 내 빌라: 지도에 있는지(public), 내가 방장인지 */
-export type CityMine = { villaId: string; name: string; public: boolean; isOwner: boolean; /** 대결 중이거나 신청이 오가는 중 */ inBattle?: boolean };
+export type CityMine = { villaId: string; name: string; public: boolean; isOwner: boolean; /** 대결 중이거나 신청이 오가는 중 */ inBattle?: boolean; /** 지금 입주민 수 */ memberCount?: number };
 
 /**
  * myVillas: 내가 사는 빌라 모두 (입주한 순서). 지도에서 모두 "우리 빌라"로 표시한다.

@@ -79,9 +79,9 @@ describe("days", () => {
 });
 
 describe("league", () => {
-  const e = (villaId: string, price: number, certDays = 1, memberCount = 1, createdAt = 0) => ({ villaId, price, certDays, memberCount, createdAt });
+  const e = (villaId: string, price: number, certDays = 1, memberCount = 3, createdAt = 0) => ({ villaId, price, certDays, memberCount, createdAt });
   it("ranks_by_price_then_tiebreaks", () => {
-    const r = rankLeague([e("a", 30), e("b", 50), e("c", 30, 5), e("d", 30, 5, 3), e("x", 99, 0)]);
+    const r = rankLeague([e("a", 30), e("b", 50), e("c", 30, 5), e("d", 30, 5, 4), e("x", 99, 0), e("y", 99, 7, 2)]);
     expect(r.map((x) => [x.villaId, x.rank])).toEqual([["b", 1], ["d", 2], ["c", 3], ["a", 4]]);
   });
   it("points_top3", () => {

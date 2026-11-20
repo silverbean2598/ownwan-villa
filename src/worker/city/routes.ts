@@ -38,7 +38,8 @@ city.get("/api/city", requireUser, async (c) => {
   // 한 번에 묻는다: 내 빌라 · 지도 빌라 · 지도 빌라 입주민의 (층, 연속 기록, 오늘 인증) 만
   const [mineRes, villasRes, membersRes, bansRes] = await c.env.DB.batch([
     c.env.DB.prepare(
-      `SELECT v.id AS villaId, v.name, v.public, v.owner_id = ?1 AS isOwner, ${IN_BATTLE("v.id", "?2")} AS inBattle
+      `SELECT v.id AS villaId, v.name, v.public, v.owner_id = ?1 AS isOwner, ${IN_BATTLE("v.id", "?2")} AS inBattle,
+         (SELECT COUNT(*) FROM memberships mc WHERE mc.villa_id = v.id AND mc.left_at IS NULL) AS memberCount
        FROM ${myActive("?1")} ORDER BY m.joined_at ASC, m.rowid ASC`,
     ).bind(userId, challengeCutoff(t)),
     c.env.DB.prepare(
@@ -92,12 +93,13 @@ city.get("/api/city", requireUser, async (c) => {
         : {}),
     };
   });
-  const myVillas: CityMine[] = (mineRes.results as { villaId: string; name: string; public: number; isOwner: number; inBattle: number }[]).map((m) => ({
+  const myVillas: CityMine[] = (mineRes.results as { villaId: string; name: string; public: number; isOwner: number; inBattle: number; memberCount: number }[]).map((m) => ({
     villaId: m.villaId,
     name: m.name,
     public: !!m.public,
     isOwner: !!m.isOwner,
     inBattle: !!m.inBattle,
+    memberCount: m.memberCount,
   }));
   return c.json({ mine: myVillas[0] ?? null, myVillas, villas, myApplication: await myApplication(c.env, userId) } satisfies CityResponse);
 });
@@ -114,9 +116,11 @@ city.put("/api/villas/:id/public", requireUser, async (c) => {
 
   // 방장 확인 · 해체 확인을 쓰는 문장 안에서 한 번 더 (그 사이 방장이 바뀌거나 해체돼도 바뀌지 않게)
   const guard = "WHERE id = ? AND owner_id = ? AND dissolved_at IS NULL";
+  // 진행 중인 대결이 있으면 비공개로 바꿀 수 없다 (지도에서 내려 대결을 무르지 못하게). 신청 중인 대결은 내리면 취소된다
+  const noActive = `AND NOT EXISTS (SELECT 1 FROM battles WHERE status = 'active' AND (challenger_villa_id = villas.id OR opponent_villa_id = villas.id))`;
   const stmt = b.public
     ? c.env.DB.prepare(`UPDATE villas SET public = 1, map_slot = COALESCE(map_slot, ${FREE_SLOT}) ${guard}`).bind(id, me)
-    : c.env.DB.prepare(`UPDATE villas SET public = 0 ${guard}`).bind(id, me);
+    : c.env.DB.prepare(`UPDATE villas SET public = 0 ${guard} ${noActive}`).bind(id, me);
   let changes = 0;
   // 같은 번호가 이미 쓰였다면(유일 색인) 다시 고른다
   for (let i = 0; ; i++) {
@@ -127,7 +131,17 @@ city.put("/api/villas/:id/public", requireUser, async (c) => {
       if (!isUnique(e) || i >= 4) throw e;
     }
   }
-  if (changes !== 1) return jsonError(c, 409, "방장이 바뀌었거나 빌라가 없어졌어요. 다시 열어 주세요");
+  if (changes !== 1) {
+    if (!b.public) {
+      const active = await c.env.DB.prepare(
+        "SELECT 1 AS x FROM battles WHERE status = 'active' AND (challenger_villa_id = ?1 OR opponent_villa_id = ?1) LIMIT 1",
+      )
+        .bind(id)
+        .first();
+      if (active) return jsonError(c, 409, "대결이 끝난 뒤에 비공개로 바꿀 수 있어요");
+    }
+    return jsonError(c, 409, "방장이 바뀌었거나 빌라가 없어졌어요. 다시 열어 주세요");
+  }
   // 지도에서 내리면 빈방 모집도 끄고 기다리던 신청을 취소한다 (지금도 내려가 있을 때만)
   if (!b.public) {
     await closeIfHidden(c.env, id);

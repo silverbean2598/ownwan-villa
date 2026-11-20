@@ -157,7 +157,9 @@ export function eventCopy(e: AppEvent): string {
       return `${str(p.opponentName, "상대 빌라")}에 보낸 대결 신청이 48시간이 지나 만료됐어요`;
     case "battle_cancelled": {
       const other = str(p.opponentName, "상대 빌라");
-      return p.reason === "no_price" ? `${other}${withParticle(other)} 대결이 집값 계산 문제로 취소됐어요` : `${other}${withParticle(other)} 대결이 취소됐어요`;
+      if (p.reason === "no_price") return `${other}${withParticle(other)} 대결이 집값 계산 문제로 취소됐어요`;
+      if (p.reason === "members") return `입주민이 3명보다 적어져 ${other}${withParticle(other)} 대결이 취소됐어요`;
+      return `${other}${withParticle(other)} 대결이 취소됐어요`;
     }
     default:
       return "";

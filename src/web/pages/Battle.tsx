@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { BATTLE_REASON_COPY, type BattleView, type VillaBattles, type VillaPrice } from "../../shared/price";
-import { BATTLE_DAYS, BATTLE_POINTS, formatDelta, formatPrice } from "../../shared/rules/price";
+import { BATTLE_DAYS, BATTLE_POINTS, MIN_MEMBERS_FOR_COMPETITION, MIN_MEMBERS_MSG, formatDelta, formatPrice } from "../../shared/rules/price";
 import { PriceTag } from "../components/price/PriceTag";
 import { pokeEvents } from "../events/poke";
 import { withParticle } from "../events/plan";
@@ -136,6 +136,8 @@ export function Battle() {
   if (!data || !price) return <main className="page"><p className="muted">불러오는 중이에요</p></main>;
   const cur = data.current;
   const myName = cur?.me.name ?? data.recent[0]?.me.name ?? "";
+  // 입주민이 3명보다 적으면 대결을 신청하거나 받을 수 없다 (예전 응답에는 수가 없다)
+  const fewMembers = data.memberCount !== undefined && data.memberCount < MIN_MEMBERS_FOR_COMPETITION;
 
   return (
     <main className="battle-page">
@@ -157,7 +159,9 @@ export function Battle() {
           <div className="battle-empty">
             <p><b>지금은 대결이 없어요.</b></p>
             {data.isOwner ? (
-              data.public ? (
+              fewMembers ? (
+                <p className="muted small">{MIN_MEMBERS_MSG}. 초대 링크로 이웃을 더 불러 보세요.</p>
+              ) : data.public ? (
                 <>
                   <p className="muted small">집값 순위에서 겨뤄 볼 빌라를 골라 대결을 신청해 보세요.</p>
                   <Link className="btn" to="/ranking">집값 순위에서 상대 찾기</Link>
@@ -183,6 +187,7 @@ export function Battle() {
               <li>이기면 입주민 모두 {BATTLE_POINTS}P와 건물에 “대결 승리” 배지 (7일)</li>
             </ul>
             <p className="muted small">{hoursLeft(cur.expiresAt!)}시간 안에 답하지 않으면 신청이 사라져요.</p>
+            {data.isOwner && fewMembers && <p className="battle-wait">{MIN_MEMBERS_MSG}. 이웃이 더 들어오면 받을 수 있어요.</p>}
             {data.isOwner ? (
               <div className="row">
                 <button type="button" className="btn" disabled={busy} onClick={() => act("accept", "대결을 받았어요! 내일부터 시작해요")}>받기</button>

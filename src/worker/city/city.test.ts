@@ -63,11 +63,11 @@ describe("GET /api/city", () => {
   it("private_villas_hidden_until_owner_turns_public_and_hidden_again_when_off", async () => {
     const a = await villaWith(0, "비밀빌라");
     expect(find(await cityOf(a.owner), a.id)).toBeUndefined();
-    expect((await cityOf(a.owner)).mine).toEqual({ villaId: a.id, name: "비밀빌라", public: false, isOwner: true, inBattle: false });
+    expect((await cityOf(a.owner)).mine).toEqual({ villaId: a.id, name: "비밀빌라", public: false, isOwner: true, inBattle: false, memberCount: 1 });
     expect((await setPublic(a.owner, a.id, true)).status).toBe(200);
     const on = await cityOf(a.owner);
     expect(find(on, a.id)?.name).toBe("비밀빌라");
-    expect(on.mine).toEqual({ villaId: a.id, name: "비밀빌라", public: true, isOwner: true, inBattle: false });
+    expect(on.mine).toEqual({ villaId: a.id, name: "비밀빌라", public: true, isOwner: true, inBattle: false, memberCount: 1 });
     await setPublic(a.owner, a.id, false);
     expect(find(await cityOf(a.owner), a.id)).toBeUndefined();
   });
@@ -142,7 +142,7 @@ describe("GET /api/city", () => {
   it("non_owner_mine_shows_not_owner", async () => {
     const a = await villaWith(1, "입주민시점");
     const r = await cityOf(a.others[0]);
-    expect(r.mine).toEqual({ villaId: a.id, name: "입주민시점", public: false, isOwner: false, inBattle: false });
+    expect(r.mine).toEqual({ villaId: a.id, name: "입주민시점", public: false, isOwner: false, inBattle: false, memberCount: 2 });
   });
 });
 

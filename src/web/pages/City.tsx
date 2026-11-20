@@ -67,7 +67,7 @@ function VillaCard({
           <li className="ph">펜트하우스 주인<b>{v.penthouseNickname ?? "아직 없어요"}</b></li>
           <li>가장 높은 층<b>{v.topFloor}층</b></li>
         </ul>
-        {"price" in v && <ChallengeBox key={`c${v.id}`} target={{ id: v.id, name: v.name, inBattle: !!v.inBattle }} mine={myVillas} compact />}
+        {"price" in v && <ChallengeBox key={`c${v.id}`} target={{ id: v.id, name: v.name, inBattle: !!v.inBattle, memberCount: v.memberCount }} mine={myVillas} compact />}
         <RecruitCard key={v.id} v={v} mine={mine} myApp={myApp} villaCount={villaCount} onChanged={onChanged} />
         {!mine && <p className="note">사진과 루틴은 그 빌라 입주민끼리만 봐요.</p>}
       </div>
@@ -204,7 +204,7 @@ export function City() {
           mine={mineIds.includes(sel.id)}
           myApp={data.myApplication ?? null}
           villaCount={mineAll.length}
-          myVillas={mineAll.map((m) => ({ villaId: m.villaId, name: m.name, isOwner: m.isOwner, public: m.public, inBattle: !!m.inBattle }))}
+          myVillas={mineAll.map((m) => ({ villaId: m.villaId, name: m.name, isOwner: m.isOwner, public: m.public, inBattle: !!m.inBattle, memberCount: m.memberCount }))}
           onChanged={load}
           onClose={() => setSelected(null)}
         />

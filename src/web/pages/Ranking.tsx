@@ -57,7 +57,7 @@ export function Ranking() {
           <TrophyIcon rank={3} size={22} />
         </div>
         <p>
-          <b>주간 리그</b> 매주 월요일 0시, 지난주 1·2·3위 빌라 입주민에게 {LEAGUE_POINTS.join("·")}P와 트로피를 줘요.
+          <b>주간 리그</b> 매주 월요일 0시, 지난주 1·2·3위 빌라(입주민 3명 이상, 그 주 인증이 있는 빌라) 입주민에게 {LEAGUE_POINTS.join("·")}P와 트로피를 줘요.
           {data.leagueWeek ? ` 지금 트로피는 ${md(data.leagueWeek)}부터 한 주의 결과예요.` : ""}
         </p>
       </section>

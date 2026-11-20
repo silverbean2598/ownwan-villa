@@ -79,15 +79,19 @@ export function weekOf(day: string): string {
 /** KST 날짜가 시작하는 시각(00:00 KST)의 UTC ms */
 export const dayStartMs = (day: string) => Date.parse(`${day}T00:00:00+09:00`);
 
+/** 리그 순위 · 1:1 대결에 낄 수 있는 최소 입주민 수 (혼자 · 둘이 만든 빌라로 보상을 받지 못하게) */
+export const MIN_MEMBERS_FOR_COMPETITION = 3;
+export const MIN_MEMBERS_MSG = `입주민이 ${MIN_MEMBERS_FOR_COMPETITION}명 이상이어야 대결할 수 있어요`;
+
 export type LeagueEntry = { villaId: string; price: number; certDays: number; memberCount: number; createdAt: number };
 
 /**
  * 리그 순위: 집값 높은 순. 같으면 인증한 날 합이 많은 빌라, 입주민이 많은 빌라, 먼저 지은 빌라 순 (순위는 겹치지 않는다).
- * 그 주(최근 7일)에 인증이 하루도 없는 빌라는 순위에 넣지 않는다 (혼자 만든 빈 빌라로 보상을 받지 못하게)
+ * 그 주(최근 7일)에 인증이 하루도 없는 빌라, 지금 입주민이 3명보다 적은 빌라는 순위에 넣지 않는다 (빈 빌라 · 혼자 만든 빌라로 보상을 받지 못하게)
  */
 export function rankLeague(entries: LeagueEntry[]): (LeagueEntry & { rank: number })[] {
   return entries
-    .filter((e) => e.certDays > 0)
+    .filter((e) => e.certDays > 0 && e.memberCount >= MIN_MEMBERS_FOR_COMPETITION)
     .sort((a, b) => b.price - a.price || b.certDays - a.certDays || b.memberCount - a.memberCount || a.createdAt - b.createdAt || (a.villaId < b.villaId ? -1 : 1))
     .map((e, i) => ({ ...e, rank: i + 1 }));
 }

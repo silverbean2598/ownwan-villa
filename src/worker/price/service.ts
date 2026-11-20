@@ -1,10 +1,10 @@
 import type { Env } from "../env";
 import { now } from "../clock";
-import { logEvents, type NewEvent } from "../events/log";
+import { eventStatement, logEvents, type NewEvent } from "../events/log";
 import { tagVilla } from "../villa/membership";
 import { prevDay } from "../../shared/rules/day";
 import {
-  BATTLE_BADGE_MS, BATTLE_POINTS, CHALLENGE_TTL_MS, battleWinner, dayStartMs, isSunday, leaguePoints, rankLeague, weekOf, type LeagueEntry,
+  BATTLE_BADGE_MS, BATTLE_POINTS, CHALLENGE_TTL_MS, MIN_MEMBERS_FOR_COMPETITION, battleWinner, dayStartMs, isSunday, leaguePoints, rankLeague, weekOf, type LeagueEntry,
 } from "../../shared/rules/price";
 import type { BattleSide, BattleView } from "../../shared/price";
 
@@ -17,6 +17,9 @@ import type { BattleSide, BattleView } from "../../shared/price";
 
 /** 신청 중 · 진행 중 (빌라마다 하나) */
 export const OPEN = "('pending','active')";
+
+/** 그 빌라 지금 입주민 수 (SQL 식) */
+export const MEMBERS = (villa: string) => `(SELECT COUNT(*) FROM memberships mc WHERE mc.villa_id = ${villa} AND mc.left_at IS NULL)`;
 
 /** 마지막으로 정산한 날 (KST). 없으면 null */
 export async function lastSettledDay(env: Env): Promise<string | null> {
@@ -80,7 +83,7 @@ export async function settleLeague(env: Env, day: string): Promise<{ settled: bo
   const done = await env.DB.prepare("SELECT 1 AS x FROM league_results WHERE week = ? LIMIT 1").bind(week).first();
   if (done) return { settled: false };
   const { results } = await env.DB.prepare(
-    `SELECT p.villa_id AS villaId, p.price, p.cert_days AS certDays, p.member_count AS memberCount, v.created_at AS createdAt, v.name
+    `SELECT p.villa_id AS villaId, p.price, p.cert_days AS certDays, ${MEMBERS("v.id")} AS memberCount, v.created_at AS createdAt, v.name
      FROM villa_prices p JOIN villas v ON v.id = p.villa_id AND v.dissolved_at IS NULL AND v.public = 1
      WHERE p.day = ?`,
   )
@@ -96,11 +99,26 @@ export async function settleLeague(env: Env, day: string): Promise<{ settled: bo
   const eligible = new Map<string, string[]>();
   for (const r of podium) eligible.set(r.villaId, await activeMembers(env, r.villaId, weekStart));
 
+  // 축하 카드: 1~3위 빌라 입주민 모두 (포인트는 받은 사람에게만 적힌다). 보상과 같은 batch 에 넣어 카드만 빠지는 일이 없게
+  const cards: (NewEvent & { key: string })[] = [];
+  for (const r of podium) {
+    const got = new Set(eligible.get(r.villaId));
+    const all = await activeMembers(env, r.villaId);
+    const evs = all.map((u) => ({
+      userId: u,
+      type: "league_rank" as const,
+      payload: { rank: r.rank, week, price: r.price, points: got.has(u) ? leaguePoints(r.rank) : 0 },
+      key: `league:${week}:${r.villaId}:${u}`,
+    }));
+    cards.push(...((await tagVilla(env, r.villaId, evs)) as typeof evs));
+  }
+
   const stmts: D1PreparedStatement[] = [];
   for (const r of podium) {
     stmts.push(...rewardStatements(env, `league:${week}:${r.villaId}`, r.villaId, eligible.get(r.villaId)!, leaguePoints(r.rank), t, notDone, [week]));
   }
-  // 순위 줄은 맨 뒤에 (앞의 보상 문장들이 "아직 순위가 없을 때만" 조건을 보므로)
+  for (const e of cards) stmts.push(eventStatement(env, e, t, notDone, [week]));
+  // 순위 줄은 맨 뒤에 (앞의 보상 · 알림 문장들이 "아직 순위가 없을 때만" 조건을 보므로)
   const first = stmts.length;
   for (const r of ranked) {
     stmts.push(
@@ -108,21 +126,7 @@ export async function settleLeague(env: Env, day: string): Promise<{ settled: bo
     );
   }
   const res = await env.DB.batch(stmts);
-  if (!res.slice(first).some((x) => x.meta.changes > 0)) return { settled: false };
-
-  // 축하 카드: 1~3위 빌라 입주민 모두 (포인트는 받은 사람에게만 적힌다)
-  for (const r of podium) {
-    const got = new Set(eligible.get(r.villaId));
-    const all = await activeMembers(env, r.villaId);
-    const evs: NewEvent[] = all.map((u) => ({
-      userId: u,
-      type: "league_rank",
-      payload: { rank: r.rank, week, price: r.price, points: got.has(u) ? leaguePoints(r.rank) : 0 },
-      key: `league:${week}:${r.villaId}:${u}`,
-    }));
-    await logEvents(env, await tagVilla(env, r.villaId, evs));
-  }
-  return { settled: true };
+  return { settled: res.slice(first).some((x) => x.meta.changes > 0) };
 }
 
 // ── 1:1 대결 ──
@@ -220,46 +224,68 @@ export async function finishBattles(env: Env, lastDay: string): Promise<number> 
     .bind(lastDay)
     .all<BattleRow>();
   let n = 0;
-  for (const b of results) if (await finishOne(env, b)) n++;
+  // 대결 하나가 실패해도 나머지는 끝낸다 (실패한 대결은 다음 날 다시)
+  for (const b of results) {
+    try {
+      if (await finishOne(env, b)) n++;
+    } catch (e) {
+      console.warn(`battle ${b.id} finish failed`, e);
+    }
+  }
   return n;
+}
+
+/** 진행 중 대결을 이유와 함께 취소하고 두 빌라 입주민에게 알린다 (보상 없음) */
+async function cancelActive(env: Env, b: BattleRow, reason: string, t: number): Promise<void> {
+  const res = await env.DB.prepare("UPDATE battles SET status = 'cancelled', reason = ?, finished_at = ? WHERE id = ? AND status = 'active'")
+    .bind(reason, t, b.id)
+    .run();
+  if (res.meta.changes === 1) await logEvents(env, await resultEvents(env, b, null, reason));
 }
 
 async function finishOne(env: Env, b: BattleRow): Promise<boolean> {
   const t = now();
   const baseDay = prevDay(b.startDay!);
   const prices = await env.DB.prepare(
-    `SELECT ${PRICE_AT("?1", "?3")} AS cBase, ${PRICE_AT("?2", "?3")} AS oBase, ${PRICE_AT("?1", "?4")} AS cEnd, ${PRICE_AT("?2", "?4")} AS oEnd`,
+    `SELECT ${PRICE_AT("?1", "?3")} AS cBase, ${PRICE_AT("?2", "?3")} AS oBase, ${PRICE_AT("?1", "?4")} AS cEnd, ${PRICE_AT("?2", "?4")} AS oEnd,
+       ${MEMBERS("?1")} AS cMembers, ${MEMBERS("?2")} AS oMembers`,
   )
     .bind(b.challengerVillaId, b.opponentVillaId, baseDay, b.endDay)
-    .first<{ cBase: number | null; oBase: number | null; cEnd: number | null; oEnd: number | null }>();
+    .first<{ cBase: number | null; oBase: number | null; cEnd: number | null; oEnd: number | null; cMembers: number; oMembers: number }>();
+  // 끝날 때 어느 쪽이든 입주민이 3명보다 적으면 판정하지 않고 취소한다
+  if (prices && (prices.cMembers < MIN_MEMBERS_FOR_COMPETITION || prices.oMembers < MIN_MEMBERS_FOR_COMPETITION)) {
+    await cancelActive(env, b, "members", t);
+    return false;
+  }
   if (!prices || prices.cBase === null || prices.oBase === null || prices.cEnd === null || prices.oEnd === null) {
     // 집값이 빠진 날이 있으면(정산을 놓친 날 등) 판정하지 않고 취소한다
-    const res = await env.DB.prepare("UPDATE battles SET status = 'cancelled', reason = 'no_price', finished_at = ? WHERE id = ? AND status = 'active'")
-      .bind(t, b.id)
-      .run();
-    if (res.meta.changes === 1) await notifyResult(env, b, null, "no_price");
+    await cancelActive(env, b, "no_price", t);
     return false;
   }
   const w = battleWinner({ base: prices.cBase, end: prices.cEnd }, { base: prices.oBase, end: prices.oEnd });
   const winner = w === "a" ? b.challengerVillaId : w === "b" ? b.opponentVillaId : null;
   const eligible = winner ? await activeMembers(env, winner, dayStartMs(b.startDay!)) : [];
+  const done = { ...b, challengerBase: prices.cBase, opponentBase: prices.oBase, challengerEnd: prices.cEnd, opponentEnd: prices.oEnd };
+  // 결과 카드도 같은 batch 에 (끝낸 그 실행이 보상 · 카드를 함께 쓴다. 카드만 빠지는 일이 없게)
+  const cards = await resultEvents(env, done, winner, null, new Set(eligible));
+  const finishedNow = "EXISTS (SELECT 1 FROM battles WHERE id = ? AND status = 'finished' AND finished_at = ?)";
   const [upd] = await env.DB.batch([
     env.DB.prepare(
       `UPDATE battles SET status = 'finished', challenger_base = ?, opponent_base = ?, challenger_end = ?, opponent_end = ?,
          winner_villa_id = ?, finished_at = ? WHERE id = ? AND status = 'active'`,
     ).bind(prices.cBase, prices.oBase, prices.cEnd, prices.oEnd, winner, t, b.id),
-    ...(winner
-      ? rewardStatements(env, `battle:${b.id}`, winner, eligible, BATTLE_POINTS, t, "EXISTS (SELECT 1 FROM battles WHERE id = ? AND status = 'finished' AND finished_at = ?)", [b.id, t])
-      : []),
+    ...(winner ? rewardStatements(env, `battle:${b.id}`, winner, eligible, BATTLE_POINTS, t, finishedNow, [b.id, t]) : []),
+    ...cards.map((e) => eventStatement(env, e, t, finishedNow, [b.id, t])),
   ]);
-  if (upd.meta.changes !== 1) return false;
-  await notifyResult(env, { ...b, ...{ challengerBase: prices.cBase, opponentBase: prices.oBase, challengerEnd: prices.cEnd, opponentEnd: prices.oEnd } }, winner, null, new Set(eligible));
-  return true;
+  return upd.meta.changes === 1;
 }
 
-/** 대결 결과 카드: 두 빌라 입주민 모두. cancelled 면 진행 중 대결 취소 알림 */
-async function notifyResult(env: Env, b: BattleRow, winner: string | null, cancelled: string | null, rewarded = new Set<string>()) {
+/** 대결 결과 카드(또는 cancelled 면 취소 알림): 두 빌라(해체 안 된 쪽) 입주민 모두. 키는 고정 */
+async function resultEvents(
+  env: Env, b: BattleRow, winner: string | null, cancelled: string | null, rewarded = new Set<string>(),
+): Promise<(NewEvent & { key: string })[]> {
   const names = { [b.challengerVillaId]: await villaName(env, b.challengerVillaId), [b.opponentVillaId]: await villaName(env, b.opponentVillaId) };
+  const out: (NewEvent & { key: string })[] = [];
   for (const [mine, other, base, end, oBase, oEnd] of [
     [b.challengerVillaId, b.opponentVillaId, b.challengerBase, b.challengerEnd, b.opponentBase, b.opponentEnd],
     [b.opponentVillaId, b.challengerVillaId, b.opponentBase, b.opponentEnd, b.challengerBase, b.challengerEnd],
@@ -267,7 +293,7 @@ async function notifyResult(env: Env, b: BattleRow, winner: string | null, cance
     const live = await env.DB.prepare("SELECT 1 AS x FROM villas WHERE id = ? AND dissolved_at IS NULL").bind(mine).first();
     if (!live) continue;
     const users = await activeMembers(env, mine);
-    const evs: NewEvent[] = users.map((u) =>
+    const evs: (NewEvent & { key: string })[] = users.map((u) =>
       cancelled
         ? { userId: u, type: "battle_cancelled", payload: { opponentName: names[other], reason: cancelled }, key: `battle_cancelled:${b.id}:${u}` }
         : {
@@ -284,8 +310,9 @@ async function notifyResult(env: Env, b: BattleRow, winner: string | null, cance
             key: `battle_result:${b.id}:${u}`,
           },
     );
-    await logEvents(env, await tagVilla(env, mine, evs));
+    out.push(...((await tagVilla(env, mine, evs)) as typeof evs));
   }
+  return out;
 }
 
 /**
@@ -293,14 +320,23 @@ async function notifyResult(env: Env, b: BattleRow, winner: string | null, cance
  * 리그는 그 주 순위가 아직 없을 때만 매기므로, 앞서 실패한 날이 있어도 다음 날 다시 이어 한다
  */
 export async function runCompetitions(env: Env): Promise<void> {
-  await expireChallenges(env);
-  await cancelGoneBattles(env);
+  // 단계마다 따로: 한 단계가 실패해도 나머지는 돈다 (실패한 단계는 다음 날 크론이 다시)
+  const step = async (name: string, fn: () => Promise<unknown>) => {
+    try {
+      await fn();
+    } catch (e) {
+      console.warn(`competitions: ${name} failed`, e);
+    }
+  };
+  await step("expire", () => expireChallenges(env));
+  await step("cancel", () => cancelGoneBattles(env));
   const last = await lastSettledDay(env);
   if (!last) return;
-  await finishBattles(env, last);
+  await step("finish", () => finishBattles(env, last));
   let d = last;
   for (let i = 0; i < 14; i++, d = prevDay(d)) {
-    if (isSunday(d)) await settleLeague(env, d);
+    const day = d;
+    if (isSunday(day)) await step(`league ${day}`, () => settleLeague(env, day));
   }
 }
 

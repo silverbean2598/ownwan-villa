@@ -60,3 +60,13 @@ export async function logEvents(env: Env, events: NewEvent[]): Promise<void> {
     console.error(`event log failed (${events.map((e) => e.type).join(",")})`, err);
   }
 }
+
+/**
+ * 알림 하나를 쓰는 문장 (batch 에 함께 넣는다). 보상과 같은 batch 에 넣어 "포인트는 받았는데 카드는 없다"가 생기지 않게 한다.
+ * key 는 꼭 고정 키 (INSERT OR IGNORE 라 다시 돌아도 한 번만). guard: 쓸 조건(SQL, 뒤의 값은 args)
+ */
+export function eventStatement(env: Env, e: NewEvent & { key: string }, t: number, guard = "", args: unknown[] = []): D1PreparedStatement {
+  return env.DB.prepare(
+    `INSERT OR IGNORE INTO events (id, user_id, type, payload, created_at) SELECT ?, ?, ?, ?, ?${guard ? ` WHERE ${guard}` : ""}`,
+  ).bind(e.key, e.userId, e.type, JSON.stringify(e.payload ?? {}), t, ...args);
+}

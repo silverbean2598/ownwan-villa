@@ -16,7 +16,7 @@ const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생�
 export function ChallengeBox({
   target, mine, compact = false, quietSelf = false,
 }: {
-  target: { id: string; name: string; inBattle: boolean };
+  target: { id: string; name: string; inBattle: boolean; memberCount?: number };
   mine: RankingMine[];
   compact?: boolean;
   /** 우리 빌라 쪽 이유(비공개 · 이미 대결 중)면 줄마다 쓰지 않고 그리지 않는다 (순위 화면은 위에 한 번만 알린다) */
