@@ -156,10 +156,10 @@ export const SPRITE_MANIFEST = {
     ]
   },
   "jiujitsu": {
-    "fw": 483,
+    "fw": 513,
     "fh": 400,
-    "sw": 1449,
-    "smSw": 580,
+    "sw": 1539,
+    "smSw": 616,
     "frames": 3,
     "outfits": [
       "gi",
