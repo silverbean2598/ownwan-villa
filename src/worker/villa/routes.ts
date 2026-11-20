@@ -15,6 +15,8 @@ import { logEvents } from "../events/log";
 import { ACTIVE_COUNT, myActive, isMember, myVillaIds, tagVilla } from "./membership";
 import { MAX_VILLAS_PER_USER, VILLA_LIMIT_MSG, type MyVilla } from "../../shared/villa";
 import { closeIfFull } from "../recruit/service";
+import { villaPrice } from "../price/routes";
+import { battleView, currentBattleRow } from "../price/service";
 
 export const villa = new Hono<AppEnv>();
 
@@ -123,7 +125,22 @@ async function villaDetail(env: AppEnv["Bindings"], villaId: string, userId: str
   });
   // 초대 링크는 방장만 받는다
   const { inviteToken, ...rest } = v;
-  return { ...rest, public: !!v.public, ...(v.ownerId === userId ? { inviteToken } : {}), members };
+  // 집값 대결: 우리 빌라 집값 · 전날 대비 · 지금 대결 (실패해도 빌라 화면은 그대로 보인다)
+  const extra = await priceAndBattle(env, v.id).catch((e) => {
+    console.error("villa price failed", e);
+    return { price: null, priceChange: null, battle: null };
+  });
+  return { ...rest, public: !!v.public, ...(v.ownerId === userId ? { inviteToken } : {}), members, ...extra };
+}
+
+async function priceAndBattle(env: AppEnv["Bindings"], villaId: string) {
+  const p = await villaPrice(env, villaId);
+  const cur = await currentBattleRow(env, villaId);
+  return {
+    price: p.price,
+    priceChange: p.change,
+    battle: cur ? await battleView(env, cur, villaId, kstDay(now()), p.day) : null,
+  };
 }
 
 /** 예전 화면(배포 전에 열어 둔 탭)용: 가장 먼저 입주한 빌라 한 채. 새 화면은 /api/me/villas + /api/villas/:id 를 쓴다 */

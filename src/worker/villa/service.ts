@@ -8,6 +8,7 @@ import { pickPenthouse } from "../../shared/rules/penthouse";
 import { logEvents } from "../events/log";
 import { myVillaIds, tagVilla } from "./membership";
 import { closeApplications, closeIfDissolved } from "../recruit/service";
+import { cancelGoneBattles } from "../price/service";
 
 export const MAX_MEMBERS = VILLA_CAPACITY;
 
@@ -105,6 +106,8 @@ export async function leaveVilla(env: Env, userId: string, villaId: string): Pro
   await recomputePenthouse(env, villaId);
   // 마지막 입주민이 나가 해체됐으면 모집 · 기다리는 신청도 끝낸다
   await closeIfDissolved(env, villaId).catch((e) => console.error("recruit cleanup failed", e));
+  // 해체됐으면 대결도 취소 (해체 안 됐으면 아무것도 바뀌지 않는다)
+  await cancelGoneBattles(env, villaId).catch((e) => console.error("battle cleanup failed", e));
 }
 
 /** 사는 빌라 모두에서 나간다 (탈퇴) */
@@ -116,6 +119,7 @@ export async function leaveAllVillas(env: Env, userId: string): Promise<void> {
     await env.DB.batch(leaveStatements(env, r.id, userId, now()));
     await recomputePenthouse(env, r.id);
     await closeIfDissolved(env, r.id).catch((e) => console.error("recruit cleanup failed", e));
+    await cancelGoneBattles(env, r.id).catch((e) => console.error("battle cleanup failed", e));
   }
 }
 
@@ -235,4 +239,5 @@ export async function dissolveVilla(env: Env, villaId: string, ownerId: string, 
   // 모집 글을 끄고 기다리던 입주 신청을 취소한다 (신청한 사람에게 살짝 알림)
   await env.DB.prepare("UPDATE villa_recruits SET open = 0, updated_at = ? WHERE villa_id = ?").bind(t, villaId).run();
   await closeApplications(env, villaId, "dissolved");
+  await cancelGoneBattles(env, villaId).catch((e) => console.error("battle cleanup failed", e));
 }

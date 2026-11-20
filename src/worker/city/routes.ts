@@ -4,13 +4,15 @@ import { now } from "../clock";
 import { jsonError, requireUser } from "../http";
 import { certifiedInVilla } from "../cert/certified";
 import { myActive } from "../villa/membership";
-import { kstDay } from "../../shared/rules/day";
+import { kstDay, prevDay } from "../../shared/rules/day";
+import type { Trophy } from "../../shared/price";
 import { displayFloor } from "../../shared/rules/streak";
 import { CITY_LIMIT, type CityMine, type CityResponse, type CityVilla } from "../../shared/city";
 import { VILLA_CAPACITY } from "../../shared/villa";
 import { parseSports } from "../../shared/recruit";
 import { myApplication } from "../recruit/routes";
 import { closeIfHidden } from "../recruit/service";
+import { BATTLE_WIN, IN_BATTLE, PRICE_AT, TROPHY, badgeSince, cancelGoneBattles, challengeCutoff, lastSettledDay } from "../price/service";
 
 export const city = new Hono<AppEnv>();
 
@@ -29,21 +31,26 @@ const isUnique = (e: unknown) => String((e as Error)?.message ?? e).includes("UN
 
 city.get("/api/city", requireUser, async (c) => {
   const userId = c.get("userId");
-  const today = kstDay(now());
+  const t = now();
+  const today = kstDay(t);
+  // 집값은 마지막으로 정산한 날 값 (전날과 비교)
+  const priceDay = (await lastSettledDay(c.env)) ?? "";
   // 한 번에 묻는다: 내 빌라 · 지도 빌라 · 지도 빌라 입주민의 (층, 연속 기록, 오늘 인증) 만
   const [mineRes, villasRes, membersRes, bansRes] = await c.env.DB.batch([
     c.env.DB.prepare(
-      `SELECT v.id AS villaId, v.name, v.public, v.owner_id = ?1 AS isOwner
+      `SELECT v.id AS villaId, v.name, v.public, v.owner_id = ?1 AS isOwner, ${IN_BATTLE("v.id", "?2")} AS inBattle
        FROM ${myActive("?1")} ORDER BY m.joined_at ASC, m.rowid ASC`,
-    ).bind(userId),
+    ).bind(userId, challengeCutoff(t)),
     c.env.DB.prepare(
       `SELECT v.id, v.name, v.map_slot AS slot,
          (SELECT u.nickname FROM users u JOIN memberships pm ON pm.user_id = u.id
           WHERE u.id = v.penthouse_user_id AND pm.villa_id = v.id AND pm.left_at IS NULL) AS penthouseNickname,
-         r.intro AS recruitIntro, r.sports AS recruitSports
+         r.intro AS recruitIntro, r.sports AS recruitSports,
+         ${PRICE_AT("v.id", "?1")} AS price, ${PRICE_AT("v.id", "?1")} - ${PRICE_AT("v.id", "?2")} AS priceChange,
+         ${TROPHY("v.id")} AS trophy, ${BATTLE_WIN("v.id", "?3")} AS battleWin, ${IN_BATTLE("v.id", "?4")} AS inBattle
        FROM villas v LEFT JOIN villa_recruits r ON r.villa_id = v.id AND r.open = 1
        WHERE v.id IN (${SHOWN}) ORDER BY v.map_slot`,
-    ),
+    ).bind(priceDay, priceDay ? prevDay(priceDay) : "", badgeSince(t), challengeCutoff(t)),
     c.env.DB.prepare(
       // 빌라마다: 그 빌라에 오늘 올린 사진 인증이 있는 입주민만 불이 켜지고, 층도 그 빌라 기준
       `SELECT m.villa_id AS villaId, m.floor, m.streak, ${certifiedInVilla("m.user_id", "?1", "m.villa_id")} AS lit
@@ -63,24 +70,34 @@ city.get("/api/city", requireUser, async (c) => {
     a.topFloor = Math.max(a.topFloor, displayFloor(r.floor, r.streak, !!r.lit));
     agg.set(r.villaId, a);
   }
-  type Row = { id: string; name: string; slot: number; penthouseNickname: string | null; recruitIntro: string | null; recruitSports: string | null };
-  const villas: CityVilla[] = (villasRes.results as Row[]).map(({ recruitIntro, recruitSports, ...v }) => {
+  type Row = {
+    id: string; name: string; slot: number; penthouseNickname: string | null; recruitIntro: string | null; recruitSports: string | null;
+    price: number | null; priceChange: number | null; trophy: number | null; battleWin: number; inBattle: number;
+  };
+  const villas: CityVilla[] = (villasRes.results as Row[]).map(({ recruitIntro, recruitSports, price, priceChange, trophy, battleWin, inBattle, ...v }) => {
     const a = agg.get(v.id) ?? { memberCount: 0, litCount: 0, topFloor: 1 };
     // 모집 글은 모집 중이고 빈방이 있을 때만 (꽉 차면 숨긴다). 모집 글 · 빈방 수 말고는 더 보내지 않는다
     const recruiting = recruitIntro !== null && a.memberCount < VILLA_CAPACITY;
     return {
       ...v,
       ...a,
+      // 집값 대결: 집값 · 전날 대비 · 리그 트로피 · 대결 승리 배지 · 대결 중 (숫자와 표시만)
+      price,
+      priceChange: price === null ? null : priceChange,
+      ...(trophy ? { trophy: trophy as Trophy } : {}),
+      ...(battleWin ? { battleWin: true } : {}),
+      inBattle: !!inBattle,
       ...(recruiting
         ? { recruit: { intro: recruitIntro, sports: parseSports(recruitSports), vacancies: VILLA_CAPACITY - a.memberCount, ...(blocked.has(v.id) ? { blocked: true as const } : {}) } }
         : {}),
     };
   });
-  const myVillas: CityMine[] = (mineRes.results as { villaId: string; name: string; public: number; isOwner: number }[]).map((m) => ({
+  const myVillas: CityMine[] = (mineRes.results as { villaId: string; name: string; public: number; isOwner: number; inBattle: number }[]).map((m) => ({
     villaId: m.villaId,
     name: m.name,
     public: !!m.public,
     isOwner: !!m.isOwner,
+    inBattle: !!m.inBattle,
   }));
   return c.json({ mine: myVillas[0] ?? null, myVillas, villas, myApplication: await myApplication(c.env, userId) } satisfies CityResponse);
 });
@@ -112,6 +129,10 @@ city.put("/api/villas/:id/public", requireUser, async (c) => {
   }
   if (changes !== 1) return jsonError(c, 409, "방장이 바뀌었거나 빌라가 없어졌어요. 다시 열어 주세요");
   // 지도에서 내리면 빈방 모집도 끄고 기다리던 신청을 취소한다 (지금도 내려가 있을 때만)
-  if (!b.public) await closeIfHidden(c.env, id);
+  if (!b.public) {
+    await closeIfHidden(c.env, id);
+    // 지도에서 내리면 신청 중 · 진행 중 대결도 취소한다 (보상 없음)
+    await cancelGoneBattles(c.env, id).catch((e) => console.error("battle cleanup failed", e));
+  }
   return c.json({ public: b.public });
 });

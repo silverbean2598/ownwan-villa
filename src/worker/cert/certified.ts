@@ -13,3 +13,8 @@ export const certifiedInVilla = (user: string, day: string, villa: string) =>
 export const firstCertInVilla = (user: string, day: string, villa: string) =>
   `(SELECT MIN(MAX(ic.created_at, icv.created_at)) FROM certs ic JOIN cert_villas icv ON icv.cert_id = ic.id AND icv.villa_id = ${villa}
     WHERE ic.user_id = ${user} AND ic.day = ${day} AND ic.kind = 'photo' AND ic.duplicate = 0 AND ic.deleted = 0)`;
+
+/** from ~ to(KST 날짜, 둘 다 포함) 동안 그 빌라에 사진 인증을 올린 날 수 (집값). 안쪽 별칭은 dc · dcv */
+export const certDaysInVilla = (user: string, from: string, to: string, villa: string) =>
+  `(SELECT COUNT(DISTINCT dc.day) FROM certs dc JOIN cert_villas dcv ON dcv.cert_id = dc.id AND dcv.villa_id = ${villa}
+    WHERE dc.user_id = ${user} AND dc.day BETWEEN ${from} AND ${to} AND dc.kind = 'photo' AND dc.duplicate = 0 AND dc.deleted = 0)`;

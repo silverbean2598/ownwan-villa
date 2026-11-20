@@ -3,7 +3,9 @@ import { now } from "../clock";
 import { settleDay } from "../../shared/rules/floor";
 import { nextDay } from "../../shared/rules/day";
 import { recomputePenthouse } from "../villa/service";
-import { CERTIFIED_PHOTO, certifiedInVilla } from "../cert/certified";
+import { CERTIFIED_PHOTO, certDaysInVilla, certifiedInVilla } from "../cert/certified";
+import { villaPrice, windowStart, type PriceMember } from "../../shared/rules/price";
+import { runCompetitions } from "../price/service";
 import { logEvents, type NewEvent } from "../events/log";
 import { tagVilla } from "../villa/membership";
 import { purgeExpiredKakao } from "../auth/kakao";
@@ -12,7 +14,11 @@ import { purgeApplications } from "../recruit/service";
 /** 사용자 한 명: 어느 빌라든(또는 빌라 없이) 사진 인증한 날로 센 연속 기록 */
 type UserRow = { id: string; streak: number; missRun: number; certified: number };
 /** 입주 기록 하나: 그 빌라에 올린 날로 센 연속 기록 · 쉰 날 · 층 */
-type MemberRow = { id: string; userId: string; villaId: string; streak: number; missRun: number; floor: number; certified: number };
+type MemberRow = {
+  id: string; userId: string; villaId: string; streak: number; missRun: number; floor: number; certified: number;
+  /** 최근 7일(그날 포함) 이 빌라에 인증한 날 수 (집값) */
+  certDays: number;
+};
 
 /** day(KST, YYYY-MM-DD)를 정산한다. 이미 정산된 날이면 아무것도 하지 않는다. 동시에 호출돼도 한 번만 반영된다. */
 export async function settle(env: Env, day: string): Promise<{ settled: boolean }> {
@@ -49,6 +55,13 @@ export async function settleThrough(env: Env, target: string): Promise<string[]>
       console.error(`settle ${day} failed (target ${target}, settled so far: ${done.join(",") || "none"})`, e);
       throw e;
     }
+  }
+  // 집값 대결: 주간 리그(일요일 값) · 1:1 대결 끝내기 · 48시간 지난 신청 만료. 정산과 따로 돌고 실패해도 정산 결과는 그대로 둔다.
+  // 이미 정산한 날의 저장된 집값만 쓰고 모든 쓰기가 "한 번만" 조건이라, 실패하면 다음 날 크론이 다시 이어 한다
+  try {
+    await runCompetitions(env);
+  } catch (e) {
+    console.error("competitions failed", e);
   }
   // 카카오 로그인의 만료된 state · 가입 대기 행 정리 (정산할 날이 없어도 매일). 실패해도 정산 결과는 그대로 둔다
   try {
@@ -87,11 +100,12 @@ export async function applySettlement(env: Env, day: string): Promise<boolean> {
     ).bind(day, end),
     env.DB.prepare(
       `SELECT m.id, m.user_id AS userId, m.villa_id AS villaId, m.streak, m.miss_run AS missRun, m.floor,
-              ${certifiedInVilla("m.user_id", "?1", "m.villa_id")} AS certified
+              ${certifiedInVilla("m.user_id", "?1", "m.villa_id")} AS certified,
+              ${certDaysInVilla("m.user_id", "?3", "?1", "m.villa_id")} AS certDays
        FROM memberships m JOIN villas v ON v.id = m.villa_id
        -- 그날이 끝난 뒤 입주한 빌라는 그날 정산 대상이 아니다
        WHERE m.left_at IS NULL AND v.dissolved_at IS NULL AND m.joined_at < ?2`,
-    ).bind(day, end),
+    ).bind(day, end, windowStart(day)),
   ]);
 
   const t = now();
@@ -110,8 +124,13 @@ export async function applySettlement(env: Env, day: string): Promise<boolean> {
     );
   }
   const downs: { villaId: string; ev: NewEvent }[] = [];
+  // 집값: 빌라마다 그날 정산 뒤의 층 · 최근 7일 인증한 날로 (입주민마다 따로 묻지 않고 위 한 번의 조회로)
+  const priced = new Map<string, PriceMember[]>();
   for (const r of membersRes.results as MemberRow[]) {
     const { next, floorChanged } = settleDay({ streak: r.streak, missRun: r.missRun, floor: r.floor }, !!r.certified);
+    const list = priced.get(r.villaId) ?? [];
+    list.push({ certDays: r.certDays, floor: next.floor ?? 1 });
+    priced.set(r.villaId, list);
     stmts.push(
       env.DB.prepare(
         `UPDATE memberships SET streak = ?1, miss_run = ?2, floor = ?3,
@@ -122,6 +141,17 @@ export async function applySettlement(env: Env, day: string): Promise<boolean> {
     if (floorChanged === "down") {
       downs.push({ villaId: r.villaId, ev: { userId: r.userId, type: "floor_down", payload: { floor: next.floor }, key: `floor_down:${r.id}:${day}` } });
     }
+  }
+  // 집값도 같은 batch · 같은 날짜 선점 조건으로 쓴다 (층을 바꾼 정산과 집값이 늘 함께 남거나 함께 안 남는다)
+  for (const [villaId, list] of priced) {
+    const price = villaPrice(list);
+    if (price === null) continue;
+    stmts.push(
+      env.DB.prepare(
+        `INSERT OR IGNORE INTO villa_prices (villa_id, day, price, cert_days, member_count, created_at)
+         SELECT ?1, ?2, ?3, ?4, ?5, ?6 WHERE ${guard.replace("?", "?7")}`,
+      ).bind(villaId, day, price, list.reduce((a, m) => a + Math.min(7, m.certDays), 0), list.length, t, token),
+    );
   }
   await env.DB.batch(stmts);
 

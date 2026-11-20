@@ -1,4 +1,5 @@
 import type { CityRecruit, MyApplication } from "./recruit";
+import type { Trophy } from "./price";
 
 /** 도시 지도: 서버(GET /api/city)가 보내고 화면이 그리는 빌라 한 채. 다른 빌라 입주민의 사진 · 루틴 · 목록 · id 는 없다 */
 export type CityVilla = {
@@ -14,10 +15,20 @@ export type CityVilla = {
   penthouseNickname: string | null;
   /** 빈방 모집 중일 때만 (공개 · 모집 켬 · 빈방 있음). 모집 글과 빈방 수만 담는다 */
   recruit?: CityRecruit;
+  /** 집값 (0.1억 단위, 마지막으로 정산한 날). 아직 집계 전이면 null. 예전 서버 응답에는 없다 */
+  price?: number | null;
+  /** 전날보다 얼마나 (전날 값이 없으면 null) */
+  priceChange?: number | null;
+  /** 가장 최근 주간 리그 1 · 2 · 3위 */
+  trophy?: Trophy;
+  /** 7일 안에 1:1 대결에서 이겼다 */
+  battleWin?: boolean;
+  /** 대결 중이거나 신청이 오가는 중 */
+  inBattle?: boolean;
 };
 
 /** 내 빌라: 지도에 있는지(public), 내가 방장인지 */
-export type CityMine = { villaId: string; name: string; public: boolean; isOwner: boolean };
+export type CityMine = { villaId: string; name: string; public: boolean; isOwner: boolean; /** 대결 중이거나 신청이 오가는 중 */ inBattle?: boolean };
 
 /**
  * myVillas: 내가 사는 빌라 모두 (입주한 순서). 지도에서 모두 "우리 빌라"로 표시한다.
