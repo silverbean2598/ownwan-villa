@@ -12,7 +12,7 @@ const range = (ids: string[], lo: number, hi: number) => {
 describe("catalog (꾸미기 확장)", () => {
   it("ids_are_unique_across_every_kind", () => {
     expect(new Set(SHOP_ITEMS.map((i) => i.id)).size).toBe(SHOP_ITEMS.length);
-    expect(SHOP_ITEMS).toHaveLength(25 + 24 + 6 + 7);
+    expect(SHOP_ITEMS).toHaveLength(31 + 24 + 6 + 7);
   });
   it("kinds", () => {
     expect(FURNITURE).toEqual([...BASE_FURNITURE, ...EXTRA_FURNITURE]);

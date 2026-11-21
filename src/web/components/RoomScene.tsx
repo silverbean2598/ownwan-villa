@@ -23,8 +23,9 @@ type Props = {
   placements?: { slot: string; itemId: string }[];
 };
 
-// 새 캐릭터 그림에 기구가 들어 있는 종목: 켜진 방에서는 방 기구를 그리지 않는다 (클라이밍 벽 · 필라테스 매트)
-const SPRITE_HAS_EQUIP = new Set<Sport>(["climbing", "pilates"]);
+// 새 캐릭터 그림에 기구가 들어 있는 종목: 켜진 방에서는 방 기구를 그리지 않는다
+// (클라이밍 벽 · 필라테스 리포머 · 요가 매트 · 홈트 매트와 휴대폰)
+export const SPRITE_HAS_EQUIP = new Set<Sport>(["climbing", "pilates", "yoga", "hometraining"]);
 
 /** 인형의 집 상자 방. 불이 켜지면 종목 자세로 운동하고, 꺼지면 달빛 아래 잠잔다. */
 export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "tile", board, placements = [] }: Props) {

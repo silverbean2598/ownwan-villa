@@ -33,7 +33,7 @@ export type ShopItem = Item | OutfitItem | AccessoryItem;
 
 const f = (id: string, name: string, sport: Sport | "common", slotType: SlotType, price: number): Item => ({ id, name, kind: "furniture", sport, slotType, price });
 
-/** 1차 가구 25종: 공용 7 + 종목마다 3 (종목별 상점 묶음용). 가구 전체는 FURNITURE */
+/** 1차 가구 31종: 공용 7 + 종목마다 3 (8종목) (종목별 상점 묶음용). 가구 전체는 FURNITURE */
 export const BASE_FURNITURE: Item[] = [
   f("plant", "화분", "common", "floor", 80),
   f("rug", "러그", "common", "floor", 100),
@@ -48,6 +48,13 @@ export const BASE_FURNITURE: Item[] = [
   f("reformer", "리포머", "pilates", "floor", 200),
   f("gym-ball", "짐볼", "pilates", "floor", 80),
   f("foam-roller", "폼롤러", "pilates", "floor", 60),
+  f("yoga-blocks", "요가 블록", "yoga", "floor", 60),
+  f("meditation-cushion", "명상 쿠션", "yoga", "floor", 80),
+  f("singing-bowl", "싱잉볼", "yoga", "floor", 100),
+  f("pushup-bars", "푸시업 바", "hometraining", "floor", 60),
+  f("step-box", "스텝박스", "hometraining", "floor", 90),
+  // 꾸미기 확장의 "줄넘기 걸이"(jump-rope-hook)와 다른 가구: 홈트 묶음의 나무 고리 줄넘기
+  f("jump-rope-wall", "홈트 줄넘기", "hometraining", "wall", 60),
   f("shoe-shelf", "러닝화 선반", "running", "floor", 80),
   f("bottle-stand", "물병 거치대", "running", "floor", 60),
   f("medal-frame", "완주 메달 액자", "running", "wall", 100),
@@ -96,7 +103,7 @@ export const EXTRA_FURNITURE: Item[] = [
   { ...x("gold-statue", "황금 조각상", "펜트하우스 전용", "floor", 300), penthouseOnly: true },
 ];
 
-/** 방에 놓을 수 있는 가구 전체 (1차 25종 + 확장 24종). 가구 목록이 필요한 곳은 BASE_FURNITURE 가 아니라 이걸 쓴다 */
+/** 방에 놓을 수 있는 가구 전체 (1차 31종 + 확장 24종). 가구 목록이 필요한 곳은 BASE_FURNITURE 가 아니라 이걸 쓴다 */
 export const FURNITURE: Item[] = [...BASE_FURNITURE, ...EXTRA_FURNITURE];
 
 /** 옷(100~150P). 안 산 기본 옷은 반팔 티 + 반바지. 옷 색(shirt)이 윗옷 색이 된다 */

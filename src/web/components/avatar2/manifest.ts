@@ -158,6 +158,52 @@ export const SPRITE_MANIFEST = {
       "chicken"
     ]
   },
+  "hometraining": {
+    "fw": 278,
+    "fh": 400,
+    "sw": 836,
+    "smSw": 334,
+    "frames": 3,
+    "outfits": [
+      "tee",
+      "tee-coral",
+      "tee-orange",
+      "tee-yellow",
+      "tee-mint",
+      "tee-navy",
+      "tee-lavender",
+      "tee-charcoal",
+      "tank-joggers",
+      "hoodie",
+      "sports-bra-leggings",
+      "singlet",
+      "cycling-jersey",
+      "rashguard"
+    ],
+    "hairs": [
+      "short",
+      "long",
+      "bun",
+      "buzz",
+      "part",
+      "afro",
+      "pigtails",
+      "ponytail",
+      "wolf",
+      "beanie"
+    ],
+    "fullHair": false,
+    "props": false,
+    "accs": [
+      "headband",
+      "cap",
+      "glasses",
+      "earphones",
+      "towel",
+      "wristbands",
+      "chicken"
+    ]
+  },
   "idle": {
     "fw": 275,
     "fh": 400,
@@ -237,10 +283,10 @@ export const SPRITE_MANIFEST = {
     ]
   },
   "pilates": {
-    "fw": 537,
+    "fw": 548,
     "fh": 400,
-    "sw": 1613,
-    "smSw": 645,
+    "sw": 1644,
+    "smSw": 658,
     "frames": 3,
     "outfits": [
       "tee",
@@ -441,6 +487,52 @@ export const SPRITE_MANIFEST = {
     ],
     "hairs": [],
     "fullHair": true,
+    "props": false,
+    "accs": [
+      "headband",
+      "cap",
+      "glasses",
+      "earphones",
+      "towel",
+      "wristbands",
+      "chicken"
+    ]
+  },
+  "yoga": {
+    "fw": 537,
+    "fh": 400,
+    "sw": 1613,
+    "smSw": 645,
+    "frames": 3,
+    "outfits": [
+      "tee",
+      "tee-coral",
+      "tee-orange",
+      "tee-yellow",
+      "tee-mint",
+      "tee-navy",
+      "tee-lavender",
+      "tee-charcoal",
+      "tank-joggers",
+      "hoodie",
+      "sports-bra-leggings",
+      "singlet",
+      "cycling-jersey",
+      "rashguard"
+    ],
+    "hairs": [
+      "short",
+      "long",
+      "bun",
+      "buzz",
+      "part",
+      "afro",
+      "pigtails",
+      "ponytail",
+      "wolf",
+      "beanie"
+    ],
+    "fullHair": false,
     "props": false,
     "accs": [
       "headband",

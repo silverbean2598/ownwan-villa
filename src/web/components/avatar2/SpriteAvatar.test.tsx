@@ -11,7 +11,7 @@ import { ACCESSORIES, OUTFITS } from "../../../shared/catalog";
 import type { Pose } from "./pose";
 
 const ROOT = join(__dirname, "../../../..");
-const POSES: Pose[] = ["idle", "sleep", "gym", "running", "pilates", "climbing", "jiujitsu", "taekwondo", "cheer", "sad"];
+const POSES: Pose[] = ["idle", "sleep", "gym", "running", "pilates", "yoga", "hometraining", "climbing", "jiujitsu", "taekwondo", "cheer", "sad"];
 const css = readFileSync(join(__dirname, "sprite.css"), "utf8");
 const a = (x: Partial<AvatarSpec>): AvatarSpec => ({ ...DEFAULT_AVATAR, ...x });
 const urls = (spec: AvatarSpec, pose: Pose) => spriteLayers(spec, pose).urls;

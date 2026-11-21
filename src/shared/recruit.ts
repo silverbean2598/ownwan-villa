@@ -15,7 +15,7 @@ export const APPLY_KEEP_MS = 30 * 24 * 3600_000;
 /** 글자 수 (이모지도 한 글자) */
 export const charLen = (s: string) => Array.from(s).length;
 
-/** 원하는 종목: 6가지 중 고른 것만, 겹치지 않게, 정해진 순서로. 잘못된 값이 있으면 null */
+/** 원하는 종목: 8가지(SPORTS) 중 고른 것만, 겹치지 않게, 정해진 순서로. 잘못된 값이 있으면 null */
 export function cleanSports(v: unknown): Sport[] | null {
   if (!Array.isArray(v) || v.length > SPORTS.length) return null;
   if (!v.every((s) => typeof s === "string" && (SPORTS as readonly string[]).includes(s))) return null;

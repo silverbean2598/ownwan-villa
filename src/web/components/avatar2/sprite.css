@@ -14,9 +14,11 @@
 .spr.p-sleep image { animation-duration: calc(3.2s * var(--t)); }
 .spr.p-running image { animation-duration: calc(0.64s * var(--t)); }
 .spr.p-pilates image,
+.spr.p-yoga image,
 .spr.p-climbing image,
 .spr.p-jiujitsu image,
 .spr.p-taekwondo image { animation-duration: calc(1.4s * var(--t)); }
+.spr.p-hometraining image { animation-duration: calc(1.6s * var(--t)); }
 /* 헬스: 0.4 · 0.4 · 0.9(다 들어 올린 칸) · 0.4초 */
 .spr.p-gym image { animation-name: spr-gym; animation-duration: calc(2.1s * var(--t)); }
 

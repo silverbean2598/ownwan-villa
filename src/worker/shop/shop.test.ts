@@ -28,9 +28,9 @@ const place = (cookie: string, slot: string, itemId: string | null) => send(cook
 const shop = async (cookie: string) => (await app.request("/api/shop", { headers: { cookie } }, env)).json<any>();
 
 describe("catalog", () => {
-  it("temporary_catalog_has_25_items_with_unique_ids", () => {
-    expect(BASE_FURNITURE).toHaveLength(25);
-    expect(new Set(BASE_FURNITURE.map((i) => i.id)).size).toBe(25);
+  it("temporary_catalog_has_31_items_with_unique_ids", () => {
+    expect(BASE_FURNITURE).toHaveLength(31);
+    expect(new Set(BASE_FURNITURE.map((i) => i.id)).size).toBe(31);
     for (const i of BASE_FURNITURE) {
       expect(i.price).toBeGreaterThanOrEqual(60);
       expect(i.price).toBeLessThanOrEqual(200);

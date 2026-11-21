@@ -15,6 +15,13 @@ export const FURNITURE_IMG: Record<string, readonly [number, number]> = {
   "reformer": [63.7, 26.6],
   "gym-ball": [22.5, 23.1],
   "foam-roller": [21.9, 12.1],
+  // 요가 · 홈트 (옛 SVG 그림이 없어 비슷한 가구와 넓이를 맞췄다: 블록 · 싱잉볼 · 푸시업 바 ≈ 물병 거치대, 쿠션 · 스텝박스 ≈ 짐볼, 벽 줄넘기 ≈ 줄넘기 걸이)
+  "yoga-blocks": [21.4, 18.7],
+  "meditation-cushion": [26.8, 19.4],
+  "singing-bowl": [21.1, 18.0],
+  "pushup-bars": [23.0, 17.4],
+  "step-box": [30.6, 17.0],
+  "jump-rope-wall": [20.6, 27.3],
   "shoe-shelf": [28.2, 28.8],
   "bottle-stand": [23.0, 16.6],
   "medal-frame": [27.6, 23.3],

@@ -36,7 +36,8 @@ describe("PATCH /api/me", () => {
   });
   it("rejects_invalid_sport", async () => {
     const c = await signup();
-    expect((await patch(c, { sport: "yoga" })).status).toBe(400);
+    expect((await patch(c, { sport: "swimming" })).status).toBe(400);
+    expect((await patch(c, { sport: "" })).status).toBe(400);
   });
   it("accepts_sport_and_avatar", async () => {
     const c = await signup();
@@ -50,7 +51,14 @@ describe("PATCH /api/me", () => {
     const c = await signup();
     expect((await patch(c, { sport: "taekwondo" })).status).toBe(200);
     expect((await me(c)).sport).toBe("taekwondo");
-    expect((await patch(c, { sport: "yoga" })).status).toBe(400);
+    expect((await patch(c, { sport: "swimming" })).status).toBe(400);
+  });
+  it("accepts_yoga_and_hometraining_and_keeps_pilates", async () => {
+    const c = await signup();
+    for (const s of ["yoga", "hometraining", "pilates"]) {
+      expect((await patch(c, { sport: s })).status, s).toBe(200);
+      expect((await me(c)).sport).toBe(s);
+    }
   });
   it("rejects_invalid_avatar", async () => {
     const c = await signup();

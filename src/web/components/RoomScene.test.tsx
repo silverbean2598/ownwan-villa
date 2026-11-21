@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { RoomScene } from "./RoomScene";
+import { RoomScene, SPRITE_HAS_EQUIP } from "./RoomScene";
 import { DEFAULT_AVATAR } from "../../shared/avatar";
 import { SPORTS } from "../../shared/sports";
 import { BASE_FURNITURE, EXTRA_FURNITURE } from "../../shared/catalog";
-import { FURNITURE_ART } from "./furniture";
+import { FURNITURE_ART, hasFurnitureImage } from "./furniture";
 
 describe("RoomScene", () => {
   it("lit_room_shows_sport_sprite_and_equipment", () => {
@@ -13,8 +13,8 @@ describe("RoomScene", () => {
       const h = renderToStaticMarkup(<RoomScene sport={sport} lit avatar={DEFAULT_AVATAR} />);
       expect(h).toContain(`class="spr p-${sport}"`);
       expect(h).toContain(`/avatar2/${sport}/`);
-      // 클라이밍 벽 · 필라테스 매트는 새 캐릭터 그림에 들어 있다
-      if (sport === "climbing" || sport === "pilates") expect(h).not.toContain("data-equip=");
+      // 클라이밍 벽 · 필라테스 리포머 · 요가 매트 · 홈트 매트는 새 캐릭터 그림에 들어 있다
+      if (SPRITE_HAS_EQUIP.has(sport)) expect(h).not.toContain("data-equip=");
       else expect(h).toContain(`data-equip="${sport}"`);
       expect(h).not.toContain('class="av ');
     }
@@ -26,6 +26,11 @@ describe("RoomScene", () => {
     expect(h).toContain('data-part="moonbeam"');
     // 잘 때는 기구가 옆에 그대로 있다
     expect(h).toContain('data-equip="climbing"');
+    // 모든 종목이 잘 때 기구를 보여 준다 (그림에 기구가 든 종목은 가구 그림 · 만 매트)
+    for (const sport of SPORTS) expect(renderToStaticMarkup(<RoomScene sport={sport} lit={false} avatar={DEFAULT_AVATAR} />), sport).toContain(`data-equip="${sport}"`);
+    expect(renderToStaticMarkup(<RoomScene sport="pilates" lit={false} avatar={DEFAULT_AVATAR} />)).toContain('href="/furniture/sm/reformer.webp"');
+    expect(renderToStaticMarkup(<RoomScene sport="hometraining" lit={false} avatar={DEFAULT_AVATAR} />)).toContain('href="/furniture/sm/step-box.webp"');
+    expect(renderToStaticMarkup(<RoomScene sport="yoga" lit={false} avatar={DEFAULT_AVATAR} />)).toContain('href="/furniture/sm/yoga-blocks.webp"');
   });
   it("penthouse_has_chandelier_skyline_sofa", () => {
     const h = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} penthouse />);
@@ -56,7 +61,14 @@ describe("RoomScene", () => {
     expect(d).toMatch(/class="wall-board"[^]*BOARD/);
   });
   it("every_catalog_item_has_a_drawing", () => {
-    for (const i of BASE_FURNITURE) expect(FURNITURE_ART[i.id], i.id).toBeTypeOf("function");
+    // 요가 · 홈트 가구는 새 그림(webp)만 있다 (옛 SVG 그림 없음)
+    for (const i of BASE_FURNITURE) expect(hasFurnitureImage(i.id) || typeof FURNITURE_ART[i.id] === "function", i.id).toBe(true);
+    for (const i of BASE_FURNITURE.filter((x) => x.sport === "yoga" || x.sport === "hometraining")) {
+      const slot = i.slotType === "wall" ? "wall2" : "floor1";
+      expect(renderToStaticMarkup(<RoomScene sport={i.sport as "yoga"} lit avatar={DEFAULT_AVATAR} placements={[{ slot, itemId: i.id }]} />), i.id).toContain(
+        `href="/furniture/sm/${i.id}.webp"`,
+      );
+    }
   });
   it("every_new_furniture_item_has_a_drawing_and_draws_in_its_slot", () => {
     for (const i of EXTRA_FURNITURE) {

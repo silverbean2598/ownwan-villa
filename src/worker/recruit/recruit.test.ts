@@ -119,7 +119,10 @@ describe("모집 글", () => {
     const { owner, id } = await recruiting();
     expect((await putRecruit(owner, id, { open: true, intro: "가".repeat(61) })).status).toBe(400);
     expect((await putRecruit(owner, id, { open: true, intro: "😀".repeat(60) })).status).toBe(200);
-    expect((await putRecruit(owner, id, { open: true, sports: ["yoga"] })).status).toBe(400);
+    expect((await putRecruit(owner, id, { open: true, sports: ["swimming"] })).status).toBe(400);
+    // 새 종목(요가 · 홈트)도 고를 수 있고 정해진 순서로 저장된다
+    expect((await putRecruit(owner, id, { open: true, sports: ["hometraining", "gym", "yoga"] })).status).toBe(200);
+    expect((await get(owner, `/api/villas/${id}/recruit`)).sports).toEqual(["gym", "yoga", "hometraining"]);
     expect((await putRecruit(owner, id, { open: true, sports: "gym" })).status).toBe(400);
     expect((await putRecruit(owner, id, { intro: "x" })).status).toBe(400);
     // 종목을 안 고르면 종목 상관없음

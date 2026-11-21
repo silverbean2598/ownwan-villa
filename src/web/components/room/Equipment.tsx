@@ -1,5 +1,6 @@
 import type { Sport } from "../../../shared/sports";
 import { furnitureUrl, type FurnitureRes } from "../furniture";
+import { FURNITURE_IMG } from "../furniture/art";
 
 // 종목별 운동 기구. 캐릭터 발 위치를 (0,0)으로, 캐릭터 키 ≈ 58 단위 기준으로 그린다.
 const INK = "#5B4640";
@@ -61,11 +62,30 @@ export function Equipment({ sport, lit, res = "full" }: { sport: Sport; lit: boo
         </g>
       );
     case "pilates":
+      // 켜진 방은 캐릭터 그림에 리포머가 들어 있어 그리지 않는다. 잘 때는 가구 "리포머" 그림이 옆에 놓여 있다
       return (
         <g data-equip="pilates">
-          <Shadow w={96} />
-          <rect x="-46" y="-3" width="92" height="6" rx="2" fill="#C8B2EE" {...line} />
-          <line x1="-42" y1="-1" x2="42" y2="-1" stroke="#fff" strokeWidth="0.8" opacity="0.5" />
+          <FurnitureImg id="reformer" res={res} />
+        </g>
+      );
+    case "yoga":
+      // 켜진 방은 캐릭터 그림에 매트가 있다. 잘 때는 돌돌 말아 세워 둔 라벤더 매트 + 요가 블록 (자는 캐릭터 발끝 오른쪽)
+      return (
+        <g data-equip="yoga">
+          <Shadow w={10} x={3} />
+          <rect x="-1" y="-25" width="8" height="25" rx="1.5" fill="#C8B2EE" {...line} />
+          <path d="M-1 -18 H7 M-1 -6 H7" stroke="#A98FD8" strokeWidth="0.9" />
+          <ellipse cx="3" cy="-25" rx="4" ry="1.8" fill="#D9C8F4" {...line} strokeWidth={1} />
+          <path d="M3 -25.6 a1.3 0.6 0 1 1 -0.1 0" fill="none" stroke="#A98FD8" strokeWidth="0.7" />
+          <line x1="0.6" y1="-22" x2="0.6" y2="-3" stroke="#fff" strokeWidth="0.9" strokeLinecap="round" opacity="0.5" />
+          <FurnitureImg id="yoga-blocks" res={res} x={15} k={0.65} />
+        </g>
+      );
+    case "hometraining":
+      // 켜진 방은 캐릭터 그림에 매트 · 휴대폰이 있다. 잘 때는 가구 "스텝박스" 그림
+      return (
+        <g data-equip="hometraining">
+          <FurnitureImg id="step-box" res={res} />
         </g>
       );
     case "climbing":
@@ -107,6 +127,21 @@ export function Equipment({ sport, lit, res = "full" }: { sport: Sport; lit: boo
         </g>
       );
   }
+  // 종목을 더하면 여기서 타입 오류가 난다: 위에 기구를 그려 넣을 것
+  const missing: never = sport;
+  return missing;
+}
+
+/** 가구 그림(webp)을 기구로 그린다: 가구와 같은 크기(× k), 발밑 그림자. (x,0) = 바닥 가운데 */
+function FurnitureImg({ id, res, x = 0, k = 1 }: { id: string; res: FurnitureRes; x?: number; k?: number }) {
+  const [w0, h0] = FURNITURE_IMG[id];
+  const [w, h] = [w0 * k, h0 * k];
+  return (
+    <g data-part={id}>
+      <ellipse cx={x} cy="-0.6" rx={w * 0.42} ry={Math.max(1.6, w * 0.06)} fill={INK} opacity="0.16" />
+      <image href={furnitureUrl(id, res)} x={x - w / 2} y={-h} width={w} height={h} preserveAspectRatio="none" />
+    </g>
+  );
 }
 
 /** 주짓수 그래플링 더미 (잘 때 매트 옆에 둔다). 가구 "그래플링 더미" 그림을 같이 쓴다. (x,y) = 바닥 가운데 */
