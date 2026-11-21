@@ -133,13 +133,15 @@ export function spriteLayers(raw: AvatarSpec, pose: Pose, res: SpriteRes = "full
 /**
  * 옛 캐릭터 상자(size) 기준으로 그릴 크기와 위치.
  * 서 있는 기본 자세(idle)의 칸 높이 = 옛 상자의 발까지 높이(size × 1.4 × 155/168). 다른 자세는 머리 크기가 같아지게 배율을 맞추고,
- * 가로 1.5 · 세로 1.8 size 를 넘으면 줄인다. 아래끝(발 · 매트)이 floor 줄에 닿는다.
+ * 가로 1.5(필라테스 2.1) · 세로 1.8 size 를 넘으면 줄인다. 아래끝(발 · 매트)이 floor 줄에 닿는다.
  */
 export function spriteBox(pose: Pose, size: number) {
   const meta = spriteMeta(pose);
   const idleH = size * 1.4 * (155 / 168);
   let scale = (idleH / meta.fh) * (HEAD_PX.idle / HEAD_PX[pose]);
-  scale = Math.min(scale, (1.5 * size) / meta.fw, (1.8 * size) / meta.fh);
+  // 필라테스는 리포머가 그림 안에 있어 가로로 넓다: 사람 크기를 맞추려고 가로 한계를 2.1 로 푼다
+  const maxW = pose === "pilates" ? 2.1 : 1.5;
+  scale = Math.min(scale, (maxW * size) / meta.fw, (1.8 * size) / meta.fh);
   const w = meta.fw * scale;
   const h = meta.fh * scale;
   const pad = (FLOOR_PAD[pose] ?? 0) * scale;

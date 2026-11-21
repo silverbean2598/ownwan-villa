@@ -219,7 +219,7 @@ describe("SpriteAvatar", () => {
       const m = spriteMeta(p);
       const b = spriteBox(p, 100);
       expect(b.w / b.h).toBeCloseTo(m.fw / m.fh, 5);
-      expect(b.w).toBeLessThanOrEqual(150 + 1e-9);
+      expect(b.w).toBeLessThanOrEqual((p === "pilates" ? 210 : 150) + 1e-9);
       expect(b.h).toBeLessThanOrEqual(180 + 1e-9);
       expect(b.floor).toBeLessThanOrEqual(b.h);
       // 원본(400px)보다 크게 그리지 않는다 (2배 화면에서도 흐리지 않게: 방 캐릭터 크기 ≤ 100)
