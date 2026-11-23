@@ -11,7 +11,7 @@ const AV = { skin: 0, hair: "short", shirt: 0 };
 const ME = { id: "me", username: "me1", nickname: "나", sport: "gym", avatar: AV };
 const villa = (ownerId: string) => ({
   id: "v1",
-  name: "땀빌라",
+  name: "땀아파트",
   ownerId,
   ...(ownerId === "me" ? { inviteToken: "tok" } : {}),
   members: [
@@ -34,7 +34,7 @@ function mockApi(ownerId: string, bans: unknown[] = []) {
       calls.push({ path, method, body: init?.body ? JSON.parse(String(init.body)) : undefined });
       const body = (data: unknown) => new Response(JSON.stringify(data), { status: 200 });
       if (path === "/api/me") return body(ME);
-      if (path === "/api/me/villas") return body([{ id: "v1", name: "땀빌라", ownerId: owner, public: false, memberCount: 2, joinedAt: 0, certifiedToday: false }]);
+      if (path === "/api/me/villas") return body([{ id: "v1", name: "땀아파트", ownerId: owner, public: false, memberCount: 2, joinedAt: 0, certifiedToday: false }]);
       if (path === "/api/villas/v1" && method === "GET") return body(villa(owner));
       if (path === "/api/villas/v1/transfer") owner = "b";
       if (path === "/api/recover/pending") return body([]);
@@ -84,7 +84,7 @@ describe("Settings 입주민 관리", () => {
     mockApi("b");
     await mount();
     expect(headings()).not.toContain("입주민 관리");
-    expect(button("빌라 해체하기")).toBeUndefined();
+    expect(button("아파트 해체하기")).toBeUndefined();
     expect(button("내보내기")).toBeUndefined();
   });
 
@@ -106,7 +106,7 @@ describe("Settings 입주민 관리", () => {
     mockApi("me");
     await mount();
     await click(button("내보내기", host.querySelectorAll(".member-row:not(.ban-row)")[1]));
-    expect(dialog()?.textContent).toContain("비비 님을 빌라에서 내보낼까요? 내보낸 사람은 방장이 풀어 줄 때까지 다시 입주할 수 없어요.");
+    expect(dialog()?.textContent).toContain("비비 님을 아파트에서 내보낼까요? 내보낸 사람은 방장이 풀어 줄 때까지 다시 입주할 수 없어요.");
     await click(button("취소", dialog()!));
     expect(dialog()).toBeNull();
     expect(calls.some((c) => c.path.includes("/kick"))).toBe(false);
@@ -132,7 +132,7 @@ describe("Settings 입주민 관리", () => {
   it("dissolve_needs_exact_name", async () => {
     mockApi("me");
     await mount();
-    await click(button("빌라 해체하기"));
+    await click(button("아파트 해체하기"));
     const input = dialog()!.querySelector("input") as HTMLInputElement;
     const go = button("해체하기", dialog()!)!;
     expect(go.disabled).toBe(true);
@@ -143,10 +143,10 @@ describe("Settings 입주민 관리", () => {
       });
     await type("땀빌");
     expect(button("해체하기", dialog()!)!.disabled).toBe(true);
-    await type("땀빌라");
+    await type("땀아파트");
     expect(button("해체하기", dialog()!)!.disabled).toBe(false);
     await click(button("해체하기", dialog()!));
-    expect(calls).toContainEqual({ path: "/api/villas/v1/dissolve", method: "POST", body: { confirmName: "땀빌라" } });
+    expect(calls).toContainEqual({ path: "/api/villas/v1/dissolve", method: "POST", body: { confirmName: "땀아파트" } });
   });
 });
 

@@ -14,9 +14,9 @@ export type CertCardData = {
   nickname: string;
   avatar: AvatarSpec;
   sport: Sport;
-  /** 어느 빌라든 올린 날로 센 연속 기록 (오늘 포함) */
+  /** 어느 아파트든 올린 날로 센 연속 기록 (오늘 포함) */
   streak: number;
-  /** 고른 빌라에서 내 층. 빌라가 없으면 null */
+  /** 고른 아파트에서 내 층. 아파트가 없으면 null */
   floor: number | null;
   penthouse: boolean;
   villaName: string | null;
@@ -41,7 +41,7 @@ export function pickToday(items: BoardItemData[], day: string): { routine: strin
 }
 
 /**
- * 오늘 인증 카드 자료. villaId = 층 · 이름을 보여 줄 빌라 (없거나 내가 살지 않으면 이 기기에서 보던 빌라).
+ * 오늘 인증 카드 자료. villaId = 층 · 이름을 보여 줄 아파트 (없거나 내가 살지 않으면 이 기기에서 보던 아파트).
  * 사진은 내 게시판(/api/users/<나>/board)에서 오늘 내 사진 주소만 고른다. 그림을 받는 것은 그릴 때, 켰을 때만
  */
 export async function loadCertCardData(villaId: string | null, now = Date.now()): Promise<CertCardData> {

@@ -14,7 +14,7 @@
 .bldg { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 10px 0; overflow-x: auto; }
 .tower { position: relative; min-width: 300px; }
 .roof { height: 10px; background: var(--ink); border-radius: 4px 4px 0 0; margin: 0 -6px; }
-/* 아파트: 지붕을 조금 높여 가운데에 "아파트" 간판. 입주민이 많아(최대 50명) 화면 밖 층은 그리기를 미룬다 */
+/* 타워팰리스: 지붕을 조금 높여 가운데에 "타워팰리스" 간판. 입주민이 많아(최대 50명) 화면 밖 층은 그리기를 미룬다 */
 .bldg.apt .roof { height: 20px; display: flex; align-items: center; justify-content: center; }
 .roof-sign { font-size: 11px; font-weight: 800; letter-spacing: 3px; color: #FFE08A; line-height: 1; }
 .bldg.apt .floor { content-visibility: auto; contain-intrinsic-size: auto 112px; }
@@ -95,7 +95,7 @@
 .room.big { cursor: default; border-radius: 12px; border: none; box-shadow: none; }
 .room.big:hover { transform: none; }
 .slots { position: absolute; inset: 0; pointer-events: none; }
-.slot { position: absolute; pointer-events: auto; padding: 0; min-height: 0; /* 빌라 .wall(min-height) 이름이 겹쳐 벽 자리가 길어지지 않게 */ background: transparent; border: 2px dashed rgba(91,70,64,.45); border-radius: 8px; color: rgba(91,70,64,.6); font-size: 18px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.slot { position: absolute; pointer-events: auto; padding: 0; min-height: 0; /* 아파트 .wall(min-height) 이름이 겹쳐 벽 자리가 길어지지 않게 */ background: transparent; border: 2px dashed rgba(91,70,64,.45); border-radius: 8px; color: rgba(91,70,64,.6); font-size: 18px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .slot.floor { border-radius: 10px; }
 /* 꾸미는 중에만 보이는 자리: 빈 자리는 진한 점선 + "+", 놓인 자리는 옅은 점선(눌러서 바꾸기) */
 .slot.filled { border-color: rgba(91,70,64,.28); }
@@ -194,7 +194,7 @@
 .comment-count { flex: none; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .comment-send { flex: none; padding: 9px 12px; border: none; border-radius: 10px; background: var(--ink); color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
 .comment-send:disabled { opacity: .35; cursor: not-allowed; }
-/* 빌라 이름 옆 [도시 보기] */
+/* 아파트 이름 옆 [도시 보기] */
 .villa-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .villa-title h1 { min-width: 0; overflow-wrap: anywhere; }
 .villa-title .city-link { flex: none; width: auto; padding: 8px 12px; font-size: 14px; border-radius: 999px; }

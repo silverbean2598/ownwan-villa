@@ -28,7 +28,7 @@ async function uploadOne(file: File, villaIds: string[] | null): Promise<Pick<It
     const fd = new FormData();
     fd.set("file", new File([blob], "photo.jpg", { type: "image/jpeg" }));
     fd.set("dhash", dhash);
-    // 고른 빌라에만 올린다 (빌라 목록을 못 불러왔으면 보내지 않는다 → 서버가 사는 빌라 모두에 올린다)
+    // 고른 아파트에만 올린다 (아파트 목록을 못 불러왔으면 보내지 않는다 → 서버가 사는 아파트 모두에 올린다)
     if (villaIds) fd.set("villaIds", JSON.stringify(villaIds));
     const res = await fetch("/api/certs/photo", { method: "POST", body: fd });
     const data = (await res.json().catch(() => null)) as (PhotoResult & { error?: string }) | null;
@@ -50,7 +50,7 @@ export function Certify() {
   const [routine, setRoutine] = useState("");
   const [routineMsg, setRoutineMsg] = useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
-  // 내가 사는 빌라와 올릴 빌라. null = 아직 못 불러옴
+  // 내가 사는 아파트와 올릴 아파트. null = 아직 못 불러옴
   const [villas, setVillas] = useState<MyVilla[] | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
 
@@ -66,12 +66,12 @@ export function Certify() {
     api("/api/me").catch((e) => {
       if (e instanceof ApiError && e.status === 401) toLogin();
     });
-    // 처음에는 사는 빌라 모두에 체크
+    // 처음에는 사는 아파트 모두에 체크
     reloadVillas().then((list) => setPicked(list.map((v) => v.id)), () => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** 고른 빌라가 바뀌었을 수 있을 때(그 사이 나갔거나 내보내짐 → 400 · 403 · 409): 목록을 다시 받고 남은 빌라만 체크로 둔다 */
+  /** 고른 아파트가 바뀌었을 수 있을 때(그 사이 나갔거나 내보내짐 → 400 · 403 · 409): 목록을 다시 받고 남은 아파트만 체크로 둔다 */
   async function refreshPicks() {
     const list = await reloadVillas().catch(() => null);
     if (!list) return;
@@ -82,7 +82,7 @@ export function Certify() {
   }
   const pickStale = (code?: number) => code === 400 || code === 403 || code === 409;
 
-  /** 올릴 빌라 id. 빌라 목록을 못 불러왔으면 null (서버가 사는 빌라 모두에 올린다) */
+  /** 올릴 아파트 id. 아파트 목록을 못 불러왔으면 null (서버가 사는 아파트 모두에 올린다) */
   const targets = villas ? villas.filter((v) => picked.includes(v.id)).map((v) => v.id) : null;
   const noPick = !!villas && villas.length > 0 && targets!.length === 0;
 
@@ -98,10 +98,10 @@ export function Certify() {
         const r = await uploadOne(list[i], targets);
         setItems((prev) => prev.map((it, j) => (j === base + i ? { ...it, ...r } : it)));
         if (r.status === "done") pokeEvents();
-        // 고른 빌라가 더는 내 빌라가 아니면 남은 사진은 올리지 않고 다시 고르게 한다
+        // 고른 아파트가 더는 내 아파트가 아니면 남은 사진은 올리지 않고 다시 고르게 한다
         if (r.status === "error" && (r.code === 403 || r.code === 409)) {
           await refreshPicks();
-          setItems((prev) => prev.map((it, j) => (j > base + i && it.status === "working" ? { ...it, status: "error", message: "빌라를 다시 골라 올려 주세요" } : it)));
+          setItems((prev) => prev.map((it, j) => (j > base + i && it.status === "working" ? { ...it, status: "error", message: "아파트를 다시 골라 올려 주세요" } : it)));
           return;
         }
       }
@@ -135,7 +135,7 @@ export function Certify() {
   }
 
   const back = villas?.length ? villaPath(pickVilla(villas, from)!) : "/villa";
-  // 인증에 성공했으면(사진을 올렸거나 루틴을 올림) 오늘 인증 카드를 이미지로 남기게 한다. 층 · 이름은 이 화면을 연 빌라(올린 빌라 중)
+  // 인증에 성공했으면(사진을 올렸거나 루틴을 올림) 오늘 인증 카드를 이미지로 남기게 한다. 층 · 이름은 이 화면을 연 아파트(올린 아파트 중)
   const certified = items.some((it) => it.status === "done") || (!!routineMsg && !routineMsg.error);
   const shareVilla = from && (!targets || targets.includes(from)) ? from : (targets?.[0] ?? from);
 
@@ -198,7 +198,7 @@ export function Certify() {
         <button className="btn" type="submit" disabled={busy || noPick || !routine.trim()}>루틴 올리기</button>
       </form>
       <p style={{ marginTop: 20 }}>
-        <Link to={back}>빌라로 돌아가기</Link>
+        <Link to={back}>아파트로 돌아가기</Link>
       </p>
     </main>
   );

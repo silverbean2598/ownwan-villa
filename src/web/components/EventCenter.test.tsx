@@ -75,13 +75,13 @@ afterEach(() => {
 describe("EventCenter", () => {
   it("shows_cards_one_at_a_time_then_toasts", async () => {
     mockApi([
-      ev("w", "welcome", { villaName: "땀빌라" }),
+      ev("w", "welcome", { villaName: "땀아파트" }),
       ev("c", "certified", { points: 20 }),
       ev("f", "floor_up", { floor: 2, streak: 7 }),
       ev("b", "bought", { itemName: "러그" }),
     ]);
     await mount();
-    expect(dialog()?.textContent).toContain("땀빌라에 입주했어요");
+    expect(dialog()?.textContent).toContain("땀아파트에 입주했어요");
     expect(dialog()?.getAttribute("aria-modal")).toBe("true");
     // 버튼에 포커스
     expect(document.activeElement?.textContent).toBe("좋아요");
@@ -113,7 +113,7 @@ describe("EventCenter", () => {
   });
 
   it("does_not_show_the_same_event_twice_on_refocus", async () => {
-    mockApi([ev("w", "welcome", { villaName: "빌라" })]);
+    mockApi([ev("w", "welcome", { villaName: "아파트" })]);
     await mount();
     await act(async () => {
       window.dispatchEvent(new Event("focus"));

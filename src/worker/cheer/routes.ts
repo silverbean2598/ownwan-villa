@@ -18,7 +18,7 @@ const TOO_MANY = "오늘은 댓글을 너무 많이 썼어요";
 /** 댓글 알림 이벤트 id. 댓글을 지우면 아직 남은 알림도 함께 지운다 */
 const COMMENT_EVENT = "'commented:' || id";
 
-/** 응원 · 댓글을 달 수 있는 기록: 있고, 지워지지 않았고, 게시판에 보이는(중복 아님) 기록, 같은 빌라 입주민, 가려지지 않음 */
+/** 응원 · 댓글을 달 수 있는 기록: 있고, 지워지지 않았고, 게시판에 보이는(중복 아님) 기록, 같은 아파트 입주민, 가려지지 않음 */
 type CertRef = { id: string; ownerId: string; hidden: number };
 type Found = { cert: CertRef; error?: undefined } | { cert?: undefined; error: { status: number; message: string } };
 
@@ -28,7 +28,7 @@ async function findCert(env: Env, viewerId: string, certId: string): Promise<Fou
     .first<CertRef>();
   const fail = (status: number, message: string): Found => ({ error: { status, message } });
   if (!cert) return fail(404, NOT_FOUND);
-  if (!(await canViewCert(env, viewerId, { id: cert.id, user_id: cert.ownerId }))) return fail(403, "같은 빌라 입주민만 응원할 수 있어요");
+  if (!(await canViewCert(env, viewerId, { id: cert.id, user_id: cert.ownerId }))) return fail(403, "같은 아파트 입주민만 응원할 수 있어요");
   if (cert.hidden) return fail(404, NOT_FOUND);
   return { cert };
 }

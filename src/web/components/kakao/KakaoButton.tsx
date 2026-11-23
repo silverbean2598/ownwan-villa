@@ -37,6 +37,6 @@ export const KAKAO_NOTICE: Record<string, { ok?: string; err?: string }> = {
   busy: { err: "지금 카카오 로그인이 몰려 있어요. 잠시 후 다시 해 주세요" },
   link_mismatch: { err: "다른 계정으로 로그인되어 있어요. 다시 시도해 주세요" },
   linked: { ok: "카카오를 연결했어요. 이제 카카오로도 로그인할 수 있어요" },
-  linked_other: { err: "이 카카오 계정은 다른 오운완빌라 계정에 연결돼 있어요" },
+  linked_other: { err: "이 카카오 계정은 다른 오운완아파트 계정에 연결돼 있어요" },
   already_has: { err: "이미 다른 카카오 계정이 연결돼 있어요. 연결을 해제한 뒤 다시 해 주세요" },
 };

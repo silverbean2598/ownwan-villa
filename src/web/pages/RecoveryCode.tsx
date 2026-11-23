@@ -12,7 +12,7 @@ function saveAsImage(code: string) {
   ctx.fillStyle = "#1a1a1a";
   ctx.textAlign = "center";
   ctx.font = "24px sans-serif";
-  ctx.fillText("오운완빌라 복구 코드", 320, 80);
+  ctx.fillText("오운완아파트 복구 코드", 320, 80);
   ctx.font = "bold 44px monospace";
   ctx.fillText(code, 320, 160);
   const a = document.createElement("a");

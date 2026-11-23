@@ -7,7 +7,7 @@ import { certTestHooks } from "../cert/routes";
 import { nextDay } from "../../shared/rules/day";
 import { VILLA_LIMIT_MSG } from "../../shared/villa";
 
-// 여러 빌라에 살기 [확정 — 기획자 결정, 2026-11-19]
+// 여러 아파트에 살기 [확정 — 기획자 결정, 2026-11-19]
 
 let n = 0;
 const uname = () => `mv${Date.now().toString(36)}${n++}`.slice(0, 16);
@@ -31,7 +31,7 @@ async function signup(nickname = "운동러") {
   return { id: row!.id, cookie };
 }
 type U = Awaited<ReturnType<typeof signup>>;
-async function create(u: U, name = "빌라") {
+async function create(u: U, name = "아파트") {
   const res = await send("POST", "/api/villas", { name }, u.cookie);
   expect(res.status).toBe(201);
   return (await res.json()) as { id: string; inviteToken: string };
@@ -61,7 +61,7 @@ const membership = (u: U, villaId: string) =>
     .bind(u.id, villaId)
     .first<{ floor: number; streak: number; missRun: number; at: number }>();
 
-/** 사진 인증 한 장을 고른 빌라에만 직접 넣는다 (빌라 행을 먼저 넣어 안전망 트리거가 모든 빌라에 올리지 않게) */
+/** 사진 인증 한 장을 고른 아파트에만 직접 넣는다 (아파트 행을 먼저 넣어 안전망 트리거가 모든 아파트에 올리지 않게) */
 async function certInto(u: U, day: string, villaIds: string[], at = 1000) {
   const id = crypto.randomUUID();
   await env.DB.batch([
@@ -71,13 +71,13 @@ async function certInto(u: U, day: string, villaIds: string[], at = 1000) {
   return id;
 }
 
-/** 빌라 두 곳(A, B)에 사는 u. A 에는 a, B 에는 b 가 함께 산다 */
+/** 아파트 두 곳(A, B)에 사는 u. A 에는 a, B 에는 b 가 함께 산다 */
 async function twoVillas() {
   const a = await signup("에이");
   const b = await signup("비이");
   const u = await signup("나야나");
-  const A = await create(a, "에이빌라");
-  const B = await create(b, "비빌라");
+  const A = await create(a, "에이아파트");
+  const B = await create(b, "비아파트");
   expect((await join(u, A.inviteToken)).status).toBe(200);
   expect((await join(u, B.inviteToken)).status).toBe(200);
   // 정산 대상이 되도록 입주 시각을 앞으로
@@ -90,11 +90,11 @@ afterEach(() => {
   certTestHooks.beforeWrite = undefined;
 });
 
-describe("빌라 3곳까지", () => {
+describe("아파트 3곳까지", () => {
   it("join_up_to_three_fourth_refused_then_leave_one_frees_a_slot", async () => {
     const u = await signup();
     const vs = [];
-    for (let i = 0; i < 4; i++) vs.push(await create(await signup(), `빌라${i}`));
+    for (let i = 0; i < 4; i++) vs.push(await create(await signup(), `아파트${i}`));
     for (let i = 0; i < 3; i++) expect((await join(u, vs[i].inviteToken)).status).toBe(200);
     const preview = await get(u, `/api/invite/${vs[3].inviteToken}`);
     expect(preview).toMatchObject({ alreadyMember: false, myVillaCount: 3, atLimit: true });
@@ -104,15 +104,15 @@ describe("빌라 3곳까지", () => {
     expect(await active(vs[3].id)).toBe(1);
 
     const mine = await get<any[]>(u, "/api/me/villas");
-    expect(mine.map((v) => v.name)).toEqual(["빌라0", "빌라1", "빌라2"]);
+    expect(mine.map((v) => v.name)).toEqual(["아파트0", "아파트1", "아파트2"]);
     expect(mine[0]).toMatchObject({ memberCount: 2, public: false, certifiedToday: false });
 
-    // 한 곳을 나가도 다른 빌라는 그대로, 그리고 새 빌라에 들어올 수 있다
+    // 한 곳을 나가도 다른 아파트는 그대로, 그리고 새 아파트에 들어올 수 있다
     expect((await send("POST", `/api/villas/${vs[1].id}/leave`, undefined, u.cookie)).status).toBe(200);
     expect(await active(vs[0].id)).toBe(2);
     expect(await active(vs[2].id)).toBe(2);
     expect((await join(u, vs[3].inviteToken)).status).toBe(200);
-    expect((await get<any[]>(u, "/api/me/villas")).map((v) => v.name)).toEqual(["빌라0", "빌라2", "빌라3"]);
+    expect((await get<any[]>(u, "/api/me/villas")).map((v) => v.name)).toEqual(["아파트0", "아파트2", "아파트3"]);
   });
 
   it("creating_counts_toward_three", async () => {
@@ -121,7 +121,7 @@ describe("빌라 3곳까지", () => {
     const y = await create(await signup());
     await join(u, x.inviteToken);
     await join(u, y.inviteToken);
-    await create(u, "내빌라");
+    await create(u, "내아파트");
     const r = await send("POST", "/api/villas", { name: "넷째" }, u.cookie);
     expect(r.status).toBe(409);
     expect(await errorOf(r)).toBe(VILLA_LIMIT_MSG);
@@ -156,12 +156,12 @@ describe("빌라 3곳까지", () => {
   it("villa_detail_is_members_only_and_old_mine_returns_first_villa", async () => {
     const { a, u, A, B } = await twoVillas();
     expect((await send("GET", `/api/villas/${B}`, undefined, a.cookie)).status).toBe(404);
-    expect((await get(u, `/api/villas/${B}`)).name).toBe("비빌라");
+    expect((await get(u, `/api/villas/${B}`)).name).toBe("비아파트");
     expect((await get(u, "/api/villas/mine")).id).toBe(A);
   });
 });
 
-describe("인증은 고른 빌라에만", () => {
+describe("인증은 고른 아파트에만", () => {
   it("photo_goes_only_to_chosen_villa_and_points_once", async () => {
     const { a, b, u, A, B } = await twoVillas();
     const r = await upload(u, [A]);
@@ -182,15 +182,15 @@ describe("인증은 고른 빌라에만", () => {
     const { certId } = (await (await upload(u, [A])).json()) as any;
     expect((await send("GET", `/api/photos/${certId}`, undefined, a.cookie)).status).toBe(200);
     expect((await send("GET", `/api/photos/${certId}`, undefined, b.cookie)).status).toBe(403);
-    // b 는 u 의 게시판은 열 수 있지만(같은 빌라 B) A 에만 올린 기록은 없다
+    // b 는 u 의 게시판은 열 수 있지만(같은 아파트 B) A 에만 올린 기록은 없다
     expect(await get(b, `/api/users/${u.id}/board`)).toEqual([]);
     expect(await get(b, `/api/users/${u.id}/board?villa=${B}`)).toEqual([]);
     expect((await get<any[]>(a, `/api/users/${u.id}/board?villa=${A}`)).map((x) => x.id)).toEqual([certId]);
-    // 남의 빌라를 골라 보거나 응원 · 댓글 · 신고도 막힌다
+    // 남의 아파트를 골라 보거나 응원 · 댓글 · 신고도 막힌다
     expect((await send("GET", `/api/users/${u.id}/board?villa=${A}`, undefined, b.cookie)).status).toBe(403);
     expect((await send("POST", `/api/certs/${certId}/cheer`, undefined, b.cookie)).status).toBe(403);
     expect((await send("POST", `/api/certs/${certId}/report`, undefined, b.cookie)).status).toBe(403);
-    // 본인은 빌라를 고르지 않으면 내 기록 전부, B 를 고르면 B 에 올린 것만
+    // 본인은 아파트를 고르지 않으면 내 기록 전부, B 를 고르면 B 에 올린 것만
     expect((await get<any[]>(u, `/api/users/${u.id}/board`)).length).toBe(1);
     expect(await get(u, `/api/users/${u.id}/board?villa=${B}`)).toEqual([]);
   });
@@ -210,12 +210,12 @@ describe("인증은 고른 빌라에만", () => {
     const stranger = await create(await signup());
     let r = await upload(u, []);
     expect(r.status).toBe(400);
-    expect(await errorOf(r)).toBe("올릴 빌라를 하나 이상 골라 주세요");
+    expect(await errorOf(r)).toBe("올릴 아파트를 하나 이상 골라 주세요");
     r = await upload(u, [A, stranger.id]);
     expect(r.status).toBe(403);
-    expect(await errorOf(r)).toBe("내가 사는 빌라에만 올릴 수 있어요");
+    expect(await errorOf(r)).toBe("내가 사는 아파트에만 올릴 수 있어요");
     expect(await points(u)).toBe(0);
-    // 빌라를 보내지 않는 예전 화면은 사는 빌라 모두에 올린다
+    // 아파트를 보내지 않는 예전 화면은 사는 아파트 모두에 올린다
     const { certId } = (await (await upload(u)).json()) as any;
     expect((await linked(certId)).length).toBe(2);
   });
@@ -238,18 +238,18 @@ describe("인증은 고른 빌라에만", () => {
   });
 });
 
-describe("고른 빌라에서 올리는 사이 나간 경우", () => {
+describe("고른 아파트에서 올리는 사이 나간 경우", () => {
   it("picked_only_A_then_kicked_from_A_mid_upload_never_posts_to_B", async () => {
     const { a, b, u, A, B } = await twoVillas();
-    // 빌라를 확인한 뒤 · 기록을 쓰기 직전에 A 방장이 u 를 내보낸다
+    // 아파트를 확인한 뒤 · 기록을 쓰기 직전에 A 방장이 u 를 내보낸다
     certTestHooks.beforeWrite = async () => {
       certTestHooks.beforeWrite = undefined;
       expect((await send("POST", `/api/villas/${A}/members/${u.id}/kick`, undefined, a.cookie)).status).toBe(200);
     };
     const r = await upload(u, [A]);
     expect(r.status).toBe(409);
-    expect(await errorOf(r)).toBe("선택한 빌라에서 나가서 올리지 못했어요. 다시 골라 주세요");
-    // 기록 · 빌라 연결 · 포인트 · 알림 · 불 모두 없다
+    expect(await errorOf(r)).toBe("선택한 아파트에서 나가서 올리지 못했어요. 다시 골라 주세요");
+    // 기록 · 아파트 연결 · 포인트 · 알림 · 불 모두 없다
     expect((await env.DB.prepare("SELECT COUNT(*) AS c FROM certs WHERE user_id = ?").bind(u.id).first<{ c: number }>())!.c).toBe(0);
     expect((await env.DB.prepare("SELECT COUNT(*) AS c FROM cert_villas WHERE villa_id = ?").bind(B).first<{ c: number }>())!.c).toBe(0);
     expect(await points(u)).toBe(0);
@@ -300,7 +300,7 @@ describe("배포 당일 축하 겹침", () => {
   });
 });
 
-describe("다른 빌라에도 올리기", () => {
+describe("다른 아파트에도 올리기", () => {
   it("adds_today_certs_to_another_villa_without_extra_points", async () => {
     const { b, u, A, B } = await twoVillas();
     const { certId } = (await (await upload(u, [A])).json()) as any;
@@ -339,7 +339,7 @@ describe("다른 빌라에도 올리기", () => {
   });
 });
 
-describe("층 · 연속 기록은 빌라마다", () => {
+describe("층 · 연속 기록은 아파트마다", () => {
   it("certifying_only_A_for_7_days_raises_A_and_drops_B", async () => {
     const { u, A, B } = await twoVillas();
     await env.DB.prepare("UPDATE memberships SET floor = 3 WHERE user_id = ? AND villa_id = ?").bind(u.id, B).run();
@@ -354,7 +354,7 @@ describe("층 · 연속 기록은 빌라마다", () => {
     }
     expect(await membership(u, A)).toMatchObject({ floor: 2, streak: 7, missRun: 0 });
     expect(await membership(u, B)).toMatchObject({ floor: 2, streak: 0, missRun: 7 });
-    // 사용자 연속 기록은 어느 빌라든 올린 날
+    // 사용자 연속 기록은 어느 아파트든 올린 날
     expect((await env.DB.prepare("SELECT streak FROM users WHERE id = ?").bind(u.id).first<{ streak: number }>())!.streak).toBe(7);
     // 8일째 아무 데도 안 올리면: A 는 끊겨 -1, B 는 쉰 지 8일째라 -1
     setNow(() => Date.parse(`${day}T12:00:00+09:00`));
@@ -386,15 +386,15 @@ describe("층 · 연속 기록은 빌라마다", () => {
     const ph = async (v: string) => (await env.DB.prepare("SELECT penthouse_user_id AS p FROM villas WHERE id = ?").bind(v).first<{ p: string }>())!.p;
     expect(await ph(A)).toBe(u.id);
     expect(await ph(B)).toBe(b.id);
-    // 축하는 A 에서만, 빌라 이름과 함께
+    // 축하는 A 에서만, 아파트 이름과 함께
     const evs = (await get<any[]>(u, "/api/events")).filter((e) => e.type === "floor_up");
     expect(evs).toHaveLength(1);
-    expect(evs[0].payload).toMatchObject({ floor: 2, streak: 7, villaId: A, villaName: "에이빌라", multi: true });
+    expect(evs[0].payload).toMatchObject({ floor: 2, streak: 7, villaId: A, villaName: "에이아파트", multi: true });
     // 나중에 B 에도 올리면 B 에서도 오늘 7일째 → B 축하도 따로 한 번, 1등도 바뀐다
     await send("POST", "/api/certs/today/villas", { villaIds: [B] }, u.cookie);
     expect(await ph(B)).toBe(u.id);
     const evs2 = (await get<any[]>(u, "/api/events")).filter((e) => e.type === "floor_up");
-    expect(evs2.map((e) => e.payload.villaName).sort()).toEqual(["비빌라", "에이빌라"]);
+    expect(evs2.map((e) => e.payload.villaName).sort()).toEqual(["비아파트", "에이아파트"]);
     // 사용자 축하(streak7)는 같은 숫자의 floor_up 과 겹쳐 보내지 않는다
     expect((await get<any[]>(u, "/api/events")).filter((e) => e.type === "streak7")).toEqual([]);
   });
@@ -408,7 +408,7 @@ describe("도시 · 탈퇴 · 복구", () => {
     await upload(u, [A]);
     const city = await get(u, "/api/city");
     expect(city.myVillas.map((m: any) => m.villaId)).toEqual([A, B]);
-    expect(city.myVillas[0]).toMatchObject({ name: "에이빌라", public: true, isOwner: false });
+    expect(city.myVillas[0]).toMatchObject({ name: "에이아파트", public: true, isOwner: false });
     expect(city.mine.villaId).toBe(A);
     const lit = Object.fromEntries(city.villas.filter((v: any) => v.id === A || v.id === B).map((v: any) => [v.id, v.litCount]));
     expect(lit).toEqual({ [A]: 1, [B]: 0 });

@@ -24,14 +24,14 @@ type BodyProps = {
   href?: string;
 };
 
-/** 상태마다 보여 줄 안내 · 버튼 (빌라 카드와 설정이 함께 쓴다) */
+/** 상태마다 보여 줄 안내 · 버튼 (아파트 카드와 설정이 함께 쓴다) */
 function InstallBody({ state, env, busy, onInstall, href }: BodyProps) {
   switch (state) {
     case "installed":
       return env.standalone ? (
         <p className="install-text">홈 화면 앱으로 쓰고 있어요. 주소창 없이 바로 열려요.</p>
       ) : (
-        <p className="install-text">홈 화면에 추가했어요. 다음부터는 홈 화면의 <b>오운완빌라</b>로 열어 주세요.</p>
+        <p className="install-text">홈 화면에 추가했어요. 다음부터는 홈 화면의 <b>오운완아파트</b>로 열어 주세요.</p>
       );
     case "prompt":
       return (
@@ -70,7 +70,7 @@ function InstallBody({ state, env, busy, onInstall, href }: BodyProps) {
   }
 }
 
-/* ── 빌라 화면 카드 ── */
+/* ── 아파트 화면 카드 ── */
 
 type CardViewProps = BodyProps & { onClose?: () => void };
 
@@ -94,7 +94,7 @@ export function InstallCardView({ onClose, ...body }: CardViewProps) {
 
 type Deps = { store?: InstallStore; env?: InstallEnv; now?: () => number; storage?: Pick<Storage, "getItem" | "setItem"> | null };
 
-/** 빌라 화면 위쪽의 작은 카드. 닫으면 14일 동안 다시 보이지 않는다 */
+/** 아파트 화면 위쪽의 작은 카드. 닫으면 14일 동안 다시 보이지 않는다 */
 export function InstallCard({ store, env, now = Date.now, storage }: Deps) {
   const { state, env: e, prompt } = useInstall(store, env);
   const [hidden, setHidden] = useState(() => isDismissed(now(), storage));

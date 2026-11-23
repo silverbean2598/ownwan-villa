@@ -78,9 +78,9 @@ describe("설정 → 휴대폰 알림 화면", () => {
     const h = view("on", { ...DEFAULT_PREFS, villa: false });
     expect(h).toContain("이 기기에서 알림을 받고 있어요");
     expect(h).toContain(">끄기<");
-    for (const l of ["응원 · 댓글", "빌라 소식", "입주 신청 · 대결", "운동 알림"]) expect(h).toContain(`aria-label="${l}"`);
+    for (const l of ["응원 · 댓글", "아파트 소식", "입주 신청 · 대결", "운동 알림"]) expect(h).toContain(`aria-label="${l}"`);
     expect(h.match(/aria-checked="true"/g)).toHaveLength(3);
-    expect(h).toMatch(/aria-checked="false" aria-label="빌라 소식"/);
+    expect(h).toMatch(/aria-checked="false" aria-label="아파트 소식"/);
     expect(h).toContain("시험 알림 보내기");
     expect(h).not.toContain("이 기기에서 알림 켜기");
   });

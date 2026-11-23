@@ -24,7 +24,7 @@ async function signup(nickname = "운동러") {
   return { id: row!.id, cookie };
 }
 type U = Awaited<ReturnType<typeof signup>>;
-async function create(u: U, name = "우리빌라") {
+async function create(u: U, name = "우리아파트") {
   const res = await send("POST", "/api/villas", { name }, u.cookie);
   return (await res.json()) as { id: string; inviteToken: string };
 }
@@ -46,7 +46,7 @@ const banned = async (vid: string, uid: string) =>
   !!(await env.DB.prepare("SELECT 1 AS x FROM villa_bans WHERE villa_id = ? AND user_id = ?").bind(vid, uid).first());
 
 /** 방장 + 입주민 둘 */
-async function villaOf3(name = "우리빌라") {
+async function villaOf3(name = "우리아파트") {
   const owner = await signup("방장");
   const b = await signup("비비");
   const c = await signup("씨씨");
@@ -88,7 +88,7 @@ describe("내보내기 (kick)", () => {
     expect(await banned(id, b.id)).toBe(true);
     expect(await env.DB.prepare("SELECT streak, points FROM users WHERE id = ?").bind(b.id).first()).toEqual({ streak: 12, points: 250 });
     expect((await env.DB.prepare("SELECT COUNT(*) AS c FROM inventory WHERE user_id = ?").bind(b.id).first<{ c: number }>())!.c).toBe(1);
-    // 다른 빌라에 들어가면 1층부터
+    // 다른 아파트에 들어가면 1층부터
     const other = await signup();
     const v2 = await create(other);
     expect((await join(b, v2.inviteToken)).status).toBe(200);
@@ -98,12 +98,12 @@ describe("내보내기 (kick)", () => {
   });
 
   it("kicked_event_only_for_the_kicked_member", async () => {
-    const { owner, b, c, id } = await villaOf3("땀빌라");
+    const { owner, b, c, id } = await villaOf3("땀아파트");
     const before = { o: (await events(owner)).length, c: (await events(c)).length };
     await kick(owner, id, b);
     const k = await ofType(b, "kicked");
     expect(k).toHaveLength(1);
-    expect(k[0].payload).toEqual({ villaName: "땀빌라" });
+    expect(k[0].payload).toEqual({ villaName: "땀아파트" });
     expect((await events(owner)).length).toBe(before.o);
     expect((await events(c)).length).toBe(before.c);
   });
@@ -210,10 +210,10 @@ describe("내보낸 사람 입주 막기", () => {
     await kick(owner, id, b);
     const p = await send("GET", `/api/invite/${inviteToken}`, undefined, b.cookie);
     expect(p.status).toBe(403);
-    expect(await err(p)).toBe("이 빌라에는 다시 입주할 수 없어요");
+    expect(await err(p)).toBe("이 아파트에는 다시 입주할 수 없어요");
     const r = await join(b, inviteToken);
     expect(r.status).toBe(403);
-    expect(await err(r)).toBe("이 빌라에는 다시 입주할 수 없어요");
+    expect(await err(r)).toBe("이 아파트에는 다시 입주할 수 없어요");
     expect(await activeIds(id)).not.toContain(b.id);
     // 새 초대 링크도 마찬가지
     const { inviteToken: t2 } = (await (await send("POST", `/api/villas/${id}/invite/rotate`, undefined, owner.cookie)).json()) as { inviteToken: string };
@@ -310,21 +310,21 @@ describe("방장 넘기기 (transfer)", () => {
   });
 });
 
-describe("빌라 해체 (dissolve)", () => {
+describe("아파트 해체 (dissolve)", () => {
   it("owner_only_and_name_must_match", async () => {
-    const { owner, b, id } = await villaOf3("땀빌라");
-    expect((await dissolve(b, id, "땀빌라")).status).toBe(403);
-    const r = await dissolve(owner, id, "땀 빌라");
+    const { owner, b, id } = await villaOf3("땀아파트");
+    expect((await dissolve(b, id, "땀아파트")).status).toBe(403);
+    const r = await dissolve(owner, id, "땀 아파트");
     expect(r.status).toBe(400);
-    expect(await err(r)).toBe("빌라 이름이 맞지 않아요");
+    expect(await err(r)).toBe("아파트 이름이 맞지 않아요");
     expect((await dissolve(owner, id, "")).status).toBe(400);
     expect((await villaRow(id))!.dissolved_at).toBeNull();
   });
 
   it("everyone_leaves_invite_dies_bans_cleared", async () => {
-    const { owner, b, c, id, inviteToken } = await villaOf3("땀빌라");
+    const { owner, b, c, id, inviteToken } = await villaOf3("땀아파트");
     await kick(owner, id, c);
-    expect((await dissolve(owner, id, "  땀빌라 ")).status).toBe(200);
+    expect((await dissolve(owner, id, "  땀아파트 ")).status).toBe(200);
     const v = await villaRow(id);
     expect(v!.dissolved_at).not.toBeNull();
     expect(v!.penthouse_user_id).toBeNull();
@@ -334,23 +334,23 @@ describe("빌라 해체 (dissolve)", () => {
     expect((await join(x, inviteToken)).status).toBe(404);
     expect((await send("GET", `/api/invite/${inviteToken}`)).status).toBe(404);
     expect(await (await send("GET", "/api/villas/mine", undefined, b.cookie)).json()).toBeNull();
-    // 이미 해체된 빌라는 다시 해체할 수 없다
-    expect((await dissolve(owner, id, "땀빌라")).status).toBe(404);
+    // 이미 해체된 아파트는 다시 해체할 수 없다
+    expect((await dissolve(owner, id, "땀아파트")).status).toBe(404);
   });
 
   it("dissolved_event_for_every_member_including_owner", async () => {
-    const { owner, b, c, id } = await villaOf3("땀빌라");
-    await dissolve(owner, id, "땀빌라");
+    const { owner, b, c, id } = await villaOf3("땀아파트");
+    await dissolve(owner, id, "땀아파트");
     for (const u of [owner, b, c]) {
       const e = await ofType(u, "dissolved");
       expect(e).toHaveLength(1);
-      expect(e[0].payload).toEqual({ villaName: "땀빌라" });
+      expect(e[0].payload).toEqual({ villaName: "땀아파트" });
     }
   });
 
   it("concurrent_dissolves_once", async () => {
-    const { owner, id } = await villaOf3("땀빌라");
-    const rs = await Promise.all([dissolve(owner, id, "땀빌라"), dissolve(owner, id, "땀빌라")]);
+    const { owner, id } = await villaOf3("땀아파트");
+    const rs = await Promise.all([dissolve(owner, id, "땀아파트"), dissolve(owner, id, "땀아파트")]);
     expect(rs.map((r) => r.status).sort()).toEqual([200, 404]);
     expect(await ofType(owner, "dissolved")).toHaveLength(1);
   });

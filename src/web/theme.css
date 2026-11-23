@@ -113,7 +113,7 @@ body {
 @media (prefers-reduced-motion: reduce) { .switch, .switch .knob { transition: none; } }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
-/* 빌라 바꾸기 (빌라 여러 곳에 살 때) */
+/* 아파트 바꾸기 (아파트 여러 곳에 살 때) */
 .villa-switch { margin: 0 0 12px; }
 .villa-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px; -webkit-overflow-scrolling: touch; }
 .villa-tabs::-webkit-scrollbar { display: none; }
@@ -127,7 +127,7 @@ body {
 .villa-tab .lamp.lit { background: #ffc94d; box-shadow: 0 0 0 2px rgba(255, 201, 77, 0.35); }
 .villa-tab.on .lamp:not(.lit) { background: #8a8a8a; }
 
-/* 오늘 인증하기 → 올릴 빌라 */
+/* 오늘 인증하기 → 올릴 아파트 */
 .villa-picks { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 16px 0; }
 .villa-picks legend { font-weight: 600; font-size: 14px; padding: 0 4px; }
 .villa-pick { display: flex; align-items: center; gap: 10px; padding: 9px 0; font-size: 15px; border-bottom: 1px solid #f3f3f3; }
@@ -189,12 +189,12 @@ body {
 .my-apply .btn { align-self: flex-start; }
 .recruit-intro-input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: 16px; line-height: 1.45; resize: none; }
 
-/* 아파트 표시 (빌라 화면 제목 · 도시 카드 · 집값 순위 · 설정). 승격한 건물만 붙는다 */
+/* 타워팰리스 표시 (아파트 화면 제목 · 도시 카드 · 집값 순위 · 설정). 승격한 건물만 붙는다 */
 .kind-badge { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #F4ECFF; color: #6A3FB8;
   border: 1px solid #DCCBF5; font-size: 12px; font-weight: 800; line-height: 1.4; letter-spacing: .5px; white-space: nowrap; }
 h1 .kind-badge { font-size: 13px; position: relative; top: -2px; }
 
-/* 설정 → 아파트 승격 */
+/* 설정 → 타워팰리스 승격 */
 .promote-progress { height: 8px; border-radius: 999px; background: #EEF0F4; overflow: hidden; margin: 4px 0 8px; }
 .promote-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #B7A1EA, #7E5BD0); }
 .promote-done { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; font-size: 14px; }

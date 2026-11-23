@@ -31,7 +31,7 @@ function Spark({ history }: { history: VillaPrice["history"] }) {
   );
 }
 
-/** 진행 중 대결: 두 빌라가 첫날 전날보다 얼마나 올랐는지 나란히 */
+/** 진행 중 대결: 두 아파트가 첫날 전날보다 얼마나 올랐는지 나란히 */
 function Versus({ b }: { b: BattleView }) {
   const md_ = b.me.delta ?? 0;
   const td = b.them.delta ?? 0;
@@ -86,10 +86,10 @@ function RecentRow({ b }: { b: BattleView }) {
 }
 
 /**
- * 우리 빌라 집값 대결 화면 (/battle/:villaId). 입주민 누구나 보고, 방장만 버튼이 있다.
+ * 우리 아파트 집값 대결 화면 (/battle/:villaId). 입주민 누구나 보고, 방장만 버튼이 있다.
  * - 받은 신청: 방장 [받기] [거절] / 입주민 "방장이 답하기를 기다리는 중"
  * - 보낸 신청: 방장 [신청 취소] / 입주민 보기만
- * - 진행 중: 두 빌라의 오른 값 · 남은 날 (모두 보기만)
+ * - 진행 중: 두 아파트의 오른 값 · 남은 날 (모두 보기만)
  * - 없음: 방장에게 [집값 순위에서 상대 찾기], 입주민에게 "대결 신청은 방장이 해요"
  */
 export function Battle() {
@@ -141,13 +141,13 @@ export function Battle() {
 
   return (
     <main className="battle-page">
-      <Link className="back" to={`/villa/${id}`}>← 빌라로</Link>
+      <Link className="back" to={`/villa/${id}`}>← 아파트로</Link>
       <h1>집값 대결</h1>
       {myName && <p className="battle-sub">{myName}</p>}
 
-      <section className="price-card" aria-label="우리 빌라 집값">
+      <section className="price-card" aria-label="우리 아파트 집값">
         <div className="price-card-top">
-          <span className="label">우리 빌라 집값</span>
+          <span className="label">우리 아파트 집값</span>
           <PriceTag price={price.price} change={price.change} className="big" />
         </div>
         <Spark history={price.history} />
@@ -163,12 +163,12 @@ export function Battle() {
                 <p className="muted small">{MIN_MEMBERS_MSG}. 초대 링크로 이웃을 더 불러 보세요.</p>
               ) : data.public ? (
                 <>
-                  <p className="muted small">집값 순위에서 겨뤄 볼 빌라를 골라 대결을 신청해 보세요.</p>
+                  <p className="muted small">집값 순위에서 겨뤄 볼 아파트를 골라 대결을 신청해 보세요.</p>
                   <Link className="btn" to="/ranking">집값 순위에서 상대 찾기</Link>
                 </>
               ) : (
                 <>
-                  <p className="muted small">도시 지도에 공개한 빌라만 대결할 수 있어요.</p>
+                  <p className="muted small">도시 지도에 공개한 아파트만 대결할 수 있어요.</p>
                   <Link className="btn ghost" to="/settings">설정에서 지도에 공개하기</Link>
                 </>
               )
@@ -181,9 +181,9 @@ export function Battle() {
         {cur?.status === "pending" && cur.side === "opponent" && (
           <div className="battle-card incoming">
             <span className="battle-flag">대결 신청이 왔어요</span>
-            <p className="battle-title"><b>{cur.them.name}</b>에서 우리 빌라에 집값 대결을 신청했어요</p>
+            <p className="battle-title"><b>{cur.them.name}</b>에서 우리 아파트에 집값 대결을 신청했어요</p>
             <ul className="challenge-rules">
-              <li>받으면 내일부터 {BATTLE_DAYS}일 동안 집값이 더 많이 오른 빌라가 이겨요</li>
+              <li>받으면 내일부터 {BATTLE_DAYS}일 동안 집값이 더 많이 오른 아파트가 이겨요</li>
               <li>이기면 입주민 모두 {BATTLE_POINTS}P와 건물에 “대결 승리” 배지 (7일)</li>
             </ul>
             <p className="muted small">{hoursLeft(cur.expiresAt!)}시간 안에 답하지 않으면 신청이 사라져요.</p>
@@ -235,7 +235,7 @@ export function Battle() {
         <ul>
           <li>기본 1억에서 시작해요</li>
           <li>입주민 한 명마다 +0.1억</li>
-          <li>최근 7일 동안 입주민이 이 빌라에 인증한 날 하루마다 +0.1억</li>
+          <li>최근 7일 동안 입주민이 이 아파트에 인증한 날 하루마다 +0.1억</li>
           <li>입주민 층이 1층보다 높은 만큼 한 층마다 +0.1억</li>
         </ul>
         <p className="muted small">매일 자정에 다시 계산해요. 지운 사진 · 같은 사진은 세지 않아요.</p>

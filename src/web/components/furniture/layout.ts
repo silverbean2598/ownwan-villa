@@ -106,7 +106,7 @@ export function slotAnchors(variant: Variant, penthouse: boolean): Record<Slot, 
     };
   }
 
-  // 빌라 칸(작은 방): 뒤 왼쪽 구석 · 뒤 오른쪽 구석(펜트하우스는 앞 왼쪽) · 앞 오른쪽 구석
+  // 아파트 칸(작은 방): 뒤 왼쪽 구석 · 뒤 오른쪽 구석(펜트하우스는 앞 왼쪽) · 앞 오른쪽 구석
   return {
     wall1,
     wall2,

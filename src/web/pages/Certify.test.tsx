@@ -61,9 +61,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("Certify — 올릴 빌라 [확정 — 기획자 결정, 2026-11-19]", () => {
+describe("Certify — 올릴 아파트 [확정 — 기획자 결정, 2026-11-19]", () => {
   it("new_entry_all_checked_and_last_one_cannot_be_unchecked", async () => {
-    mockApi([[v("A", "에이빌라"), v("B", "비빌라"), v("C", "씨빌라")]]);
+    mockApi([[v("A", "에이아파트"), v("B", "비아파트"), v("C", "씨아파트")]]);
     await mount();
     expect(boxes().map((b) => b.checked)).toEqual([true, true, true]);
     expect(boxes().some((b) => b.disabled)).toBe(false);
@@ -72,13 +72,13 @@ describe("Certify — 올릴 빌라 [확정 — 기획자 결정, 2026-11-19]", 
     expect(boxes().map((b) => b.checked)).toEqual([false, false, true]);
     // 마지막 하나는 끌 수 없다
     expect(boxes()[2].disabled).toBe(true);
-    expect(host.querySelector(".villa-picks .hint")!.textContent).toContain("빌라를 하나 이상 골라야 해요");
+    expect(host.querySelector(".villa-picks .hint")!.textContent).toContain("아파트를 하나 이상 골라야 해요");
     await click(boxes()[0]);
     expect(boxes()[2].disabled).toBe(false);
   });
 
   it("routine_and_photo_go_to_checked_villas_only", async () => {
-    mockApi([[v("A", "에이빌라"), v("B", "비빌라")]]);
+    mockApi([[v("A", "에이아파트"), v("B", "비아파트")]]);
     await mount();
     await click(boxes()[1]);
     const ta = host.querySelector<HTMLTextAreaElement>("#routine")!;
@@ -102,42 +102,42 @@ describe("Certify — 올릴 빌라 [확정 — 기획자 결정, 2026-11-19]", 
   });
 
   it("single_villa_is_read_only_and_no_villa_is_a_note", async () => {
-    mockApi([[v("A", "에이빌라")]]);
+    mockApi([[v("A", "에이아파트")]]);
     await mount();
     expect(boxes()).toEqual([]);
-    expect(host.querySelector(".villa-one")!.textContent).toBe("에이빌라에 올라가요");
+    expect(host.querySelector(".villa-one")!.textContent).toBe("에이아파트에 올라가요");
     act(() => root.unmount());
     host.remove();
     mockApi([[]]);
     await mount();
-    expect(host.querySelector(".villa-one")!.textContent).toBe("빌라 없이 내 기록으로만 남아요.");
+    expect(host.querySelector(".villa-one")!.textContent).toBe("아파트 없이 내 기록으로만 남아요.");
     expect(host.querySelector(".add-more")).toBeNull();
   });
 
   it("posted_villas_are_marked_and_add_to_other_villa_later", async () => {
     mockApi([
-      [v("A", "에이빌라", true), v("B", "비빌라")],
-      [v("A", "에이빌라", true), v("B", "비빌라", true)],
+      [v("A", "에이아파트", true), v("B", "비아파트")],
+      [v("A", "에이아파트", true), v("B", "비아파트", true)],
     ]);
     await mount();
     expect(host.querySelector(".villa-pick .posted")!.textContent).toBe("오늘 올렸어요");
     const section = host.querySelector(".add-more")!;
-    expect(section.querySelector("h2")!.textContent).toBe("다른 빌라에도 올리기");
-    expect(Array.from(section.querySelectorAll(".add-more-row span")).map((s) => s.textContent)).toEqual(["비빌라"]);
-    await click(section.querySelector('[aria-label="비빌라에도 올리기"]'));
+    expect(section.querySelector("h2")!.textContent).toBe("다른 아파트에도 올리기");
+    expect(Array.from(section.querySelectorAll(".add-more-row span")).map((s) => s.textContent)).toEqual(["비아파트"]);
+    await click(section.querySelector('[aria-label="비아파트에도 올리기"]'));
     expect(calls).toContainEqual({ path: "/api/certs/today/villas", method: "POST", body: { villaIds: ["B"] } });
-    expect(host.querySelector(".add-more .ok")!.textContent).toBe("비빌라에도 올렸어요. 포인트는 한 번만 받아요");
+    expect(host.querySelector(".add-more .ok")!.textContent).toBe("비아파트에도 올렸어요. 포인트는 한 번만 받아요");
     expect(host.querySelectorAll(".add-more-row").length).toBe(0);
   });
 
   it("no_add_section_before_certifying_anywhere", async () => {
-    mockApi([[v("A", "에이빌라"), v("B", "비빌라")]]);
+    mockApi([[v("A", "에이아파트"), v("B", "비아파트")]]);
     await mount();
     expect(host.querySelector(".add-more")).toBeNull();
   });
 });
 
-describe("Certify — 고른 빌라에서 그 사이 나간 경우", () => {
+describe("Certify — 고른 아파트에서 그 사이 나간 경우", () => {
   it("routine_409_refreshes_villa_list_and_keeps_remaining_picks", async () => {
     calls = [];
     let n = 0;
@@ -149,10 +149,10 @@ describe("Certify — 고른 빌라에서 그 사이 나간 경우", () => {
         const r = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
         if (path === "/api/me") return r({ id: "me" });
         if (path === "/api/me/villas") {
-          const list = n++ === 0 ? [v("A", "에이빌라"), v("B", "비빌라"), v("C", "씨빌라")] : [v("B", "비빌라"), v("C", "씨빌라")];
+          const list = n++ === 0 ? [v("A", "에이아파트"), v("B", "비아파트"), v("C", "씨아파트")] : [v("B", "비아파트"), v("C", "씨아파트")];
           return r(list.map((x) => ({ ownerId: "o", public: false, memberCount: 2, joinedAt: 0, ...x })));
         }
-        if (path === "/api/certs/routine") return r({ error: "선택한 빌라에서 나가서 올리지 못했어요. 다시 골라 주세요" }, 409);
+        if (path === "/api/certs/routine") return r({ error: "선택한 아파트에서 나가서 올리지 못했어요. 다시 골라 주세요" }, 409);
         return r({ ok: true });
       }),
     );
@@ -165,9 +165,9 @@ describe("Certify — 고른 빌라에서 그 사이 나간 경우", () => {
     });
     await act(async () => host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
     await flush();
-    expect(host.querySelector('[role="alert"]')!.textContent).toBe("선택한 빌라에서 나가서 올리지 못했어요. 다시 골라 주세요");
+    expect(host.querySelector('[role="alert"]')!.textContent).toBe("선택한 아파트에서 나가서 올리지 못했어요. 다시 골라 주세요");
     // 목록을 다시 받아 A 는 사라지고, 남은 B 만 체크
-    expect(Array.from(host.querySelectorAll(".villa-pick .name")).map((x) => x.textContent)).toEqual(["비빌라", "씨빌라"]);
+    expect(Array.from(host.querySelectorAll(".villa-pick .name")).map((x) => x.textContent)).toEqual(["비아파트", "씨아파트"]);
     expect(boxes().map((b) => b.checked)).toEqual([true, false]);
   });
 });

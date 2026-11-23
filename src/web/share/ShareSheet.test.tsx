@@ -55,7 +55,7 @@ describe("ShareSheet", () => {
     const btn = (name: string) => Array.from(host.querySelectorAll("button")).find((b) => b.textContent === name)!;
     expect(btn("이미지 저장").disabled).toBe(true);
     expect(btn("공유하기").disabled).toBe(true);
-    // 방 · 빌라에는 사진 넣기가 없다
+    // 방 · 아파트에는 사진 넣기가 없다
     expect(host.querySelector(".share-toggle")).toBeNull();
     await act(async () => resolve(img()));
     await flush();

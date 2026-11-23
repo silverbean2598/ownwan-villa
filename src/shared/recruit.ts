@@ -31,7 +31,7 @@ export function parseSports(raw: string | null | undefined): Sport[] {
   }
 }
 
-/** GET /api/villas/:id/recruit: 이 빌라 입주민이 보는 모집 글. pendingCount 는 방장에게만 */
+/** GET /api/villas/:id/recruit: 이 아파트 입주민이 보는 모집 글. pendingCount 는 방장에게만 */
 export type RecruitPost = {
   open: boolean;
   intro: string;
@@ -40,13 +40,13 @@ export type RecruitPost = {
   updatedAt: number | null;
   public: boolean;
   memberCount: number;
-  /** 건물 종류 · 정원 (예전 서버 응답에는 없다 → 빌라 · 20명) */
+  /** 건물 종류 · 정원 (예전 서버 응답에는 없다 → 아파트 · 20명) */
   kind?: VillaKind;
   capacity?: number;
   pendingCount?: number;
 };
 
-/** 도시 카드에 붙는 모집 글 (공개 · 모집 중 · 빈방 있는 빌라만). blocked: 보는 사람이 이 빌라에 신청할 수 없음 */
+/** 도시 카드에 붙는 모집 글 (공개 · 모집 중 · 빈방 있는 아파트만). blocked: 보는 사람이 이 아파트에 신청할 수 없음 */
 export type CityRecruit = { intro: string; sports: Sport[]; vacancies: number; blocked?: true };
 
 /** 내가 보낸, 아직 기다리는 신청 (한 번에 하나) */
@@ -59,7 +59,7 @@ export type ReceivedApplication = {
   nickname: string;
   avatar: unknown;
   sport: Sport | null;
-  /** 사용자 연속 기록 (어느 빌라든 올린 날로 센 값) */
+  /** 사용자 연속 기록 (어느 아파트든 올린 날로 센 값) */
   streak: number;
   message: string;
   createdAt: number;
@@ -67,4 +67,4 @@ export type ReceivedApplication = {
 
 export const RECRUIT_NEED_PUBLIC_MSG = "지도에 공개하면 모집할 수 있어요";
 export const APPLY_ONE_AT_A_TIME_MSG = "신청은 한 번에 한 곳만 할 수 있어요. 기다리는 신청을 취소하면 다른 곳에 신청할 수 있어요";
-export const APPLY_BLOCKED_MSG = "이 빌라에는 신청할 수 없어요";
+export const APPLY_BLOCKED_MSG = "이 아파트에는 신청할 수 없어요";

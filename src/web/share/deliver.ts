@@ -48,7 +48,7 @@ export async function shareImage(blob: Blob, filename: string, nav: Nav = naviga
   const file = new File([blob], filename, { type: blob.type || "image/png" });
   if (canShareFile(file, nav)) {
     try {
-      await nav.share!({ files: [file], title: "오운완빌라" });
+      await nav.share!({ files: [file], title: "오운완아파트" });
       return "shared";
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return "cancelled";

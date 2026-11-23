@@ -9,8 +9,8 @@ const m = (s: string) => Array.from(s).length * 10;
 
 describe("글자 배치", () => {
   it("fit_text_keeps_short_and_ellipsizes_long_villa_names", () => {
-    expect(fitText("오운완빌라 3동", 200, m)).toBe("오운완빌라 3동");
-    const long = "망원동한강뷰오운완클럽빌라삼동비호입니다";
+    expect(fitText("오운완아파트 3동", 200, m)).toBe("오운완아파트 3동");
+    const long = "망원동한강뷰오운완클럽아파트삼동비호입니다";
     const t = fitText(long, 100, m);
     expect(t.endsWith("…")).toBe(true);
     expect(m(t)).toBeLessThanOrEqual(100);

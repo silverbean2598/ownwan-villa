@@ -31,7 +31,7 @@ async function signup(nickname = "운동러") {
   return { id: row!.id, cookie, nickname };
 }
 type U = Awaited<ReturnType<typeof signup>>;
-async function create(u: U, name = "모집빌라") {
+async function create(u: U, name = "모집아파트") {
   const res = await send("POST", "/api/villas", { name }, u.cookie);
   expect(res.status).toBe(201);
   return (await res.json()) as { id: string; inviteToken: string };
@@ -53,8 +53,8 @@ const membership = (uid: string, vid: string) =>
 const recruitOpen = async (vid: string) =>
   !!(await env.DB.prepare("SELECT open FROM villa_recruits WHERE villa_id = ?").bind(vid).first<{ open: number }>())?.open;
 
-/** 방장 + 공개 + 모집 중인 빌라 */
-async function recruiting(name = "모집빌라", body: Record<string, unknown> = { intro: "아침 운동 같이 해요", sports: ["running", "gym"] }) {
+/** 방장 + 공개 + 모집 중인 아파트 */
+async function recruiting(name = "모집아파트", body: Record<string, unknown> = { intro: "아침 운동 같이 해요", sports: ["running", "gym"] }) {
   const owner = await signup("방장");
   const v = await create(owner, name);
   expect((await setPublic(owner, v.id, true)).status).toBe(200);
@@ -67,7 +67,7 @@ async function applied(u: U, vid: string, message?: string) {
   expect(res.status).toBe(201);
   return ((await res.json()) as { pending: { id: string } }).pending.id;
 }
-/** 빌라를 입주민으로 채운다 (가입 없이 DB 에 바로) */
+/** 아파트를 입주민으로 채운다 (가입 없이 DB 에 바로) */
 async function fill(vid: string, upTo: number) {
   const { c } = (await env.DB.prepare("SELECT COUNT(*) AS c FROM memberships WHERE villa_id = ? AND left_at IS NULL").bind(vid).first<{ c: number }>())!;
   const stmts = [];
@@ -105,7 +105,7 @@ describe("모집 글", () => {
     expect((await putRecruit(out, v.id, { open: true })).status).toBe(403);
     const ok = await putRecruit(owner, v.id, { open: true, intro: "  저녁   러닝  같이  ", sports: ["running", "gym", "running"] });
     expect(ok.status).toBe(200);
-    // 입주민은 읽기만 (받은 신청 수는 없다), 빌라 밖 사람은 못 본다
+    // 입주민은 읽기만 (받은 신청 수는 없다), 아파트 밖 사람은 못 본다
     const seen = await get(mate, `/api/villas/${v.id}/recruit`);
     expect(seen).toMatchObject({ open: true, intro: "저녁 러닝 같이", sports: ["gym", "running"], public: true, memberCount: 2 });
     expect(seen).not.toHaveProperty("pendingCount");
@@ -152,12 +152,12 @@ describe("모집 글", () => {
   });
 
   it("turning_off_or_hiding_from_map_cancels_pending", async () => {
-    const r = await recruiting("끄는빌라");
+    const r = await recruiting("끄는아파트");
     const a = await signup("에이");
     const appId = await applied(a, r.id);
     expect((await putRecruit(r.owner, r.id, { open: false })).status).toBe(200);
     expect(await appRow(appId)).toEqual({ status: "cancelled", reason: "recruit_off" });
-    expect((await ofType(a, "application_closed"))[0].payload).toMatchObject({ villaName: "끄는빌라", reason: "recruit_off" });
+    expect((await ofType(a, "application_closed"))[0].payload).toMatchObject({ villaName: "끄는아파트", reason: "recruit_off" });
 
     // 다시 켜고 신청 → 지도에서 내리면 모집도 꺼진다
     await putRecruit(r.owner, r.id, { open: true });
@@ -170,9 +170,9 @@ describe("모집 글", () => {
 
 describe("도시 지도의 모집 글", () => {
   it("shows_recruit_only_for_public_recruiting_villas_with_vacancies", async () => {
-    const r = await recruiting("모집중빌라", { intro: "주말 등산 겸 클라이밍", sports: ["climbing"] });
+    const r = await recruiting("모집중아파트", { intro: "주말 등산 겸 클라이밍", sports: ["climbing"] });
     const quiet = await signup("조용");
-    const qv = await create(quiet, "조용빌라");
+    const qv = await create(quiet, "조용아파트");
     await setPublic(quiet, qv.id, true);
     const viewer = await signup("구경");
 
@@ -211,12 +211,12 @@ describe("도시 지도의 모집 글", () => {
 
 describe("입주 신청", () => {
   it("applies_with_message_and_notifies_owner", async () => {
-    const r = await recruiting("신청빌라");
+    const r = await recruiting("신청아파트");
     const a = await signup("신청자");
     const res = await apply(a, r.id, "  매일 새벽 6시에 뛰어요  ");
     expect(res.status).toBe(201);
     const body = (await res.json()) as any;
-    expect(body.pending).toMatchObject({ villaId: r.id, villaName: "신청빌라", message: "매일 새벽 6시에 뛰어요" });
+    expect(body.pending).toMatchObject({ villaId: r.id, villaName: "신청아파트", message: "매일 새벽 6시에 뛰어요" });
     expect(body.pending.expiresAt - body.pending.createdAt).toBe(APPLY_TTL_MS);
     expect((await get(a, "/api/me/application")).pending.id).toBe(body.pending.id);
     const ev = await ofType(r.owner, "application_received");
@@ -235,7 +235,7 @@ describe("입주 신청", () => {
     await join(mate, r.inviteToken);
     const m = await apply(mate, r.id);
     expect(m.status).toBe(409);
-    expect(await err(m)).toBe("이미 이 빌라에 살고 있어요");
+    expect(await err(m)).toBe("이미 이 아파트에 살고 있어요");
 
     const kicked = await signup("내보냄");
     await join(kicked, r.inviteToken);
@@ -251,7 +251,7 @@ describe("입주 신청", () => {
     expect(q.status).toBe(409);
     expect(await err(q)).toContain("모집하지 않는");
 
-    // 빌라 3곳에 사는 사람
+    // 아파트 3곳에 사는 사람
     const busy = await signup("바쁨");
     await create(busy, "하나");
     await create(busy, "둘");
@@ -269,7 +269,7 @@ describe("입주 신청", () => {
     const first = await applied(a, r1.id);
     const same = await apply(a, r1.id);
     expect(same.status).toBe(409);
-    expect(await err(same)).toContain("이미 이 빌라에 신청했어요");
+    expect(await err(same)).toContain("이미 이 아파트에 신청했어요");
     const other = await apply(a, r2.id);
     expect(other.status).toBe(409);
     expect(await err(other)).toBe(APPLY_ONE_AT_A_TIME_MSG);
@@ -316,14 +316,14 @@ describe("입주 신청", () => {
 
 describe("승인 · 거절", () => {
   it("approve_joins_like_invite_link", async () => {
-    const r = await recruiting("승인빌라");
+    const r = await recruiting("승인아파트");
     const mate = await signup("짝꿍");
     await join(mate, r.inviteToken);
     const a = await signup("새식구");
-    // 다른 빌라에 살면서 신청한다 (3곳 안)
-    await create(a, "원래빌라");
+    // 다른 아파트에 살면서 신청한다 (3곳 안)
+    await create(a, "원래아파트");
     await env.DB.prepare("UPDATE users SET streak = 9 WHERE id = ?").bind(a.id).run();
-    // 오늘 사진 인증도 했다 → 목록의 연속 기록은 빌라 화면처럼 오늘까지 친 10일
+    // 오늘 사진 인증도 했다 → 목록의 연속 기록은 아파트 화면처럼 오늘까지 친 10일
     await env.DB.prepare("INSERT INTO certs (id, user_id, day, kind, points, duplicate, created_at) VALUES (?, ?, ?, 'photo', 20, 0, 1)")
       .bind(crypto.randomUUID(), a.id, kstDay(Date.now()))
       .run();
@@ -344,10 +344,10 @@ describe("승인 · 거절", () => {
     expect(await appRow(appId)).toMatchObject({ status: "approved" });
     // 신청한 사람: 신청 승인 표시가 붙은 입주 카드, 원래 입주민: 새 이웃
     const welcome = (await ofType(a, "welcome")).find((e) => e.payload.villaId === r.id)!;
-    expect(welcome.payload).toMatchObject({ villaName: "승인빌라", via: "recruit", multi: true });
+    expect(welcome.payload).toMatchObject({ villaName: "승인아파트", via: "recruit", multi: true });
     expect((await ofType(mate, "friend_joined")).some((e) => e.payload.nickname === "새식구")).toBe(true);
     expect((await ofType(r.owner, "friend_joined")).some((e) => e.payload.nickname === "새식구")).toBe(true);
-    // 빌라 화면에 바로 나온다, 1등 계산도 돈다
+    // 아파트 화면에 바로 나온다, 1등 계산도 돈다
     const villa = await get(a, `/api/villas/${r.id}`);
     expect(villa.members.map((m: any) => m.userId)).toContain(a.id);
     expect(villa.penthouseUserId).not.toBeNull();
@@ -376,7 +376,7 @@ describe("승인 · 거절", () => {
     const a = await signup("마지막");
     const b = await signup("다음");
     const appA = await applied(a, r.id);
-    // b 는 다른 빌라에 신청하지 않고 같은 빌라에 (한 사람 한 곳이라 a, b 각각)
+    // b 는 다른 아파트에 신청하지 않고 같은 아파트에 (한 사람 한 곳이라 a, b 각각)
     const appB = await applied(b, r.id);
     await fill(r.id, 19);
     expect((await approve(r.owner, r.id, appA)).status).toBe(200);
@@ -441,7 +441,7 @@ describe("승인 · 거절", () => {
   });
 
   it("reject_notifies_gently_and_hides_from_list", async () => {
-    const r = await recruiting("거절빌라");
+    const r = await recruiting("거절아파트");
     const a = await signup("에이");
     const appId = await applied(a, r.id);
     expect((await reject(r.owner, r.id, appId)).status).toBe(200);
@@ -449,7 +449,7 @@ describe("승인 · 거절", () => {
     expect(await get(r.owner, `/api/villas/${r.id}/applications`)).toEqual([]);
     const ev = await ofType(a, "application_rejected");
     expect(ev).toHaveLength(1);
-    expect(ev[0].payload).toMatchObject({ villaName: "거절빌라" });
+    expect(ev[0].payload).toMatchObject({ villaName: "거절아파트" });
     expect((await reject(r.owner, r.id, appId)).status).toBe(409);
     expect((await approve(r.owner, r.id, appId)).status).toBe(409);
     // 거절된 뒤 다시 신청할 수 있다 (금지는 아니다)
@@ -457,7 +457,7 @@ describe("승인 · 거절", () => {
   });
 });
 
-describe("빌라 일과 신청", () => {
+describe("아파트 일과 신청", () => {
   it("invite_join_closes_own_pending_and_kick_rejects_it", async () => {
     const r = await recruiting();
     const a = await signup("에이");
@@ -473,17 +473,17 @@ describe("빌라 일과 신청", () => {
   });
 
   it("dissolve_cancels_pending_and_notifies", async () => {
-    const r = await recruiting("해체빌라");
+    const r = await recruiting("해체아파트");
     const a = await signup("에이");
     const appId = await applied(a, r.id);
-    expect((await send("POST", `/api/villas/${r.id}/dissolve`, { confirmName: "해체빌라" }, r.owner.cookie)).status).toBe(200);
+    expect((await send("POST", `/api/villas/${r.id}/dissolve`, { confirmName: "해체아파트" }, r.owner.cookie)).status).toBe(200);
     expect(await appRow(appId)).toEqual({ status: "cancelled", reason: "dissolved" });
-    expect((await ofType(a, "application_closed"))[0].payload).toMatchObject({ villaName: "해체빌라", reason: "dissolved" });
+    expect((await ofType(a, "application_closed"))[0].payload).toMatchObject({ villaName: "해체아파트", reason: "dissolved" });
     expect((await get(a, "/api/me/application")).pending).toBeNull();
   });
 
   it("last_member_leaving_cancels_pending", async () => {
-    const r = await recruiting("혼자빌라");
+    const r = await recruiting("혼자아파트");
     const a = await signup("에이");
     const appId = await applied(a, r.id);
     expect((await send("POST", `/api/villas/${r.id}/leave`, undefined, r.owner.cookie)).status).toBe(200);
@@ -503,7 +503,7 @@ describe("크론 정리", () => {
   it("purges_expired_and_old_rows_and_notifies", async () => {
     const t0 = Date.parse("2026-11-01T10:00:00+09:00");
     setNow(() => t0);
-    const r = await recruiting("오래된빌라");
+    const r = await recruiting("오래된아파트");
     const a = await signup("에이");
     const b = await signup("비비");
     const stale = await applied(a, r.id);
@@ -520,7 +520,7 @@ describe("크론 정리", () => {
     expect(await appRow(freshApp)).toMatchObject({ status: "pending" });
     // (세션은 30일이라 만료됐으니 DB 로 본다)
     const ev = await env.DB.prepare("SELECT payload FROM events WHERE user_id = ? AND type = 'application_closed'").bind(a.id).first<{ payload: string }>();
-    expect(JSON.parse(ev!.payload)).toMatchObject({ reason: "expired", villaName: "오래된빌라" });
+    expect(JSON.parse(ev!.payload)).toMatchObject({ reason: "expired", villaName: "오래된아파트" });
   });
 
   it("settle_through_runs_application_purge", async () => {

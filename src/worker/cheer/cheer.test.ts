@@ -37,7 +37,7 @@ async function routine(u: U, body = "스쿼트 5x5") {
   return ((await (await send("POST", "/api/certs/routine", u.cookie, { body })).json()) as { certId: string }).certId;
 }
 async function villaOf(owner: U, ...members: U[]) {
-  const v = (await (await send("POST", "/api/villas", owner.cookie, { name: "빌라" })).json()) as { id: string; inviteToken: string };
+  const v = (await (await send("POST", "/api/villas", owner.cookie, { name: "아파트" })).json()) as { id: string; inviteToken: string };
   for (const m of members) await send("POST", `/api/invite/${v.inviteToken}/join`, m.cookie, {});
   return v;
 }
@@ -58,7 +58,7 @@ const errorOf = async (r: Response) => ((await r.json()) as { error: string }).e
 const count = async (sql: string, ...args: unknown[]) =>
   (await env.DB.prepare(sql).bind(...args).first<{ n: number }>())!.n;
 
-/** 방장(owner) · 기록 주인(author) · 이웃(friend)이 같은 빌라, stranger 는 다른 빌라 */
+/** 방장(owner) · 기록 주인(author) · 이웃(friend)이 같은 아파트, stranger 는 다른 아파트 */
 async function setup() {
   const owner = await signup("방장");
   const author = await signup("작가");

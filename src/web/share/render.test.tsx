@@ -96,7 +96,7 @@ afterEach(() => {
 
 const cert: CertCardData = {
   day: "2026-11-20", nickname: "민지", avatar: { skin: 0, hair: "long", shirt: 0, acc: ["glasses"] }, sport: "gym", streak: 7, floor: 5,
-  penthouse: false, villaName: "오운완빌라 3동", routine: "스쿼트 5x5 60kg\n벤치 3x10", photoUrl: "/api/photos/c1",
+  penthouse: false, villaName: "오운완아파트 3동", routine: "스쿼트 5x5 60kg\n벤치 3x10", photoUrl: "/api/photos/c1",
 };
 const member = (i: number, p: Partial<Member> = {}): Member => ({
   userId: `u${i}`, nickname: `입주민${i}`, sport: "running", avatar: { skin: 1, hair: "afro", shirt: 1 }, floor: 1 + (i % 4), streak: i,
@@ -119,7 +119,7 @@ describe("공유 이미지 그리기 (canvas 흉내)", () => {
     expect(canvases[0].width).toBe(1080);
     expect(canvases[0].height).toBe(1920);
     expect(fetched.some((u) => u.includes("/api/photos/"))).toBe(false);
-    expect(texts()).toEqual(expect.arrayContaining(["오늘 오운완!", "11월 20일 금요일", "오운완빌라 3동", "7일", "5층", "헬스", "오늘 루틴", "오운완빌라"]));
+    expect(texts()).toEqual(expect.arrayContaining(["오늘 오운완!", "11월 20일 금요일", "오운완아파트 3동", "7일", "5층", "헬스", "오늘 루틴", "오운완아파트"]));
     // 캐릭터: 안경 그림은 못 받았지만 나머지 층은 그렸다
     expect(calls.filter((c) => c.fn === "drawImage").length).toBeGreaterThanOrEqual(3);
   });
@@ -149,7 +149,7 @@ describe("공유 이미지 그리기 (canvas 흉내)", () => {
   });
 
   it("room_card_square_with_room_scene", async () => {
-    const blob = await renderRoomCard({ member: member(0, { nickname: "민지", placements: [{ slot: "floor1", itemId: "plant" }] }), penthouse: false, villaName: "오운완빌라 3동" });
+    const blob = await renderRoomCard({ member: member(0, { nickname: "민지", placements: [{ slot: "floor1", itemId: "plant" }] }), penthouse: false, villaName: "오운완아파트 3동" });
     expect(blob.type).toBe("image/png");
     expect(canvases[0].width).toBe(1080);
     expect(canvases[0].height).toBe(1080);
@@ -169,7 +169,7 @@ describe("공유 이미지 그리기 (canvas 흉내)", () => {
 
   it("villa_card_tall_with_every_member_no_photos", async () => {
     const members = Array.from({ length: 12 }, (_, i) => member(i));
-    const blob = await renderVillaCard({ villa: { name: "오운완빌라 3동", ownerId: "u0", penthouseUserId: "u3", members, price: 32 }, meId: "u1" });
+    const blob = await renderVillaCard({ villa: { name: "오운완아파트 3동", ownerId: "u0", penthouseUserId: "u3", members, price: 32 }, meId: "u1" });
     expect(blob.size).toBeGreaterThan(0);
     expect(canvases[0].width).toBe(1080);
     expect(canvases[0].height).toBeGreaterThan(1500);

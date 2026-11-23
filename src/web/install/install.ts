@@ -64,7 +64,7 @@ export function installState(env: InstallEnv, canPrompt: boolean, installed: boo
   return "manual";
 }
 
-/** 빌라 화면 카드는 버튼이나 꼭 필요한 안내가 있을 때만 (manual 은 설정에서만 보여 준다) */
+/** 아파트 화면 카드는 버튼이나 꼭 필요한 안내가 있을 때만 (manual 은 설정에서만 보여 준다) */
 export const CARD_STATES: InstallState[] = ["prompt", "ios-guide", "kakao", "inapp"];
 
 /** 카카오톡 안 브라우저에서 바깥 브라우저(아이폰은 Safari)로 같은 주소를 여는 카카오톡 주소 */

@@ -7,7 +7,7 @@ import { buildingLabel, shortName } from "./CityBuilding";
 import type { CityVilla } from "../../../shared/city";
 
 const v = (slot: number, o: Partial<CityVilla> = {}): CityVilla => ({
-  id: `villa-${slot}`, name: `빌라${slot}`, slot, topFloor: 1, memberCount: 3, litCount: 1, penthouseNickname: "민지", ...o,
+  id: `villa-${slot}`, name: `아파트${slot}`, slot, topFloor: 1, memberCount: 3, litCount: 1, penthouseNickname: "민지", ...o,
 });
 const count = (ws: string[], s: string) => ws.filter((w) => w === s).length;
 
@@ -77,15 +77,15 @@ describe("CityMap", () => {
     const html = renderToStaticMarkup(
       <CityMap villas={[v(0, { litCount: 2 }), v(1, { name: "새벽런닝", litCount: 0 })]} cols={2} mineId="villa-0" selectedId={null} onSelect={() => {}} />,
     );
-    expect(html).toContain('aria-label="우리 빌라, 빌라0, 오늘 불 켜진 방 2개"');
+    expect(html).toContain('aria-label="우리 아파트, 아파트0, 오늘 불 켜진 방 2개"');
     expect(html).toContain('aria-label="새벽런닝, 오늘 불 켜진 방 0개"');
     expect((html.match(/role="button"/g) ?? []).length).toBe(2);
-    expect((html.match(/우리 빌라<\/text>/g) ?? []).length).toBe(1);
+    expect((html.match(/우리 아파트<\/text>/g) ?? []).length).toBe(1);
     expect((html.match(/class="cw lit"/g) ?? []).length).toBe(2);
   });
 
   it("labels_and_names", () => {
-    expect(shortName("아주아주긴빌라이름이에요")).toBe("아주아주긴빌라…");
-    expect(buildingLabel(v(0), false)).toBe("빌라0, 오늘 불 켜진 방 1개");
+    expect(shortName("아주아주긴아파트이름이에요")).toBe("아주아주긴아파…");
+    expect(buildingLabel(v(0), false)).toBe("아파트0, 오늘 불 켜진 방 1개");
   });
 });

@@ -6,7 +6,7 @@ import { receivedCount } from "../recruit/routes";
 
 export const badges = new Hono<AppEnv>();
 
-// applications: 내가 방장인 빌라에 온, 기다리는 입주 신청 수
+// applications: 내가 방장인 아파트에 온, 기다리는 입주 신청 수
 badges.get("/api/badges", requireUser, async (c) =>
   c.json({
     recoveryApprovals: (await pendingApprovals(c.env, c.get("userId"))).length,

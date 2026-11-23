@@ -105,7 +105,7 @@ export function furnitureBox(itemId: string): [number, number, number, number] |
 
 /**
  * svg 안에 넣는 가구 그림(<g>). 새 그림이 있으면 <image>, 없으면 옛 SVG 그림. 모르는 id는 그리지 않는다.
- * res: 빌라 방 칸처럼 작게 그릴 때는 "sm"
+ * res: 아파트 방 칸처럼 작게 그릴 때는 "sm"
  */
 export function Furniture({ itemId, res = "full" }: { itemId: string; res?: FurnitureRes }) {
   const box = furnitureBox(itemId);

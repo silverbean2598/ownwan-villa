@@ -3,11 +3,11 @@ import { createMaker, type ShareCard, type ShareImage } from "./make";
 import { isIOS, saveImage, shareImage } from "./deliver";
 import "./share.css";
 
-const TITLE: Record<ShareCard["kind"], string> = { cert: "오늘 인증 카드", room: "내 방", villa: "우리 빌라 전체" };
+const TITLE: Record<ShareCard["kind"], string> = { cert: "오늘 인증 카드", room: "내 방", villa: "우리 아파트 전체" };
 const ALT: Record<ShareCard["kind"], string> = {
   cert: "오늘 오운완 인증 카드 미리보기",
   room: "내 방 이미지 미리보기",
-  villa: "우리 빌라 전체 이미지 미리보기",
+  villa: "우리 아파트 전체 이미지 미리보기",
 };
 // 만드는 동안 자리 잡기용 비율 (가로 / 세로)
 const RATIO: Record<ShareCard["kind"], string> = { cert: "9 / 16", room: "1 / 1", villa: "3 / 5" };

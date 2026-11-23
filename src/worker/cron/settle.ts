@@ -12,12 +12,12 @@ import { purgeExpiredKakao } from "../auth/kakao";
 import { purgeApplications } from "../recruit/service";
 import { prunePushLog } from "../push/service";
 
-/** 사용자 한 명: 어느 빌라든(또는 빌라 없이) 사진 인증한 날로 센 연속 기록 */
+/** 사용자 한 명: 어느 아파트든(또는 아파트 없이) 사진 인증한 날로 센 연속 기록 */
 type UserRow = { id: string; streak: number; missRun: number; certified: number };
-/** 입주 기록 하나: 그 빌라에 올린 날로 센 연속 기록 · 쉰 날 · 층 */
+/** 입주 기록 하나: 그 아파트에 올린 날로 센 연속 기록 · 쉰 날 · 층 */
 type MemberRow = {
   id: string; userId: string; villaId: string; streak: number; missRun: number; floor: number; certified: number;
-  /** 최근 7일(그날 포함) 이 빌라에 인증한 날 수 (집값) */
+  /** 최근 7일(그날 포함) 이 아파트에 인증한 날 수 (집값) */
   certDays: number;
 };
 
@@ -92,8 +92,8 @@ function dayEndMs(day: string): number {
 
 /**
  * 사전 확인 없이 하루치 변경을 한 batch로 쓴다. 날짜를 선점(claim)한 경우에만 true. (테스트용으로 export)
- * - 사용자: 그날 어느 빌라든(빌라 없이도) 사진 인증이 있으면 인증한 날 → users.streak · miss_run (프로필 · 사용자 축하용)
- * - 입주 기록: 그날 그 빌라에 올린 사진 인증이 있으면 인증한 날 → memberships.streak · miss_run · floor (빌라마다 따로)
+ * - 사용자: 그날 어느 아파트든(아파트 없이도) 사진 인증이 있으면 인증한 날 → users.streak · miss_run (프로필 · 사용자 축하용)
+ * - 입주 기록: 그날 그 아파트에 올린 사진 인증이 있으면 인증한 날 → memberships.streak · miss_run · floor (아파트마다 따로)
  */
 export async function applySettlement(env: Env, day: string): Promise<boolean> {
   const end = dayEndMs(day);
@@ -110,7 +110,7 @@ export async function applySettlement(env: Env, day: string): Promise<boolean> {
               ${certifiedInVilla("m.user_id", "?1", "m.villa_id")} AS certified,
               ${certDaysInVilla("m.user_id", "?3", "?1", "m.villa_id")} AS certDays
        FROM memberships m JOIN villas v ON v.id = m.villa_id
-       -- 그날이 끝난 뒤 입주한 빌라는 그날 정산 대상이 아니다
+       -- 그날이 끝난 뒤 입주한 아파트는 그날 정산 대상이 아니다
        WHERE m.left_at IS NULL AND v.dissolved_at IS NULL AND m.joined_at < ?2`,
     ).bind(day, end, windowStart(day)),
   ]);
@@ -131,7 +131,7 @@ export async function applySettlement(env: Env, day: string): Promise<boolean> {
     );
   }
   const downs: { villaId: string; ev: NewEvent }[] = [];
-  // 집값: 빌라마다 그날 정산 뒤의 층 · 최근 7일 인증한 날로 (입주민마다 따로 묻지 않고 위 한 번의 조회로)
+  // 집값: 아파트마다 그날 정산 뒤의 층 · 최근 7일 인증한 날로 (입주민마다 따로 묻지 않고 위 한 번의 조회로)
   const priced = new Map<string, PriceMember[]>();
   for (const r of membersRes.results as MemberRow[]) {
     const { next, floorChanged } = settleDay({ streak: r.streak, missRun: r.missRun, floor: r.floor }, !!r.certified);

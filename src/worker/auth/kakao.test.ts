@@ -260,7 +260,7 @@ describe("kakao signup / login", () => {
     expect(sid).not.toBe("sid=stale-token");
     const r = (await (await req("/api/me", { headers: { cookie: sid } })).json()) as { id: string };
     expect(r.id).toBe(me.id);
-    // next 없으면 빌라로
+    // next 없으면 아파트로
     const { cb: cb2 } = await flow({ kakaoId });
     expect(cb2.headers.get("location")).toBe("/villa");
   });

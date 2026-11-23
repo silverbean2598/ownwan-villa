@@ -88,9 +88,9 @@ describe("challengeBlock", () => {
     expect(challengeBlock({ id: "b", inBattle: false }, { ...mine, public: false })).toContain("지도에 공개");
     expect(challengeBlock({ id: "b", inBattle: false }, { ...mine, inBattle: true })).toContain("이미 대결");
     expect(challengeBlock({ id: "b", inBattle: true }, mine)).toContain("다른 대결");
-    expect(challengeBlock({ id: "b", inBattle: false }, mine, ["a", "b"])).toContain("내가 방장인 빌라끼리");
+    expect(challengeBlock({ id: "b", inBattle: false }, mine, ["a", "b"])).toContain("내가 방장인 아파트끼리");
     expect(challengeBlock({ id: "b", inBattle: false }, { ...mine, memberCount: 2 })).toBe("입주민이 3명 이상이어야 대결할 수 있어요");
-    expect(challengeBlock({ id: "b", inBattle: false, memberCount: 2 }, { ...mine, memberCount: 5 })).toContain("3명 이상인 빌라와만");
+    expect(challengeBlock({ id: "b", inBattle: false, memberCount: 2 }, { ...mine, memberCount: 5 })).toContain("3명 이상인 아파트와만");
     expect(challengeBlock({ id: "b", inBattle: false, memberCount: 3 }, { ...mine, memberCount: 3 })).toBeNull();
   });
 });
@@ -100,11 +100,11 @@ describe("events", () => {
     const e = (type: string, payload: Record<string, unknown>) => ({ id: "x", type, payload, createdAt: 0 });
     expect(isCard("league_rank") && isCard("battle_result") && isCard("battle_challenged")).toBe(true);
     expect(isToast("battle_started") && isToast("battle_declined") && isToast("battle_expired") && isToast("battle_cancelled")).toBe(true);
-    expect(eventCopy(e("league_rank", { rank: 1, points: 100 }))).toBe("지난주 집값 리그 1위! 우리 빌라 건물에 금 트로피가 달렸어요. 입주민 모두 +100P");
+    expect(eventCopy(e("league_rank", { rank: 1, points: 100 }))).toBe("지난주 집값 리그 1위! 우리 아파트 건물에 금 트로피가 달렸어요. 입주민 모두 +100P");
     expect(eventCopy(e("league_rank", { rank: 3, points: 0, multi: true, villaName: "햇살" }))).toContain("햇살 건물에 동 트로피");
     expect(eventCopy(e("league_rank", { rank: 3, points: 0 }))).toContain("다음 기회에");
     expect(eventCopy(e("battle_result", { result: "won", opponentName: "새벽런닝", points: 50 }))).toBe("새벽런닝을 이겼어요! 집값 대결에서 승리했어요. 입주민 모두 +50P");
-    expect(eventCopy(e("battle_result", { result: "draw", opponentName: "햇살빌라" }))).toContain("햇살빌라와 무승부");
+    expect(eventCopy(e("battle_result", { result: "draw", opponentName: "햇살아파트" }))).toContain("햇살아파트와 무승부");
     expect(eventCopy(e("battle_started", { opponentName: "달빛" }))).toBe("달빛과 집값 대결이 내일부터 7일 동안 열려요");
     expect(eventCopy(e("battle_challenged", { fromName: "달빛" }))).toContain("달빛에서 집값 대결을 신청했어요");
     expect(cardButton("battle_challenged")).toBe("대결 보러 가기");
@@ -114,7 +114,7 @@ describe("events", () => {
 });
 
 describe("city building", () => {
-  const v = (o: Partial<CityVilla>): CityVilla => ({ id: "v1", name: "햇살빌라", slot: 0, topFloor: 3, memberCount: 6, litCount: 2, penthouseNickname: null, ...o });
+  const v = (o: Partial<CityVilla>): CityVilla => ({ id: "v1", name: "햇살아파트", slot: 0, topFloor: 3, memberCount: 6, litCount: 2, penthouseNickname: null, ...o });
   it("trophy_and_battle_medal_drawn_and_read", () => {
     const html = renderToStaticMarkup(<CityMap villas={[v({ trophy: 1, battleWin: true }), v({ id: "v2", slot: 1 })]} cols={2} selectedId={null} onSelect={() => {}} />);
     expect(html).toContain('data-trophy="1"');
@@ -128,10 +128,10 @@ const ranking: RankingResponse = {
   leagueWeek: "2026-11-09",
   villas: [
     { id: "b", name: "새벽런닝", rank: 1, price: 184, change: 6, memberCount: 18, trophy: 1, inBattle: false },
-    { id: "a", name: "햇살빌라", rank: 2, price: 52, change: -1, memberCount: 9, battleWin: true, inBattle: false },
-    { id: "c", name: "달빛빌라", rank: 3, price: 41, change: 0, memberCount: 7, inBattle: true },
+    { id: "a", name: "햇살아파트", rank: 2, price: 52, change: -1, memberCount: 9, battleWin: true, inBattle: false },
+    { id: "c", name: "달빛아파트", rank: 3, price: 41, change: 0, memberCount: 7, inBattle: true },
   ],
-  mine: [{ villaId: "a", name: "햇살빌라", isOwner: true, public: true, inBattle: false }],
+  mine: [{ villaId: "a", name: "햇살아파트", isOwner: true, public: true, inBattle: false }],
 };
 
 describe("Ranking", () => {
@@ -139,11 +139,11 @@ describe("Ranking", () => {
     mockApi({ "/api/ranking": ranking, "POST /api/villas/a/battles": { current: null, recent: [] }, "/api/villas/a/battles": { isOwner: true, public: true, current: null, recent: [] }, "/api/villas/a/price": { day: null, price: null, change: null, history: [] } });
     await mount("/ranking");
     const rows = [...host.querySelectorAll(".rank-row")];
-    expect(rows.map((r) => r.querySelector(".nm")!.textContent)).toEqual(["새벽런닝", "햇살빌라", "달빛빌라"]);
+    expect(rows.map((r) => r.querySelector(".nm")!.textContent)).toEqual(["새벽런닝", "햇살아파트", "달빛아파트"]);
     expect(rows[1].className).toContain("mine");
     expect(rows[0].textContent).toContain("18.4억");
     expect(rows[0].textContent).toContain("▲0.6억");
-    // 우리 빌라 줄에는 버튼 없음, 대결 중인 빌라는 흐린 버튼 + 이유
+    // 우리 아파트 줄에는 버튼 없음, 대결 중인 아파트는 흐린 버튼 + 이유
     expect(rows[1].querySelector(".challenge-btn")).toBeNull();
     expect(rows[2].querySelector<HTMLButtonElement>(".challenge-btn")!.disabled).toBe(true);
     expect(rows[2].textContent).toContain("다른 대결 중");
@@ -162,7 +162,7 @@ describe("Ranking", () => {
 
 const side = (villaId: string, name: string, base: number | null = null, now: number | null = null) => ({ villaId, name, base, now, delta: base !== null && now !== null ? now - base : null });
 const pending = (s: "challenger" | "opponent"): BattleView => ({
-  id: "bt", status: "pending", reason: null, side: s, me: side("a", "햇살빌라"), them: side("b", "새벽런닝"), createdAt: Date.now(), expiresAt: Date.now() + 30 * 3600_000,
+  id: "bt", status: "pending", reason: null, side: s, me: side("a", "햇살아파트"), them: side("b", "새벽런닝"), createdAt: Date.now(), expiresAt: Date.now() + 30 * 3600_000,
 });
 const priceRes = { day: "2026-11-19", price: 52, change: 3, history: [{ day: "2026-11-18", price: 49 }, { day: "2026-11-19", price: 52 }] };
 
@@ -171,7 +171,7 @@ describe("Battle", () => {
     const data: VillaBattles = { isOwner: true, public: true, current: pending("opponent"), recent: [] };
     mockApi({ "/api/villas/a/battles": data, "/api/villas/a/price": priceRes, "POST /api/battles/bt/accept": { ...data, current: { ...data.current, status: "active", startDay: "2026-11-21", endDay: "2026-11-27", daysLeft: 7, started: false } } });
     await mount("/battle/a");
-    expect(host.textContent).toContain("새벽런닝에서 우리 빌라에 집값 대결을 신청했어요");
+    expect(host.textContent).toContain("새벽런닝에서 우리 아파트에 집값 대결을 신청했어요");
     expect(host.textContent).toContain("30시간 안에");
     await click(button("받기"));
     expect(calls.some((c) => c.method === "POST" && c.path === "/api/battles/bt/accept")).toBe(true);
@@ -194,10 +194,10 @@ describe("Battle", () => {
 
   it("active_shows_both_increases_and_recent_results", async () => {
     const active: BattleView = {
-      ...pending("challenger"), status: "active", me: side("a", "햇살빌라", 48, 54), them: side("b", "새벽런닝", 180, 183),
+      ...pending("challenger"), status: "active", me: side("a", "햇살아파트", 48, 54), them: side("b", "새벽런닝", 180, 183),
       startDay: "2026-11-17", endDay: "2026-11-23", daysLeft: 4, started: true,
     };
-    const won: BattleView = { ...pending("opponent"), id: "old", status: "finished", me: side("a", "햇살빌라", 40, 47), them: side("c", "달빛빌라", 30, 33), result: "won", endDay: "2026-11-10" };
+    const won: BattleView = { ...pending("opponent"), id: "old", status: "finished", me: side("a", "햇살아파트", 40, 47), them: side("c", "달빛아파트", 30, 33), result: "won", endDay: "2026-11-10" };
     mockApi({ "/api/villas/a/battles": { isOwner: false, public: true, current: active, recent: [won] }, "/api/villas/a/price": priceRes });
     await mount("/battle/a");
     expect(host.textContent).toContain("+0.6억");
@@ -206,7 +206,7 @@ describe("Battle", () => {
     expect(host.textContent).toContain("오늘 포함 4일 남았어요");
     expect(host.querySelectorAll(".vs-days .done")).toHaveLength(3);
     expect(host.querySelector(".recent-row")!.textContent).toContain("승리");
-    expect(host.querySelector(".recent-row")!.textContent).toContain("달빛빌라");
+    expect(host.querySelector(".recent-row")!.textContent).toContain("달빛아파트");
   });
 
   it("few_members_owner_sees_reason", async () => {
@@ -226,6 +226,6 @@ describe("Battle", () => {
   it("none_owner_private_points_to_settings_member_sees_note", async () => {
     mockApi({ "/api/villas/a/battles": { isOwner: true, public: false, current: null, recent: [] }, "/api/villas/a/price": priceRes });
     await mount("/battle/a");
-    expect(host.textContent).toContain("도시 지도에 공개한 빌라만 대결할 수 있어요");
+    expect(host.textContent).toContain("도시 지도에 공개한 아파트만 대결할 수 있어요");
   });
 });

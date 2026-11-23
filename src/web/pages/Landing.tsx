@@ -17,9 +17,9 @@ const STEPS = [
 export function LandingView({ me }: { me: Me }) {
   const cta = me ? (
     me.villaId ? (
-      <Link className="btn" to="/villa">내 빌라로</Link>
+      <Link className="btn" to="/villa">내 아파트로</Link>
     ) : (
-      <Link className="btn" to="/villa/new">빌라 만들기</Link>
+      <Link className="btn" to="/villa/new">아파트 만들기</Link>
     )
   ) : (
     <>
@@ -33,8 +33,8 @@ export function LandingView({ me }: { me: Me }) {
     <main className="lp">
       <section className="lp-hero">
         <div className="lp-copy">
-          <h1>오운완빌라</h1>
-          <p className="lp-tagline">친구들과 한 빌라에 살면서<br />매일 오운완해요</p>
+          <h1>오운완아파트</h1>
+          <p className="lp-tagline">친구들과 한 아파트에 살면서<br />매일 오운완해요</p>
         </div>
         <div className="lp-cta">{cta}</div>
         <HeroVilla />

@@ -42,7 +42,7 @@ describe("RFC 8291 암호화", () => {
 
   it("random_keys_round_trip_and_differ_each_time", async () => {
     const sub = await newSubscriptionKeys();
-    const msg = JSON.stringify({ title: "오운완빌라", body: "이웃 님이 응원했어요 🎉" });
+    const msg = JSON.stringify({ title: "오운완아파트", body: "이웃 님이 응원했어요 🎉" });
     const a = await encryptPayload(new TextEncoder().encode(msg), sub.publicRaw, sub.auth);
     const b = await encryptPayload(new TextEncoder().encode(msg), sub.publicRaw, sub.auth);
     expect(b64urlEncode(a)).not.toBe(b64urlEncode(b));

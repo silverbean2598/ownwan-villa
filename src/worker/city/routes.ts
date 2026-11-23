@@ -16,12 +16,12 @@ import { BATTLE_WIN, IN_BATTLE, PRICE_AT, TROPHY, badgeSince, cancelGoneBattles,
 
 export const city = new Hono<AppEnv>();
 
-/** 지도에 나오는 빌라: 공개 · 해체 안 됨 · 자리 있음. 자리 번호 순으로 앞에서부터 CITY_LIMIT 곳 */
+/** 지도에 나오는 아파트: 공개 · 해체 안 됨 · 자리 있음. 자리 번호 순으로 앞에서부터 CITY_LIMIT 곳 */
 const SHOWN = `SELECT id FROM villas WHERE public = 1 AND dissolved_at IS NULL AND map_slot IS NOT NULL ORDER BY map_slot LIMIT ${CITY_LIMIT}`;
 
 /**
  * 비어 있는 가장 작은 자리 번호. 0번이 비었으면 0, 아니면 "바로 다음 번호가 빈 자리" 중 가장 작은 것.
- * UPDATE 문 안에 넣어 한 문장으로 고르고 쓴다 (D1 은 쓰기를 한 줄로 세워 실행하므로 두 빌라가 같은 번호를 고르지 않는다)
+ * UPDATE 문 안에 넣어 한 문장으로 고르고 쓴다 (D1 은 쓰기를 한 줄로 세워 실행하므로 두 아파트가 같은 번호를 고르지 않는다)
  */
 const FREE_SLOT = `CASE WHEN NOT EXISTS (SELECT 1 FROM villas WHERE map_slot = 0) THEN 0 ELSE
   (SELECT MIN(a.map_slot) + 1 FROM villas a WHERE a.map_slot IS NOT NULL
@@ -35,7 +35,7 @@ city.get("/api/city", requireUser, async (c) => {
   const today = kstDay(t);
   // 집값은 마지막으로 정산한 날 값 (전날과 비교)
   const priceDay = (await lastSettledDay(c.env)) ?? "";
-  // 한 번에 묻는다: 내 빌라 · 지도 빌라 · 지도 빌라 입주민의 (층, 연속 기록, 오늘 인증) 만
+  // 한 번에 묻는다: 내 아파트 · 지도 아파트 · 지도 아파트 입주민의 (층, 연속 기록, 오늘 인증) 만
   const [mineRes, villasRes, membersRes, bansRes] = await c.env.DB.batch([
     c.env.DB.prepare(
       `SELECT v.id AS villaId, v.name, v.public, v.owner_id = ?1 AS isOwner, ${IN_BATTLE("v.id", "?2")} AS inBattle,
@@ -53,12 +53,12 @@ city.get("/api/city", requireUser, async (c) => {
        WHERE v.id IN (${SHOWN}) ORDER BY v.map_slot`,
     ).bind(priceDay, priceDay ? prevDay(priceDay) : "", badgeSince(t), challengeCutoff(t)),
     c.env.DB.prepare(
-      // 빌라마다: 그 빌라에 오늘 올린 사진 인증이 있는 입주민만 불이 켜지고, 층도 그 빌라 기준
+      // 아파트마다: 그 아파트에 오늘 올린 사진 인증이 있는 입주민만 불이 켜지고, 층도 그 아파트 기준
       `SELECT m.villa_id AS villaId, m.floor, m.streak, ${certifiedInVilla("m.user_id", "?1", "m.villa_id")} AS lit
        FROM memberships m
        WHERE m.left_at IS NULL AND m.villa_id IN (${SHOWN})`,
     ).bind(today),
-    // 내가 입주 금지된 빌라 (그 빌라 모집 카드에서 신청 버튼을 숨긴다. 금지 사실 자체는 말하지 않는다)
+    // 내가 입주 금지된 아파트 (그 아파트 모집 카드에서 신청 버튼을 숨긴다. 금지 사실 자체는 말하지 않는다)
     c.env.DB.prepare("SELECT villa_id AS villaId FROM villa_bans WHERE user_id = ?").bind(userId),
   ]);
   const blocked = new Set((bansRes.results as { villaId: string }[]).map((r) => r.villaId));
@@ -77,7 +77,7 @@ city.get("/api/city", requireUser, async (c) => {
   };
   const villas: CityVilla[] = (villasRes.results as Row[]).map(({ recruitIntro, recruitSports, price, priceChange, trophy, battleWin, inBattle, ...v }) => {
     const a = agg.get(v.id) ?? { memberCount: 0, litCount: 0, topFloor: 1 };
-    // 모집 글은 모집 중이고 빈방이 있을 때만 (빌라마다 정원: 빌라 20 · 아파트 50, 꽉 차면 숨긴다). 모집 글 · 빈방 수 말고는 더 보내지 않는다
+    // 모집 글은 모집 중이고 빈방이 있을 때만 (아파트마다 정원: 아파트 20 · 타워팰리스 50, 꽉 차면 숨긴다). 모집 글 · 빈방 수 말고는 더 보내지 않는다
     const recruiting = recruitIntro !== null && a.memberCount < v.capacity;
     return {
       ...v,
@@ -111,7 +111,7 @@ city.put("/api/villas/:id/public", requireUser, async (c) => {
   const b = await c.req.json().catch(() => null);
   if (typeof b?.public !== "boolean") return jsonError(c, 400, "공개할지 골라 주세요");
   const v = await c.env.DB.prepare("SELECT owner_id FROM villas WHERE id = ? AND dissolved_at IS NULL").bind(id).first<{ owner_id: string }>();
-  if (!v) return jsonError(c, 404, "빌라를 찾을 수 없어요");
+  if (!v) return jsonError(c, 404, "아파트를 찾을 수 없어요");
   if (v.owner_id !== me) return jsonError(c, 403, "방장만 할 수 있어요");
 
   // 방장 확인 · 해체 확인을 쓰는 문장 안에서 한 번 더 (그 사이 방장이 바뀌거나 해체돼도 바뀌지 않게)
@@ -140,7 +140,7 @@ city.put("/api/villas/:id/public", requireUser, async (c) => {
         .first();
       if (active) return jsonError(c, 409, "대결이 끝난 뒤에 비공개로 바꿀 수 있어요");
     }
-    return jsonError(c, 409, "방장이 바뀌었거나 빌라가 없어졌어요. 다시 열어 주세요");
+    return jsonError(c, 409, "방장이 바뀌었거나 아파트가 없어졌어요. 다시 열어 주세요");
   }
   // 지도에서 내리면 빈방 모집도 끄고 기다리던 신청을 취소한다 (지금도 내려가 있을 때만)
   if (!b.public) {

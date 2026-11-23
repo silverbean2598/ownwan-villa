@@ -47,7 +47,7 @@ describe("RoomScene", () => {
     expect(off).toContain('href="/furniture/penthouse-chandelier-off.webp"');
     expect(off).not.toContain('data-part="chandelier-glow"');
     for (const p of ["chandelier", "skyline", "sofa", "plant"]) expect(off).toContain(`data-part="${p}"`);
-    // 빌라 칸은 작은 그림
+    // 아파트 칸은 작은 그림
     const tile = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} penthouse />);
     expect(tile).toContain('href="/furniture/sm/penthouse-chandelier.webp"');
     expect(tile).toContain('href="/furniture/sm/penthouse-sofa.webp"');
@@ -107,7 +107,7 @@ describe("RoomScene", () => {
     const off = renderToStaticMarkup(<RoomScene sport="gym" lit={false} avatar={DEFAULT_AVATAR} variant="detail" />);
     expect(off).toContain('href="/furniture/room-pendant-off.webp"');
     expect(off).not.toContain('data-part="lamplight"');
-    // 빌라 칸은 작은 그림, 펜트하우스는 펜던트 대신 샹들리에
+    // 아파트 칸은 작은 그림, 펜트하우스는 펜던트 대신 샹들리에
     expect(renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} />)).toContain('href="/furniture/sm/room-pendant.webp"');
     expect(renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} penthouse />)).not.toContain('data-part="pendant"');
   });

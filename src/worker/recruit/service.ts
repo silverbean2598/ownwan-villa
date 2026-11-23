@@ -5,7 +5,7 @@ import { APPLY_KEEP_MS, APPLY_TTL_MS } from "../../shared/recruit";
 import { CAPACITY_OF } from "../villa/membership";
 
 /**
- * 빈방 모집 · 입주 신청 [확정 — 기획자 결정, 2026-11-19]: 빌라 쪽 일(해체 · 내보내기 · 정원 참 · 모집 끔)에 따라
+ * 빈방 모집 · 입주 신청 [확정 — 기획자 결정, 2026-11-19]: 아파트 쪽 일(해체 · 내보내기 · 정원 참 · 모집 끔)에 따라
  * 기다리는 신청을 정리하는 함수들. 모두 "status = 'pending'" 조건이 붙은 문장이라 동시에 불려도 한 번만 바뀐다.
  */
 
@@ -16,14 +16,14 @@ export type CloseReason = "recruit_off" | "hidden" | "full" | "dissolved" | "exp
 export const FRESH = (alias: string, cutoff: string) => `${alias}.status = 'pending' AND ${alias}.created_at > ${cutoff}`;
 export const cutoffOf = (t: number) => t - APPLY_TTL_MS;
 
-/** 이 빌라의 지금 입주민 수 (?자리 = 빌라 id) */
+/** 이 아파트의 지금 입주민 수 (?자리 = 아파트 id) */
 export const MEMBER_COUNT = (villa: string) => `(SELECT COUNT(*) FROM memberships WHERE villa_id = ${villa} AND left_at IS NULL)`;
 
 const villaName = async (env: Env, villaId: string) =>
   (await env.DB.prepare("SELECT name FROM villas WHERE id = ?").bind(villaId).first<{ name: string }>())?.name ?? "";
 
 /**
- * 이 빌라에 기다리는 신청을 모두 취소하고 신청한 사람에게 살짝 알린다.
+ * 이 아파트에 기다리는 신청을 모두 취소하고 신청한 사람에게 살짝 알린다.
  * when: 추가 조건(SQL, 뒤의 값은 args). 그 조건이 참일 때만 취소된다 (예: 모집이 지금 꺼져 있을 때만)
  */
 export async function closeApplications(env: Env, villaId: string, reason: CloseReason, when = "", args: unknown[] = []): Promise<number> {
@@ -46,7 +46,7 @@ export async function closeApplications(env: Env, villaId: string, reason: Close
   return results.length;
 }
 
-/** 정원(빌라마다: 빌라 20명 · 아파트 50명)이 찼으면 모집을 끄고 기다리는 신청을 취소한다 (초대 링크 입주 · 신청 승인 뒤) */
+/** 정원(아파트마다: 아파트 20명 · 타워팰리스 50명)이 찼으면 모집을 끄고 기다리는 신청을 취소한다 (초대 링크 입주 · 신청 승인 뒤) */
 export async function closeIfFull(env: Env, villaId: string): Promise<void> {
   const full = `${MEMBER_COUNT("?")} >= ${CAPACITY_OF("?")}`;
   await env.DB.prepare(`UPDATE villa_recruits SET open = 0, updated_at = ? WHERE villa_id = ? AND open = 1 AND ${full}`)
@@ -55,14 +55,14 @@ export async function closeIfFull(env: Env, villaId: string): Promise<void> {
   await closeApplications(env, villaId, "full", ` AND ${full}`, [villaId, villaId]);
 }
 
-/** 빌라가 해체됐으면(방장 해체 · 마지막 입주민이 나감 · 탈퇴) 모집을 끄고 기다리는 신청을 취소한다 */
+/** 아파트가 해체됐으면(방장 해체 · 마지막 입주민이 나감 · 탈퇴) 모집을 끄고 기다리는 신청을 취소한다 */
 export async function closeIfDissolved(env: Env, villaId: string): Promise<void> {
   const gone = " AND EXISTS (SELECT 1 FROM villas WHERE id = ? AND dissolved_at IS NOT NULL)";
   await env.DB.prepare(`UPDATE villa_recruits SET open = 0, updated_at = ? WHERE villa_id = ? AND open = 1${gone}`).bind(now(), villaId, villaId).run();
   await closeApplications(env, villaId, "dissolved", gone, [villaId]);
 }
 
-/** 빌라를 지도에서 내리면 모집도 끈다 (지도에 없으면 아무도 신청할 수 없으므로) */
+/** 아파트를 지도에서 내리면 모집도 끈다 (지도에 없으면 아무도 신청할 수 없으므로) */
 export async function closeIfHidden(env: Env, villaId: string): Promise<void> {
   const hidden = " AND EXISTS (SELECT 1 FROM villas WHERE id = ? AND public = 0)";
   await env.DB.prepare(`UPDATE villa_recruits SET open = 0, updated_at = ? WHERE villa_id = ? AND open = 1${hidden}`).bind(now(), villaId, villaId).run();
@@ -70,7 +70,7 @@ export async function closeIfHidden(env: Env, villaId: string): Promise<void> {
 }
 
 /**
- * 매일 크론: 7일이 지난 신청을 expired 로 바꾸고 신청한 사람에게 알린다. 끝난 지 30일 지난 기록과 해체된 빌라의 모집 글은 지운다.
+ * 매일 크론: 7일이 지난 신청을 expired 로 바꾸고 신청한 사람에게 알린다. 끝난 지 30일 지난 기록과 해체된 아파트의 모집 글은 지운다.
  */
 export async function purgeApplications(env: Env): Promise<{ expired: number; deleted: number }> {
   const t = now();

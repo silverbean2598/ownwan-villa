@@ -12,7 +12,7 @@ export function VillaNew() {
   const [link, setLink] = useState("");
   const [copied, setCopied] = useState(false);
   const [newId, setNewId] = useState("");
-  // 지금 사는 빌라 수 (만든 빌라도 3곳에 센다). 못 불러와도 만들기는 할 수 있다(서버가 다시 확인)
+  // 지금 사는 아파트 수 (만든 아파트도 3곳에 센다). 못 불러와도 만들기는 할 수 있다(서버가 다시 확인)
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export function VillaNew() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     const n = name.trim();
-    if (n.length < 1 || n.length > 20) return setError("빌라 이름은 1~20자로 지어 주세요");
+    if (n.length < 1 || n.length > 20) return setError("아파트 이름은 1~20자로 지어 주세요");
     setError("");
     setBusy(true);
     try {
@@ -50,33 +50,33 @@ export function VillaNew() {
   if (link)
     return (
       <main className="page">
-        <h1>빌라를 지었어요</h1>
+        <h1>아파트를 지었어요</h1>
         <p className="muted">친구에게 이 초대 링크를 보내 주세요.</p>
         <div className="code link" aria-label="초대 링크">{link}</div>
         <div className="row">
           <button className="btn ghost" type="button" onClick={copy}>{copied ? "복사했어요" : "링크 복사"}</button>
         </div>
-        <button className="btn" type="button" onClick={() => nav(newId ? villaPath(newId) : "/villa", { replace: true })} style={{ marginTop: 16 }}>내 빌라로</button>
+        <button className="btn" type="button" onClick={() => nav(newId ? villaPath(newId) : "/villa", { replace: true })} style={{ marginTop: 16 }}>내 아파트로</button>
       </main>
     );
 
   if (count !== null && count >= MAX_VILLAS_PER_USER)
     return (
       <main className="page">
-        <h1>빌라 만들기</h1>
+        <h1>아파트 만들기</h1>
         <p className="limit-box" role="status">{VILLA_LIMIT_MSG}</p>
-        <Link className="btn" to="/villa">내 빌라로</Link>
-        <Link className="btn ghost" to="/settings" style={{ marginTop: 8 }}>설정에서 빌라 나가기</Link>
+        <Link className="btn" to="/villa">내 아파트로</Link>
+        <Link className="btn ghost" to="/settings" style={{ marginTop: 8 }}>설정에서 아파트 나가기</Link>
       </main>
     );
 
   return (
     <main className="page">
-      <h1>빌라 만들기</h1>
-      {!!count && <p className="muted">지금 사는 빌라는 그대로 두고 한 곳 더 지어요. ({count + 1}/{MAX_VILLAS_PER_USER}곳)</p>}
+      <h1>아파트 만들기</h1>
+      {!!count && <p className="muted">지금 사는 아파트는 그대로 두고 한 곳 더 지어요. ({count + 1}/{MAX_VILLAS_PER_USER}곳)</p>}
       <form onSubmit={submit} noValidate>
         <div className="field">
-          <label htmlFor="name">빌라 이름</label>
+          <label htmlFor="name">아파트 이름</label>
           <input id="name" type="text" maxLength={20} value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         {error && <p className="error" role="alert">{error}</p>}

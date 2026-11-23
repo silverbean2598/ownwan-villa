@@ -6,7 +6,7 @@ import { logEvents } from "../events/log";
 
 export const shop = new Hono<AppEnv>();
 
-// 지금 사는(해체되지 않은) 빌라의 펜트하우스 주인인지. ?1 = 사용자 id
+// 지금 사는(해체되지 않은) 아파트의 펜트하우스 주인인지. ?1 = 사용자 id
 const IS_PENTHOUSE = `EXISTS (SELECT 1 FROM memberships m JOIN villas v ON v.id = m.villa_id
   WHERE m.user_id = ?1 AND m.left_at IS NULL AND v.dissolved_at IS NULL AND v.penthouse_user_id = ?1)`;
 

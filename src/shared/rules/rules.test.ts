@@ -47,7 +47,7 @@ describe("settleDay", () => {
     expect(r.next.floor).toBe(1);
     expect(r.floorChanged).toBeNull();
   });
-  it("빌라 없음: 층 없이 연속 기록만", () => {
+  it("아파트 없음: 층 없이 연속 기록만", () => {
     expect(settleDay({ streak: 6, missRun: 0, floor: null }, true)).toEqual({
       next: { streak: 7, missRun: 0, floor: null },
       floorChanged: null,

@@ -24,7 +24,7 @@ const json = (cookie: string, body: unknown, method = "POST") => ({
   body: JSON.stringify(body),
 });
 async function makeVilla(cookie: string) {
-  const r = await app.request("/api/villas", json(cookie, { name: "빌라" }), env);
+  const r = await app.request("/api/villas", json(cookie, { name: "아파트" }), env);
   return (await r.json<any>()).inviteToken as string;
 }
 const join = (cookie: string, token: string) => app.request(`/api/invite/${token}/join`, json(cookie, {}), env);
@@ -45,7 +45,7 @@ const del = (cookie: string, id: string) => app.request(`/api/certs/${id}`, { me
 const hidden = async (id: string) =>
   (await env.DB.prepare("SELECT hidden FROM certs WHERE id = ?").bind(id).first<{ hidden: number }>())!.hidden;
 
-/** 방장 + 사진 올린 사람 + 일반 입주민 3명이 있는 빌라 */
+/** 방장 + 사진 올린 사람 + 일반 입주민 3명이 있는 아파트 */
 async function setup() {
   const owner = await signup();
   const token = await makeVilla(owner.cookie);

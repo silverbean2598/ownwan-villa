@@ -8,7 +8,7 @@ export const CARD_TYPES = [
   "streak7", "floor_up", "penthouse_in", "penthouse_out", "floor_down", "welcome", "kicked", "owner_in", "dissolved", "application_rejected",
   // 집값 대결: 리그 1~3위 · 대결 신청 받음(방장) · 대결 결과
   "league_rank", "battle_challenged", "battle_result",
-  // 아파트 승격: 그때 사는 입주민 모두
+  // 타워팰리스 승격: 그때 사는 입주민 모두
   "apartment_promoted",
 ] as const;
 /** 위쪽 토스트 (3초 뒤 사라짐) */
@@ -73,8 +73,8 @@ export function preview(text: string, n = COMMENT_PREVIEW): string {
 }
 
 /**
- * 빌라 여러 곳에 사는 사람에게 온 빌라 알림이면 빌라 이름 (서버가 villaName · multi 를 붙인다).
- * 빌라 1곳에 사는 사람에게는 null → 지금까지와 같은 문구
+ * 아파트 여러 곳에 사는 사람에게 온 아파트 알림이면 아파트 이름 (서버가 villaName · multi 를 붙인다).
+ * 아파트 1곳에 사는 사람에게는 null → 지금까지와 같은 문구
  */
 function villaOf(p: Record<string, unknown>): string | null {
   return p.multi === true && typeof p.villaName === "string" && p.villaName ? p.villaName : null;
@@ -102,7 +102,7 @@ export function eventCopy(e: AppEvent): string {
       return villa ? `어제 ${villa}에 올리지 않아서 ${str(p.floor)}층으로 내려왔어요` : `어제 쉬어서 ${str(p.floor)}층으로 내려왔어요`;
     case "welcome":
       // 빈방 모집 신청이 승인돼 들어온 경우
-      return p.via === "recruit" ? `입주 신청이 승인됐어요! ${str(p.villaName, "빌라")}에 입주했어요` : `${str(p.villaName, "빌라")}에 입주했어요`;
+      return p.via === "recruit" ? `입주 신청이 승인됐어요! ${str(p.villaName, "아파트")}에 입주했어요` : `${str(p.villaName, "아파트")}에 입주했어요`;
     case "certified":
       return `불이 켜졌어요 +${str(p.points, "0")}P`;
     case "streak6":
@@ -116,13 +116,13 @@ export function eventCopy(e: AppEvent): string {
     case "night_reminder":
       return "오늘 아직 불이 꺼져 있어요";
     case "kicked":
-      return `${str(p.villaName, "빌라")}에서 나가게 됐어요`;
+      return `${str(p.villaName, "아파트")}에서 나가게 됐어요`;
     case "owner_in":
       return villa ? `${villa} 방장이 됐어요` : "방장이 됐어요";
     case "owner_changed":
       return villa ? `${str(p.nickname, "이웃")} 님이 ${villa} 새 방장이 됐어요` : `${str(p.nickname, "이웃")} 님이 새 방장이 됐어요`;
     case "dissolved": {
-      const name = str(p.villaName, "빌라");
+      const name = str(p.villaName, "아파트");
       return `${name}${subjParticle(name)} 해체됐어요`;
     }
     case "cheered":
@@ -132,49 +132,49 @@ export function eventCopy(e: AppEvent): string {
     case "application_received":
       return villa ? `${villa}에 ${str(p.nickname, "누군가")} 님의 입주 신청이 왔어요` : `${str(p.nickname, "누군가")} 님의 입주 신청이 왔어요`;
     case "application_rejected":
-      return `이번에는 ${str(p.villaName, "그 빌라")}에 함께하지 못하게 됐어요. 다른 빌라도 둘러봐요`;
+      return `이번에는 ${str(p.villaName, "그 아파트")}에 함께하지 못하게 됐어요. 다른 아파트도 둘러봐요`;
     case "application_closed":
-      return closedCopy(str(p.villaName, "빌라"), str(p.reason));
+      return closedCopy(str(p.villaName, "아파트"), str(p.reason));
     case "league_rank": {
-      const where = villa ? `${villa} ` : "우리 빌라 ";
+      const where = villa ? `${villa} ` : "우리 아파트 ";
       const pts = typeof p.points === "number" && p.points > 0 ? ` 입주민 모두 +${p.points}P` : " (이번 주에 입주해서 포인트는 다음 기회에)";
       return `지난주 집값 리그 ${str(p.rank)}위! ${where}건물에 ${["금", "은", "동"][Number(p.rank) - 1] ?? ""} 트로피가 달렸어요.${pts}`;
     }
     case "battle_challenged": {
-      const from = str(p.fromName, "다른 빌라");
+      const from = str(p.fromName, "다른 아파트");
       return `${from}에서 ${villa ? `${villa}에 ` : ""}집값 대결을 신청했어요! 48시간 안에 답해 주세요`;
     }
     case "battle_result": {
-      const other = str(p.opponentName, "상대 빌라");
+      const other = str(p.opponentName, "상대 아파트");
       const pts = typeof p.points === "number" && p.points > 0 ? ` 입주민 모두 +${p.points}P` : "";
       if (p.result === "won") return `${villa ? `${villa}, ` : ""}${other}${objParticle(other)} 이겼어요! 집값 대결에서 승리했어요.${pts}`;
       if (p.result === "lost") return `${villa ? `${villa}, ` : ""}아쉽게 ${other}에 졌어요. 다음 대결에서 다시 해 봐요`;
       return `${villa ? `${villa}, ` : ""}${other}${withParticle(other)} 무승부예요. 오른 집값이 똑같았어요`;
     }
     case "battle_started":
-      return `${villa ? `${villa}, ` : ""}${str(p.opponentName, "상대 빌라")}${withParticle(str(p.opponentName, "상대 빌라"))} 집값 대결이 내일부터 7일 동안 열려요`;
+      return `${villa ? `${villa}, ` : ""}${str(p.opponentName, "상대 아파트")}${withParticle(str(p.opponentName, "상대 아파트"))} 집값 대결이 내일부터 7일 동안 열려요`;
     case "battle_declined":
-      return `${str(p.opponentName, "상대 빌라")}에서 대결 신청을 거절했어요`;
+      return `${str(p.opponentName, "상대 아파트")}에서 대결 신청을 거절했어요`;
     case "battle_expired":
-      return `${str(p.opponentName, "상대 빌라")}에 보낸 대결 신청이 48시간이 지나 만료됐어요`;
+      return `${str(p.opponentName, "상대 아파트")}에 보낸 대결 신청이 48시간이 지나 만료됐어요`;
     case "battle_cancelled": {
-      const other = str(p.opponentName, "상대 빌라");
+      const other = str(p.opponentName, "상대 아파트");
       if (p.reason === "no_price") return `${other}${withParticle(other)} 대결이 집값 계산 문제로 취소됐어요`;
       if (p.reason === "members") return `입주민이 3명보다 적어져 ${other}${withParticle(other)} 대결이 취소됐어요`;
       return `${other}${withParticle(other)} 대결이 취소됐어요`;
     }
     case "apartment_promoted": {
-      // 빌라 1곳에 사는 사람에게는 "우리 빌라가", 여러 곳에 사는 사람에게는 그 빌라 이름
-      const who = villa ? `${villa}${subjParticle(villa)}` : "우리 빌라가";
+      // 아파트 1곳에 사는 사람에게는 "우리 아파트가", 여러 곳에 사는 사람에게는 그 아파트 이름
+      const who = villa ? `${villa}${subjParticle(villa)}` : "우리 아파트가";
       const cap = typeof p.capacity === "number" ? p.capacity : 50;
-      return `${who} 아파트가 됐어요! 이제 ${cap}명까지 함께 살 수 있어요`;
+      return `${who} 타워팰리스가 됐어요! 이제 ${cap}명까지 함께 살 수 있어요`;
     }
     default:
       return "";
   }
 }
 
-/** 기다리던 입주 신청이 빌라 쪽 일로 끝났을 때 (신청한 사람에게, 부드럽게) */
+/** 기다리던 입주 신청이 아파트 쪽 일로 끝났을 때 (신청한 사람에게, 부드럽게) */
 function closedCopy(name: string, reason: string): string {
   switch (reason) {
     case "full":
@@ -184,7 +184,7 @@ function closedCopy(name: string, reason: string): string {
     case "expired":
       return `${name} 입주 신청이 7일이 지나 만료됐어요`;
     case "limit":
-      return `빌라 3곳에 살고 있어서 ${name} 입주 신청이 취소됐어요`;
+      return `아파트 3곳에 살고 있어서 ${name} 입주 신청이 취소됐어요`;
     default:
       return `${name} 빈방 모집이 끝나서 입주 신청이 취소됐어요`;
   }
@@ -194,14 +194,14 @@ function closedCopy(name: string, reason: string): string {
 export const cardButton = (type: string) =>
   type === "application_rejected" ? "알겠어요" : type === "battle_challenged" ? "대결 보러 가기" : "좋아요";
 
-/** 카드를 닫으면 갈 화면 (대결 신청을 받은 방장 → 그 빌라 대결 화면). 없으면 null */
+/** 카드를 닫으면 갈 화면 (대결 신청을 받은 방장 → 그 아파트 대결 화면). 없으면 null */
 export const cardLink = (e: AppEvent): string | null =>
   e.type === "battle_challenged" && typeof e.payload.villaId === "string" ? `/battle/${e.payload.villaId}` : null;
 
 /**
  * 받아 온 이벤트를 카드 · 토스트로 나눈다 (순서 유지).
  * 48시간보다 오래된 이벤트는 보여 주지 않는다(오랜만에 들어온 사람에게 지난 카드가 쏟아지지 않게).
- * 펜트하우스는 빌라마다 마지막 변경만 보여 준다(오래 안 들어온 사이 여러 번 뺏고 뺏겼을 때). 나머지와 모르는 종류는 drop → 바로 본 것으로.
+ * 펜트하우스는 아파트마다 마지막 변경만 보여 준다(오래 안 들어온 사이 여러 번 뺏고 뺏겼을 때). 나머지와 모르는 종류는 drop → 바로 본 것으로.
  */
 export const STALE_MS = 48 * 3600_000;
 
@@ -209,7 +209,7 @@ export function planEvents(all: AppEvent[], nowMs: number): { cards: AppEvent[];
   const stale = all.filter((e) => nowMs - e.createdAt > STALE_MS);
   const list = all.filter((e) => nowMs - e.createdAt <= STALE_MS);
   const isPenthouse = (t: string) => t === "penthouse_in" || t === "penthouse_out";
-  // 빌라마다 마지막 펜트하우스 알림 (빌라 정보가 없는 예전 알림은 한 묶음)
+  // 아파트마다 마지막 펜트하우스 알림 (아파트 정보가 없는 예전 알림은 한 묶음)
   const lastPenthouse = new Set<string>();
   const seenVilla = new Set<string>();
   for (const e of [...list].reverse()) {

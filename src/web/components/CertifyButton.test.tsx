@@ -34,7 +34,7 @@ describe("CertifyButton", () => {
         <CertifyButton certifiedToday={false} certifiedElsewhere villaId="B" />
       </MemoryRouter>,
     );
-    expect(h).toContain("이 빌라에도 올리기");
+    expect(h).toContain("이 아파트에도 올리기");
     expect(h).toContain('href="/certify?villa=B"');
     expect(h).not.toContain("오늘 오운완 인증하기");
   });

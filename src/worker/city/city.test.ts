@@ -25,7 +25,7 @@ async function signup(nickname = "운동러") {
   return { id: row!.id, cookie };
 }
 type U = Awaited<ReturnType<typeof signup>>;
-async function create(u: U, name = "우리빌라") {
+async function create(u: U, name = "우리아파트") {
   const res = await send("POST", "/api/villas", { name }, u.cookie);
   return (await res.json()) as { id: string; inviteToken: string };
 }
@@ -42,8 +42,8 @@ async function photo(u: U, day = kstDay(now()), extra: { duplicate?: number; del
     .bind(crypto.randomUUID(), u.id, day, extra.duplicate ?? 0, extra.deleted ?? 0)
     .run();
 }
-/** 방장 + 입주민 n명인 빌라 */
-async function villaWith(extra: number, name = "햇살빌라") {
+/** 방장 + 입주민 n명인 아파트 */
+async function villaWith(extra: number, name = "햇살아파트") {
   const owner = await signup("방장");
   const v = await create(owner, name);
   const others: U[] = [];
@@ -61,13 +61,13 @@ describe("GET /api/city", () => {
   });
 
   it("private_villas_hidden_until_owner_turns_public_and_hidden_again_when_off", async () => {
-    const a = await villaWith(0, "비밀빌라");
+    const a = await villaWith(0, "비밀아파트");
     expect(find(await cityOf(a.owner), a.id)).toBeUndefined();
-    expect((await cityOf(a.owner)).mine).toEqual({ villaId: a.id, name: "비밀빌라", public: false, isOwner: true, inBattle: false, memberCount: 1 });
+    expect((await cityOf(a.owner)).mine).toEqual({ villaId: a.id, name: "비밀아파트", public: false, isOwner: true, inBattle: false, memberCount: 1 });
     expect((await setPublic(a.owner, a.id, true)).status).toBe(200);
     const on = await cityOf(a.owner);
-    expect(find(on, a.id)?.name).toBe("비밀빌라");
-    expect(on.mine).toEqual({ villaId: a.id, name: "비밀빌라", public: true, isOwner: true, inBattle: false, memberCount: 1 });
+    expect(find(on, a.id)?.name).toBe("비밀아파트");
+    expect(on.mine).toEqual({ villaId: a.id, name: "비밀아파트", public: true, isOwner: true, inBattle: false, memberCount: 1 });
     await setPublic(a.owner, a.id, false);
     expect(find(await cityOf(a.owner), a.id)).toBeUndefined();
   });
@@ -84,7 +84,7 @@ describe("GET /api/city", () => {
   });
 
   it("last_member_leaving_dissolves_and_frees_slot", async () => {
-    const a = await villaWith(0, "혼자빌라");
+    const a = await villaWith(0, "혼자아파트");
     await setPublic(a.owner, a.id, true);
     await send("POST", "/api/villas/leave", undefined, a.owner.cookie);
     expect(await slotOf(a.id)).toBeNull();
@@ -92,7 +92,7 @@ describe("GET /api/city", () => {
   });
 
   it("aggregates_members_lit_today_only_excluding_deleted_and_duplicate", async () => {
-    const a = await villaWith(4, "집계빌라");
+    const a = await villaWith(4, "집계아파트");
     const [b, c, d, e] = a.others;
     await photo(a.owner);
     await photo(b);
@@ -108,7 +108,7 @@ describe("GET /api/city", () => {
   });
 
   it("top_floor_uses_display_floor", async () => {
-    const a = await villaWith(1, "높은빌라");
+    const a = await villaWith(1, "높은아파트");
     const [b] = a.others;
     await env.DB.prepare("UPDATE memberships SET floor = 4 WHERE user_id = ? AND left_at IS NULL").bind(b.id).run();
     // 6일 연속 + 오늘 인증 = 7일째 → 바로 5층
@@ -148,7 +148,7 @@ describe("GET /api/city", () => {
 
 describe("PUT /api/villas/:id/public", () => {
   it("owner_only_non_owner_403_outsider_403_bad_body_400", async () => {
-    const a = await villaWith(1, "권한빌라");
+    const a = await villaWith(1, "권한아파트");
     const outsider = await signup();
     expect((await setPublic(a.others[0], a.id, true)).status).toBe(403);
     expect((await setPublic(outsider, a.id, true)).status).toBe(403);
@@ -158,13 +158,13 @@ describe("PUT /api/villas/:id/public", () => {
   });
 
   it("slot_assigned_once_and_kept_across_off_on", async () => {
-    const a = await villaWith(0, "자리빌라");
+    const a = await villaWith(0, "자리아파트");
     await setPublic(a.owner, a.id, true);
     const s = await slotOf(a.id);
     expect(s).not.toBeNull();
     await setPublic(a.owner, a.id, false);
     expect(await slotOf(a.id)).toBe(s);
-    const other = await villaWith(0, "다른빌라");
+    const other = await villaWith(0, "다른아파트");
     await setPublic(other.owner, other.id, true);
     await setPublic(a.owner, a.id, true);
     expect(await slotOf(a.id)).toBe(s);
@@ -193,7 +193,7 @@ describe("PUT /api/villas/:id/public", () => {
     const vs = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => villaWith(0, `동시${i}`)));
     const res = await Promise.all(vs.map((v) => setPublic(v.owner, v.id, true)));
     expect(res.map((r) => r.status)).toEqual(vs.map(() => 200));
-    // 같은 빌라를 동시에 여러 번 켜도 자리는 하나
+    // 같은 아파트를 동시에 여러 번 켜도 자리는 하나
     await Promise.all([0, 1, 2].map(() => setPublic(vs[0].owner, vs[0].id, true)));
     const slots = await Promise.all(vs.map((v) => slotOf(v.id)));
     expect(slots.every((s) => s !== null)).toBe(true);
@@ -203,8 +203,8 @@ describe("PUT /api/villas/:id/public", () => {
   });
 
   it("dissolved_villa_cannot_be_toggled", async () => {
-    const a = await villaWith(0, "끝난빌라");
-    await send("POST", `/api/villas/${a.id}/dissolve`, { confirmName: "끝난빌라" }, a.owner.cookie);
+    const a = await villaWith(0, "끝난아파트");
+    await send("POST", `/api/villas/${a.id}/dissolve`, { confirmName: "끝난아파트" }, a.owner.cookie);
     expect((await setPublic(a.owner, a.id, true)).status).toBe(404);
     expect(await slotOf(a.id)).toBeNull();
   });

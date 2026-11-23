@@ -25,7 +25,7 @@ const json = (cookie: string, body: unknown, method = "POST") => ({
   body: JSON.stringify(body),
 });
 async function makeVilla(cookie: string) {
-  const r = await app.request("/api/villas", json(cookie, { name: "빌라" }), env);
+  const r = await app.request("/api/villas", json(cookie, { name: "아파트" }), env);
   return (await r.json<any>()).inviteToken as string;
 }
 const join = (cookie: string, token: string) => app.request(`/api/invite/${token}/join`, json(cookie, {}), env);
@@ -281,7 +281,7 @@ describe("board and photos", () => {
     const cert = await (await upload(a.cookie, { dhash: hash(0) })).json<any>();
     const r = await board(x.cookie, a.id);
     expect(r.status).toBe(403);
-    expect((await r.json<any>()).error).toBe("같은 빌라 입주민만 볼 수 있어요");
+    expect((await r.json<any>()).error).toBe("같은 아파트 입주민만 볼 수 있어요");
     expect((await app.request(`/api/photos/${cert.certId}`, { headers: { cookie: x.cookie } }, env)).status).toBe(403);
     const loner = await signup();
     expect((await board(loner.cookie, a.id)).status).toBe(403);
@@ -289,9 +289,9 @@ describe("board and photos", () => {
   });
 
   it("board_visible_after_move", async () => {
-    const a = await signup(); // A 빌라 방장
+    const a = await signup(); // A 아파트 방장
     const m = await signup(); // 이동할 사람
-    const x = await signup(); // B 빌라 방장
+    const x = await signup(); // B 아파트 방장
     const tokA = await makeVilla(a.cookie);
     const tokB = await makeVilla(x.cookie);
     await join(m.cookie, tokA);

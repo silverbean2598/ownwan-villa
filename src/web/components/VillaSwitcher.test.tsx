@@ -8,9 +8,9 @@ import { pickVilla, readCurrentVilla, writeCurrentVilla } from "../villa/current
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const A = { id: "A", name: "에이빌라", certifiedToday: true };
-const B = { id: "B", name: "비빌라", certifiedToday: false };
-const C = { id: "C", name: "씨빌라", certifiedToday: false };
+const A = { id: "A", name: "에이아파트", certifiedToday: true };
+const B = { id: "B", name: "비아파트", certifiedToday: false };
+const C = { id: "C", name: "씨아파트", certifiedToday: false };
 
 let root: Root;
 let host: HTMLDivElement;
@@ -37,7 +37,7 @@ describe("VillaSwitcher", () => {
     const onPick = vi.fn();
     mount(<VillaSwitcher villas={[A, B]} currentId="B" onPick={onPick} showAdd />);
     const tabs = Array.from(host.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
-    expect(tabs.map((t) => t.querySelector(".villa-tab-name")!.textContent)).toEqual(["에이빌라", "비빌라"]);
+    expect(tabs.map((t) => t.querySelector(".villa-tab-name")!.textContent)).toEqual(["에이아파트", "비아파트"]);
     expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual(["false", "true"]);
     expect(tabs[0].querySelector(".lamp.lit")).not.toBeNull();
     expect(tabs[1].querySelector(".lamp.lit")).toBeNull();
@@ -45,7 +45,7 @@ describe("VillaSwitcher", () => {
     expect(onPick).not.toHaveBeenCalled();
     act(() => tabs[0].click());
     expect(onPick).toHaveBeenCalledWith("A");
-    // 3곳보다 적으면 [+]로 빌라를 더 만든다
+    // 3곳보다 적으면 [+]로 아파트를 더 만든다
     expect(host.querySelector('a[href="/villa/new"]')).not.toBeNull();
   });
 
@@ -56,7 +56,7 @@ describe("VillaSwitcher", () => {
   });
 });
 
-describe("current villa (이 기기에서 마지막으로 본 빌라)", () => {
+describe("current villa (이 기기에서 마지막으로 본 아파트)", () => {
   it("prefers_wanted_then_stored_then_first", () => {
     expect(pickVilla([], "A")).toBeNull();
     expect(pickVilla([A, B])).toBe("A");
@@ -64,9 +64,9 @@ describe("current villa (이 기기에서 마지막으로 본 빌라)", () => {
     expect(readCurrentVilla()).toBe("B");
     expect(pickVilla([A, B])).toBe("B");
     expect(pickVilla([A, B], "A")).toBe("A");
-    // 저장된 빌라에서 나갔으면 첫 빌라
+    // 저장된 아파트에서 나갔으면 첫 아파트
     expect(pickVilla([A, C])).toBe("A");
-    // 원하는 빌라가 내 빌라가 아니면 무시
+    // 원하는 아파트가 내 아파트가 아니면 무시
     expect(pickVilla([A, B], "Z")).toBe("B");
   });
 

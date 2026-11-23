@@ -8,9 +8,9 @@ import "./city.css";
 type Props = {
   villas: CityVilla[];
   cols: number;
-  /** 우리 빌라 (예전 이름, 한 곳) */
+  /** 우리 아파트 (예전 이름, 한 곳) */
   mineId?: string | null;
-  /** 우리 빌라 모두 (빌라 여러 곳에 살 때). 모두 "우리 빌라"로 표시하고, 첫 번째에 화면을 맞춘다 */
+  /** 우리 아파트 모두 (아파트 여러 곳에 살 때). 모두 "우리 아파트"로 표시하고, 첫 번째에 화면을 맞춘다 */
   mineIds?: string[];
   selectedId: string | null;
   onSelect: (v: CityVilla) => void;
@@ -152,11 +152,11 @@ function PropSet({ lot, cx, by }: { lot: Lot; cx: number; by: number }) {
   }
 }
 
-/** 공개 빌라들이 모인 밤 도시. 땅은 격자, 사이에 길 · 횡단보도 · 가로등 */
+/** 공개 아파트들이 모인 밤 도시. 땅은 격자, 사이에 길 · 횡단보도 · 가로등 */
 export function CityMap({ villas, cols, mineId = null, mineIds, selectedId, onSelect }: Props) {
   const L = layoutCity(villas, cols);
   const mine = new Set(mineIds ?? (mineId ? [mineId] : []));
-  // 처음 열 때 화면을 맞출 우리 빌라 하나 (#city-mine)
+  // 처음 열 때 화면을 맞출 우리 아파트 하나 (#city-mine)
   const anchor = (mineIds ?? (mineId ? [mineId] : [])).find((id) => villas.some((v) => v.id === id)) ?? null;
   const { width, height } = L;
   const vRoads = Array.from({ length: cols - 1 }, (_, c) => MARGIN + (c + 1) * 170 + c * ROAD);

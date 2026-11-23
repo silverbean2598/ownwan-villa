@@ -17,9 +17,9 @@ const RETRY_MS = 60 * 60 * 1000;
 const CANCEL_OPEN = "UPDATE recovery_requests SET status = 'cancelled' WHERE user_id = ? AND status IN ('pending','approved')";
 
 /**
- * 방장 확인을 해 줄 사람과 그 빌라 [확정 — 기획자 결정, 2026-11-19 범위 안에서 정한 규칙]:
- * 빌라 여러 곳에 살면 **가장 먼저 입주한(가장 오래 산) 빌라** 한 곳에서만 확인한다 (확인해 줄 수 있는 사람을 한 명으로 둔다).
- * 그 빌라에서 요청자가 방장이 아니면 방장, 방장이면 남은 입주민 중 가장 먼저 입주한 사람. 없으면 null.
+ * 방장 확인을 해 줄 사람과 그 아파트 [확정 — 기획자 결정, 2026-11-19 범위 안에서 정한 규칙]:
+ * 아파트 여러 곳에 살면 **가장 먼저 입주한(가장 오래 산) 아파트** 한 곳에서만 확인한다 (확인해 줄 수 있는 사람을 한 명으로 둔다).
+ * 그 아파트에서 요청자가 방장이 아니면 방장, 방장이면 남은 입주민 중 가장 먼저 입주한 사람. 없으면 null.
  */
 export async function approvalFor(env: Env, userId: string): Promise<{ approverId: string; villaId: string } | null> {
   const villa = await env.DB.prepare(
@@ -91,7 +91,7 @@ recovery.post("/api/recover/request", async (c) => {
   const inVilla = await c.env.DB.prepare("SELECT 1 AS x FROM memberships WHERE user_id = ? AND left_at IS NULL")
     .bind(user.id)
     .first();
-  if (!inVilla) return jsonError(c, 400, "빌라에 살고 있어야 방장 확인을 쓸 수 있어요");
+  if (!inVilla) return jsonError(c, 400, "아파트에 살고 있어야 방장 확인을 쓸 수 있어요");
   const approver = await approverFor(c.env, user.id);
   if (!approver) return jsonError(c, 409, "확인해 줄 입주민이 없어요. 복구 코드로만 되찾을 수 있어요");
 
@@ -142,7 +142,7 @@ recovery.post("/api/recover/:id/approve", requireUser, async (c) => {
   if (!req) return jsonError(c, 404, "요청을 찾을 수 없어요");
   const who = await approvalFor(c.env, req.user_id);
   if (who?.approverId !== me) return jsonError(c, 403, "내가 확인할 요청이 아니에요");
-  // 승인 시점에 확인한 빌라(요청자가 가장 먼저 입주한 빌라)를 함께 적는다: 완료할 때 그 빌라에 아직 살아야 한다
+  // 승인 시점에 확인한 아파트(요청자가 가장 먼저 입주한 아파트)를 함께 적는다: 완료할 때 그 아파트에 아직 살아야 한다
   const res = await c.env.DB.prepare(
     `UPDATE recovery_requests SET status = 'approved', approved_at = ?1, approver_id = ?2, villa_id = ?3
      WHERE id = ?4 AND status = 'pending'`,
@@ -170,7 +170,7 @@ recovery.post("/api/recover/complete", async (c) => {
   // 카카오 전용 계정은 복구로 비밀번호 계정이 되지 않는다
   if (isPasswordless(req.password_hash)) return jsonError(c, 400, KAKAO_ONLY_MSG);
   if (!isValidPasswordLength(newPassword)) return jsonError(c, 400, PASSWORD_LENGTH_MSG);
-  // 승인받을 때와 같은 (해산되지 않은) 빌라에 지금도 살아야 한다
+  // 승인받을 때와 같은 (해산되지 않은) 아파트에 지금도 살아야 한다
   const stillIn = await c.env.DB.prepare(
     `SELECT 1 AS x FROM memberships m JOIN villas v ON v.id = m.villa_id AND v.dissolved_at IS NULL
      WHERE m.user_id = ? AND m.villa_id = ? AND m.left_at IS NULL`,
@@ -179,7 +179,7 @@ recovery.post("/api/recover/complete", async (c) => {
     .first();
   if (!stillIn) {
     await c.env.DB.prepare("UPDATE recovery_requests SET status = 'cancelled' WHERE id = ?").bind(req.id).run();
-    return jsonError(c, 400, "확인해 준 빌라에서 나가서 요청이 취소됐어요. 다시 요청해 주세요");
+    return jsonError(c, 400, "확인해 준 아파트에서 나가서 요청이 취소됐어요. 다시 요청해 주세요");
   }
   if (now() < req.approved_at + HOLD_MS) return jsonError(c, 425, "승인 후 24시간이 지나야 바꿀 수 있어요");
   // 같은 요청 번호로 두 번 쓸 수 없도록 먼저 선점한다

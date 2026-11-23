@@ -24,7 +24,7 @@ report.post("/api/certs/:id/report", requireUser, async (c) => {
   const viewerId = c.get("userId");
   const cert = await findCert(c.env, c.req.param("id"));
   if (!cert || cert.deleted) return jsonError(c, 404, PHOTO_NOT_FOUND);
-  if (!(await canViewCert(c.env, viewerId, cert))) return jsonError(c, 403, "같은 빌라 입주민만 신고할 수 있어요");
+  if (!(await canViewCert(c.env, viewerId, cert))) return jsonError(c, 403, "같은 아파트 입주민만 신고할 수 있어요");
   if (cert.user_id === viewerId) return jsonError(c, 400, "내 사진은 신고할 수 없어요");
   if (cert.kind !== "photo") return jsonError(c, 400, "사진만 신고할 수 있어요");
   // 신고 추가와 가림 판정을 한 묶음으로: 동시에 들어와도 마지막 신고가 3건을 본다
@@ -42,8 +42,8 @@ report.delete("/api/certs/:id", requireUser, async (c) => {
   const viewerId = c.get("userId");
   const cert = await findCert(c.env, c.req.param("id"));
   if (!cert || cert.deleted) return jsonError(c, 404, notFound(cert));
-  // 작성자 본인이거나, 기록이 올라간 빌라 중 작성자가 지금 사는 빌라의 방장이어야 한다 (방장 본인도 그 빌라 입주민).
-  // 지우면 기록이 올라간 모든 빌라에서 사라진다
+  // 작성자 본인이거나, 기록이 올라간 아파트 중 작성자가 지금 사는 아파트의 방장이어야 한다 (방장 본인도 그 아파트 입주민).
+  // 지우면 기록이 올라간 모든 아파트에서 사라진다
   if (cert.user_id !== viewerId && !(await isModeratorOf(c.env, viewerId, cert))) {
     return jsonError(c, 403, "지울 수 있는 권한이 없어요");
   }
@@ -55,7 +55,7 @@ report.delete("/api/certs/:id", requireUser, async (c) => {
     c.env.DB.prepare("UPDATE certs SET deleted = 1, body = NULL WHERE id = ?").bind(cert.id),
   ]);
   if (cert.kind === "photo") {
-    // 이 기록이 올라간 빌라만 1등이 바뀔 수 있다
+    // 이 기록이 올라간 아파트만 1등이 바뀔 수 있다
     const { results } = await c.env.DB.prepare("SELECT villa_id AS id FROM cert_villas WHERE cert_id = ?").bind(cert.id).all<{ id: string }>();
     for (const v of results) await recomputePenthouse(c.env, v.id);
   }

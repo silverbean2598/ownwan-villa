@@ -50,7 +50,7 @@ export function dayLabel(day: string): string {
   return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 ${wd}요일`;
 }
 
-/** 내 층 표시: 펜트하우스 · n층 · 빌라 없음("–") */
+/** 내 층 표시: 펜트하우스 · n층 · 아파트 없음("–") */
 export const floorText = (floor: number | null, penthouse: boolean) => (penthouse ? "펜트하우스" : floor ? `${floor}층` : "–");
 
 /** 글자를 maxPx 부터 줄여 maxW 안에 넣는다. minPx 에서도 넘치면 … 로 자른다. 쓴 글자 · 크기를 돌려준다 */
@@ -64,14 +64,14 @@ function fitFont(ctx: Ctx, text: string, maxW: number, weight: number, maxPx: nu
   return { text: fitText(text, maxW, measureOf(ctx)), px: minPx };
 }
 
-/** 꼬리말: 작은 앱 아이콘 + "오운완빌라" + 사이트 주소 (가운데, 옅게). y = 글자 가운데 줄 */
+/** 꼬리말: 작은 앱 아이콘 + "오운완아파트" + 사이트 주소 (가운데, 옅게). y = 글자 가운데 줄 */
 function drawFooter(ctx: Ctx, W: number, y: number, icon: HTMLImageElement | null, s = 1) {
   const host = siteHost();
   const iz = 40 * s;
   const gap = 12 * s;
   ctx.textBaseline = "middle";
   ctx.font = font(800, 28 * s);
-  const brand = "오운완빌라";
+  const brand = "오운완아파트";
   const bw = ctx.measureText(brand).width;
   ctx.font = font(500, 24 * s);
   const hostText = host ? fitText(host, W * 0.6, measureOf(ctx)) : "";
@@ -182,7 +182,7 @@ export async function renderCertCard(d: CertCardData, withPhoto: boolean): Promi
   ctx.fillStyle = C.bg;
   ctx.fillRect(0, 0, W, H);
 
-  // 위: 날짜 · 큰 제목 · 빌라 이름
+  // 위: 날짜 · 큰 제목 · 아파트 이름
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = C.muted;
@@ -304,7 +304,7 @@ export async function renderCertCard(d: CertCardData, withPhoto: boolean): Promi
 
 export type RoomCardInput = { member: Member; penthouse: boolean; villaName: string | null };
 
-/** 내 방 (정사각형 1080×1080): 방 상세 그림(불 켜짐 · 꺼짐, 가구, 캐릭터) + 닉네임 · 층 · 빌라 이름 */
+/** 내 방 (정사각형 1080×1080): 방 상세 그림(불 켜짐 · 꺼짐, 가구, 캐릭터) + 닉네임 · 층 · 아파트 이름 */
 export async function renderRoomCard({ member, penthouse, villaName }: RoomCardInput): Promise<Blob> {
   const W = 1080;
   const H = 1080;
@@ -341,7 +341,7 @@ export async function renderRoomCard({ member, penthouse, villaName }: RoomCardI
   ctx.textBaseline = "middle";
   ctx.fillText(status, W - M - sw / 2, 109);
 
-  // 왼쪽 위: 닉네임 · 빌라 이름 · 층
+  // 왼쪽 위: 닉네임 · 아파트 이름 · 층
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = C.ink;
@@ -381,8 +381,8 @@ export type VillaCardInput = {
 };
 
 /**
- * 우리 빌라 전체 (가로 1080, 세로는 층 수만큼): 건물 단면 — 펜트하우스 · 층마다 방(캐릭터 · 닉네임) · 빈방.
- * 빌라 화면에서 입주민이 이미 보는 것만 (사진 · 루틴은 넣지 않는다)
+ * 우리 아파트 전체 (가로 1080, 세로는 층 수만큼): 건물 단면 — 펜트하우스 · 층마다 방(캐릭터 · 닉네임) · 빈방.
+ * 아파트 화면에서 입주민이 이미 보는 것만 (사진 · 루틴은 넣지 않는다)
  */
 export async function renderVillaCard({ villa, meId }: VillaCardInput): Promise<Blob> {
   const W = 1080;
@@ -474,7 +474,7 @@ export async function renderVillaCard({ villa, meId }: VillaCardInput): Promise<
   ctx.fillStyle = C.bg;
   ctx.fillRect(0, 0, W, H);
 
-  // 머리: 빌라 이름 · 입주 · 오늘 완료 · 집값
+  // 머리: 아파트 이름 · 입주 · 오늘 완료 · 집값
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = C.ink;

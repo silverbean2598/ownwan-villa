@@ -1,8 +1,8 @@
-# 오운완빌라 1차(친구 빌라) Implementation Plan
+# 오운완아파트 1차(친구 아파트) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 친구 10명이 빌라 1개에 입주해 매일 오운완 인증 → 포인트 → 가구 → 층 · 펜트하우스 흐름을 실제로 쓸 수 있는 웹앱을 Cloudflare 무료 요금제에 배포한다.
+**Goal:** 친구 10명이 아파트 1개에 입주해 매일 오운완 인증 → 포인트 → 가구 → 층 · 펜트하우스 흐름을 실제로 쓸 수 있는 웹앱을 Cloudflare 무료 요금제에 배포한다.
 
 **Architecture:** Cloudflare Worker 하나가 React 화면(정적 자산)과 `/api/*` 서버를 함께 서빙한다. 데이터는 D1, 사진은 R2(비공개, Worker가 권한 확인 후 전달), 자정 계산은 Cron Trigger. 게임 규칙(포인트 · 층 · 펜트하우스 · 하루 기준)은 `src/shared/rules/`의 순수 함수로 분리해 서버 · 화면 · 자정 작업이 같은 코드를 쓴다.
 
@@ -20,27 +20,27 @@
 - 하루 = 한국 시간(Asia/Seoul, UTC+9) 00:00~23:59. 자정 작업 Cron : `0 15 * * *` (UTC)
 - 포인트 : 사진 1번째 20P, 2번째 10P, 3번째 5P, 4번째 이후 0P / 루틴 글 하루 1회 10P / 하루 최대 45P
 - 층 : 입주 시 1층. 연속 기록 7의 배수 달성일마다 +1층. 미인증일 연속 횟수(missRun)가 1, 8, 15…(missRun % 7 === 1)일 때 −1층. 최저 1층, 상한 없음
-- 펜트하우스 : 빌라당 1명. 판정 = 층 내림차순 → 연속 기록 내림차순 → 그 층 도달 시각 오름차순. 자정에 재계산. 입주 · 나가기로 펜트하우스 주인이 바뀌어야 하면 즉시 재계산
-- 빌라 정원 10명. 사용자는 활성 빌라 1곳에만 소속
-- 빌라 이동 시 연속 기록 · 포인트 · 가구 · 캐릭터는 유지, 층만 1층에서 다시 시작
-- 방장이 나가면 남은 입주민 중 `joined_at`이 가장 이른 사람이 방장. 마지막 1명이 나가면 빌라는 `dissolved_at` 기록
-- 인증 사진 · 루틴은 같은 빌라 현재 입주민만 열람. R2 버킷은 공개하지 않는다
+- 펜트하우스 : 아파트당 1명. 판정 = 층 내림차순 → 연속 기록 내림차순 → 그 층 도달 시각 오름차순. 자정에 재계산. 입주 · 나가기로 펜트하우스 주인이 바뀌어야 하면 즉시 재계산
+- 아파트 정원 10명. 사용자는 활성 아파트 1곳에만 소속
+- 아파트 이동 시 연속 기록 · 포인트 · 가구 · 캐릭터는 유지, 층만 1층에서 다시 시작
+- 방장이 나가면 남은 입주민 중 `joined_at`이 가장 이른 사람이 방장. 마지막 1명이 나가면 아파트는 `dissolved_at` 기록
+- 인증 사진 · 루틴은 같은 아파트 현재 입주민만 열람. R2 버킷은 공개하지 않는다
 - 사진 : 브라우저에서 긴 변 1280px, JPEG 품질 0.8 시작, 150KB 이하가 될 때까지 품질을 0.1씩 낮춤(최저 0.5)
-- 신고 3건이면 사진 자동 가림. 방장은 빌라 입주민 사진 삭제 가능. 운영자 열람 기능 없음
+- 신고 3건이면 사진 자동 가림. 방장은 아파트 입주민 사진 삭제 가능. 운영자 열람 기능 없음
 - 종목 : `gym` 헬스 / `pilates` 필라테스 / `running` 러닝 / `climbing` 클라이밍 / `jiujitsu` 주짓수 / `taekwondo` 태권도. 이 외 추가 금지
-- 디자인 : 화이트톤. 빌라 화면은 시안(https://claude.ai/artifact/QeQhRNtkvyJZkK6dnFyLV9)의 구성을 따른다
+- 디자인 : 화이트톤. 아파트 화면은 시안(https://claude.ai/artifact/QeQhRNtkvyJZkK6dnFyLV9)의 구성을 따른다
 - 화면 문구는 한국어. 사용자 기준 표현(예: "오늘 오운완 인증하기", "불이 켜졌어요")
-- 알림은 앱 안 배지만. 빌라 화면은 열 때 · 새로고침 때 갱신(실시간 아님)
+- 알림은 앱 안 배지만. 아파트 화면은 열 때 · 새로고침 때 갱신(실시간 아님)
 - **[계획 단계 결정]** 이전 사진과 같은 사진(dHash 해밍거리 ≤ 5)은 저장하되 포인트 0, **오늘 인증으로도 치지 않는다** (같은 사진으로 연속 기록을 이어가는 것을 막기 위함). 화면 안내 : "전에 올린 사진과 같아요. 새 사진을 올려 주세요"
 - **[계획 단계 결정]** dHash는 브라우저에서 계산해 함께 보낸다 (1차는 친구 대상이라 신뢰. 2차 전 서버 검증 재검토)
-- **[계획 단계 결정]** 빌라를 옮긴 사람의 게시판 기록은 새 빌라 입주민에게 보인다 (게시판은 사람에게 붙음). 원래 빌라에서는 안 보인다
+- **[계획 단계 결정]** 아파트를 옮긴 사람의 게시판 기록은 새 아파트 입주민에게 보인다 (게시판은 사람에게 붙음). 원래 아파트에서는 안 보인다
 
 ## Review Focus
 
 1. **자정 경계 업로드** : 23:59:50 KST에 올린 사진은 그날 인증, 00:00:05 KST는 다음 날 인증이어야 한다 → Task 2 `kstDay` 테스트, Task 7 업로드 시각 기준 테스트
 2. **자정 작업 중복 실행** : Cron이 재시도되어 같은 날을 두 번 처리해도 층 · 연속 기록이 두 번 바뀌면 안 된다 → Task 8 `settings.last_settled_day` 멱등 테스트
 3. **9/10명일 때 두 명이 동시에 입주** : 11명이 되면 안 된다 → Task 5 정원 검사를 단일 SQL 문(INSERT … SELECT … WHERE count < 10)으로, 테스트로 고정
-4. **방장 혼자 사는 빌라에서 방장이 복구 요청** : 승인해 줄 사람이 없다 → Task 4에서 "확인해 줄 입주민이 없어요. 복구 코드로만 되찾을 수 있어요" 안내, 테스트로 고정
+4. **방장 혼자 사는 아파트에서 방장이 복구 요청** : 승인해 줄 사람이 없다 → Task 4에서 "확인해 줄 입주민이 없어요. 복구 코드로만 되찾을 수 있어요" 안내, 테스트로 고정
 5. **아이폰 HEIC · 디코딩 불가 사진** : 브라우저가 못 여는 사진을 고르면 앱이 멈추면 안 된다 → Task 7 `compressImage`가 디코딩 실패 시 `ImageDecodeError`를 던지고 화면은 "이 사진은 열 수 없어요. 다른 사진을 골라 주세요" 표시
 
 ---
@@ -144,7 +144,7 @@ CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 - [ ] **Step 3: 실패하는 테스트** `index.test.ts` : `SELF.fetch("http://x/api/health")` → status 200, body `{ ok: true }`
 - [ ] **Step 4:** `npx vitest run src/worker/index.test.ts` → FAIL
 - [ ] **Step 5:** Hono 앱에 `/api/health` 구현, `vitest.config.ts`에 `defineWorkersConfig` + 테스트 시작 시 `migrations/` 적용(`applyD1Migrations`)
-- [ ] **Step 6:** `npx vitest run` → PASS. `npm run dev`로 브라우저에서 React "오운완빌라" 첫 화면이 뜨는지 확인
+- [ ] **Step 6:** `npx vitest run` → PASS. `npm run dev`로 브라우저에서 React "오운완아파트" 첫 화면이 뜨는지 확인
 - [ ] **Step 7:** Commit `chore: 프로젝트 뼈대 (Worker + React + D1 + R2)`
 
 ### Task 2: 게임 규칙 엔진
@@ -157,7 +157,7 @@ CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 - Produces:
   - `kstDay(ms: number): string` → `"YYYY-MM-DD"` (KST), `prevDay(day: string): string`
   - `photoPoints(nth: number): number` (nth는 그날 중복 아닌 사진 순번, 1부터), `routinePoints(alreadyToday: boolean): number`
-  - `type DayState = { streak: number; missRun: number; floor: number | null }` (floor null = 빌라 없음)
+  - `type DayState = { streak: number; missRun: number; floor: number | null }` (floor null = 아파트 없음)
   - `settleDay(s: DayState, certified: boolean): { next: DayState; floorChanged: "up" | "down" | null }`
   - `type Contender = { userId: string; floor: number; streak: number; floorReachedAt: number }`, `pickPenthouse(cs: Contender[]): string | null`
   - `SPORTS = ["gym","pilates","running","climbing","jiujitsu","taekwondo"] as const`, `type Sport`, `SPORT_LABEL: Record<Sport,string>`
@@ -178,7 +178,7 @@ expect(settleDay({streak:0,missRun:6,floor:2}, false).next.floor).toBe(2)
 expect(settleDay({streak:0,missRun:7,floor:2}, false)).toEqual({next:{streak:0,missRun:8,floor:1},floorChanged:"down"})
 // 최저 1층
 expect(settleDay({streak:3,missRun:0,floor:1}, false).next.floor).toBe(1)
-// 빌라 없음 : 층 없이 연속 기록만
+// 아파트 없음 : 층 없이 연속 기록만
 expect(settleDay({streak:6,missRun:0,floor:null}, true).next).toEqual({streak:7,missRun:0,floor:null})
 // 이사 후 연속 기록 20 → 21일째는 7의 배수 아님, 21일째 도달 시 +1
 expect(settleDay({streak:20,missRun:0,floor:1}, true).next.floor).toBe(2)
@@ -236,7 +236,7 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
 - Produces:
   - `POST /api/recover/code {username, code, newPassword}` → 200 `{ recoveryCode }` (새 코드, 기존 폐기, 세션 발급) / 400 `"아이디 또는 복구 코드가 맞지 않아요"`
   - `POST /api/recovery-code/reissue` (로그인 필요) → `{ recoveryCode }`
-  - `POST /api/recover/request {username}` → 201 `{ ticket }` (요청 번호, 원문은 이때만) / 409 `"확인해 줄 입주민이 없어요. 복구 코드로만 되찾을 수 있어요"` / 400 빌라 없음 `"빌라에 살고 있어야 방장 확인을 쓸 수 있어요"`
+  - `POST /api/recover/request {username}` → 201 `{ ticket }` (요청 번호, 원문은 이때만) / 409 `"확인해 줄 입주민이 없어요. 복구 코드로만 되찾을 수 있어요"` / 400 아파트 없음 `"아파트에 살고 있어야 방장 확인을 쓸 수 있어요"`
   - `GET /api/recover/pending` (로그인 필요) → 내가 승인할 요청 목록 `[{id, nickname, createdAt}]`
   - `POST /api/recover/:id/approve` (승인자만)
   - `POST /api/recover/complete {username, ticket, newPassword}` → 200 `{ recoveryCode }` / 425 `"승인 후 24시간이 지나야 바꿀 수 있어요"`
@@ -255,7 +255,7 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
 - [ ] **Step 5:** Recover 화면 : [복구 코드로 되찾기] / [복구 코드도 없어요] 두 갈래. 요청 번호 화면에 "방장에게 직접 연락해서 승인해 달라고 말해 주세요. 승인 24시간 뒤에 비밀번호를 바꿀 수 있어요"
 - [ ] **Step 6:** Commit `feat: 복구 코드 · 방장 확인 계정 복구`
 
-### Task 5: 빌라
+### Task 5: 아파트
 
 **Files:**
 - Create: `src/worker/villa/service.ts`, `routes.ts`, `src/web/pages/VillaNew.tsx`, `Join.tsx`
@@ -265,11 +265,11 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
 - Consumes: `pickPenthouse`, `requireUser`
 - Produces:
   - `recomputePenthouse(env, villaId): Promise<string | null>` (활성 입주민 Contender로 `pickPenthouse`, `villas.penthouse_user_id` 갱신)
-  - `POST /api/villas {name}` → 201 `{ id, inviteToken }` (만든 사람 = 방장, 1층 입주, 펜트하우스 = 본인). 이미 빌라에 살면 409 `"지금 빌라를 먼저 나가야 해요"`. 이름 1~20자
+  - `POST /api/villas {name}` → 201 `{ id, inviteToken }` (만든 사람 = 방장, 1층 입주, 펜트하우스 = 본인). 이미 아파트에 살면 409 `"지금 아파트를 먼저 나가야 해요"`. 이름 1~20자
   - `PATCH /api/villas/:id {name}` (방장만)
   - `POST /api/villas/:id/invite/rotate` (방장만) → `{ inviteToken }`
   - `GET /api/invite/:token` → `{ villaName, memberCount }` (로그인 불필요, 입주 전 미리보기)
-  - `POST /api/invite/:token/join` → 200 / 409 `"빌라가 꽉 찼어요"` / 409 빌라 소속 중
+  - `POST /api/invite/:token/join` → 200 / 409 `"아파트가 꽉 찼어요"` / 409 아파트 소속 중
   - `POST /api/villas/leave` → 방장 승계, 펜트하우스 재계산, 마지막 1명이면 `dissolved_at`
   - `GET /api/villas/mine` → `{ id, name, ownerId, penthouseUserId, members: [{userId,nickname,sport,avatar,floor,streak,certifiedToday,placements}] }`
 
@@ -277,7 +277,7 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
   - `create_makes_owner_and_penthouse`
   - `join_rejects_11th_member` : 10명 후 11번째 409
   - `concurrent_joins_never_exceed_10` : 9명 상태에서 `Promise.all`로 2명 동시 join → 활성 입주민 정확히 10명 (Review Focus 3)
-  - `leave_keeps_streak_points_resets_floor` : 층 5 · 연속 20 · 포인트 300인 사람이 나가 다른 빌라 입주 → 층 1, 연속 20, 포인트 300, inventory 유지
+  - `leave_keeps_streak_points_resets_floor` : 층 5 · 연속 20 · 포인트 300인 사람이 나가 다른 아파트 입주 → 층 1, 연속 20, 포인트 300, inventory 유지
   - `owner_leave_passes_to_earliest_joined`
   - `last_leave_dissolves`
   - `penthouse_recomputed_on_leave` : 펜트하우스 주인이 나가면 다음 순위로
@@ -285,8 +285,8 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
 - [ ] **Step 2:** `npx vitest run src/worker/villa` → FAIL
 - [ ] **Step 3:** 구현. 입주는 `INSERT INTO memberships … SELECT … WHERE (SELECT COUNT(*) FROM memberships WHERE villa_id=? AND left_at IS NULL) < 10` 한 문장, `changes === 0`이면 409. `one_active_villa` 인덱스 위반은 409로 변환. `certifiedToday`는 `certs`에 오늘(`kstDay(now)`) duplicate=0 photo가 있는지
 - [ ] **Step 4:** `npx vitest run src/worker/villa` → PASS
-- [ ] **Step 5:** 화면 : VillaNew(빌라 이름 입력 → 초대 링크 복사), Join(`/join/:token` 미리보기 → 로그인 안 했으면 가입으로 보내고 돌아오기 → 입주)
-- [ ] **Step 6:** Commit `feat: 빌라 만들기 · 초대 입주 · 나가기 · 방장 승계`
+- [ ] **Step 5:** 화면 : VillaNew(아파트 이름 입력 → 초대 링크 복사), Join(`/join/:token` 미리보기 → 로그인 안 했으면 가입으로 보내고 돌아오기 → 입주)
+- [ ] **Step 6:** Commit `feat: 아파트 만들기 · 초대 입주 · 나가기 · 방장 승계`
 
 ### Task 6: 종목 · 캐릭터
 
@@ -304,7 +304,7 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
 - [ ] **Step 2:** 실행 → FAIL
 - [ ] **Step 3:** 구현
 - [ ] **Step 4:** 실행 → PASS
-- [ ] **Step 5:** Onboard 화면 : "어떤 운동을 하시나요?" 카드 5개(필수) → 캐릭터 꾸미기(미리보기 즉시 반영) → 빌라로. 빌라 입주 직후 `sport`가 없으면 자동으로 이 화면
+- [ ] **Step 5:** Onboard 화면 : "어떤 운동을 하시나요?" 카드 5개(필수) → 캐릭터 꾸미기(미리보기 즉시 반영) → 아파트로. 아파트 입주 직후 `sport`가 없으면 자동으로 이 화면
 - [ ] **Step 6:** Commit `feat: 종목 선택 · 캐릭터 꾸미기`
 
 ### Task 7: 오운완 인증
@@ -320,8 +320,8 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
   - `dhashFromGray(gray: Uint8Array /* 9x8 */): string` (16자 hex), `dhashFromBlob(b: Blob): Promise<string>`, `hamming(a: string, b: string): number`
   - `POST /api/certs/photo` multipart `{file, dhash}` → `{ certId, points, duplicate, certifiedToday }` / 413 파일 300KB 초과 / 415 JPEG 아님
   - `POST /api/certs/routine {body}` (1~1000자) → `{ certId, points }`
-  - `GET /api/users/:id/board?before=<ms>&limit=20` → `[{id, kind, day, body?, photoUrl?, hidden, createdAt}]` (같은 빌라 현재 입주민만, 아니면 403)
-  - `GET /api/photos/:certId` → R2 이미지 스트림 (같은 빌라 현재 입주민만, hidden이면 404)
+  - `GET /api/users/:id/board?before=<ms>&limit=20` → `[{id, kind, day, body?, photoUrl?, hidden, createdAt}]` (같은 아파트 현재 입주민만, 아니면 403)
+  - `GET /api/photos/:certId` → R2 이미지 스트림 (같은 아파트 현재 입주민만, hidden이면 404)
 
 - [ ] **Step 1: 실패하는 테스트**
   - `dhash` : 같은 배열 → 같은 hash, 한 픽셀 차이 → hamming ≤ 2
@@ -329,8 +329,8 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
   - `duplicate_photo_no_points_no_cert` : 이전 사진과 hamming 3 → `duplicate:true, points:0`, 그날 다른 사진 없으면 `certifiedToday:false`
   - `routine_once_per_day_points` : 두 번째 루틴 points 0
   - `day_boundary_uses_upload_time` : 시각 주입 23:59:50 KST → day 그날, 00:00:05 → 다음 날 (Review Focus 1)
-  - `board_forbidden_to_other_villa` : 다른 빌라 사용자 403, `photos` 403
-  - `board_visible_after_move` : 사용자가 B 빌라로 옮기면 B 입주민 200, A 입주민 403
+  - `board_forbidden_to_other_villa` : 다른 아파트 사용자 403, `photos` 403
+  - `board_visible_after_move` : 사용자가 B 아파트로 옮기면 B 입주민 200, A 입주민 403
 - [ ] **Step 2:** `npx vitest run src/worker/cert src/web/image` → FAIL
 - [ ] **Step 3:** 구현. 중복 판정은 그 사용자의 기존 photo cert 전체 dhash와 비교. R2 키 `photos/<userId>/<certId>.jpg`. 포인트는 `users.points`에 즉시 가산. `nth`는 그날 duplicate=0 photo 개수 + 1
 - [ ] **Step 4:** 실행 → PASS
@@ -360,7 +360,7 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
 - [ ] **Step 4:** 실행 → PASS
 - [ ] **Step 5:** Commit `feat: 자정 정산 (연속 기록 · 층 · 펜트하우스)`
 
-### Task 9: 빌라 화면
+### Task 9: 아파트 화면
 
 **Files:**
 - Create: `src/web/pages/Villa.tsx`, `src/web/components/Building.tsx`, `RoomTile.tsx`, `RoomScene.tsx`
@@ -372,9 +372,9 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
 
 - [ ] **Step 1: 실패하는 테스트** : `layoutFloors` — 펜트하우스 주인은 PH 행 1개에만, 나머지는 층 내림차순, 빈 층 연속 구간은 `{gap:[9,11]}` 하나로 접힘, 1층에 빈방 자리 수 = 10 − 입주민 수
 - [ ] **Step 2:** 실행 → FAIL
-- [ ] **Step 3:** 구현. 시안의 구성(PH 금색 테두리, 층 라벨, 불 켜짐 방 = 노란 배경 + 종목별 운동 애니메이션, 꺼진 방 = 어두운 배경 + 자는 캐릭터, `prefers-reduced-motion` 존중)을 React 컴포넌트로 옮긴다. 상단 : 빌라 이름, `입주 n/10명`, `오늘 완료 n명`, 내 방이 꺼져 있으면 [오늘 오운완 인증하기] 버튼
+- [ ] **Step 3:** 구현. 시안의 구성(PH 금색 테두리, 층 라벨, 불 켜짐 방 = 노란 배경 + 종목별 운동 애니메이션, 꺼진 방 = 어두운 배경 + 자는 캐릭터, `prefers-reduced-motion` 존중)을 React 컴포넌트로 옮긴다. 상단 : 아파트 이름, `입주 n/10명`, `오늘 완료 n명`, 내 방이 꺼져 있으면 [오늘 오운완 인증하기] 버튼
 - [ ] **Step 4:** 실행 → PASS, `npm run dev`에서 시드 데이터로 시안과 같은 모습인지 확인 (모바일 폭 390px 포함)
-- [ ] **Step 5:** Commit `feat: 빌라 화면`
+- [ ] **Step 5:** Commit `feat: 아파트 화면`
 
 ### Task 10: 방 상세 · 게시판
 
@@ -417,8 +417,8 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
 - Test: `src/worker/report/report.test.ts`
 
 **Interfaces:**
-- Produces: `POST /api/certs/:id/report` → `{ hidden }` (같은 빌라 입주민만, 본인 사진 신고 400, 같은 사람 중복 신고 무시), `DELETE /api/certs/:id` (방장 또는 작성자) → R2 객체 삭제 + 행 삭제. 포인트는 회수하지 않는다
-- [ ] **Step 1: 실패하는 테스트** : 3명 신고 시 hidden=1 · 같은 사람 2번은 1건 · 다른 빌라 403 · 방장 삭제 시 R2 객체 없음 · 일반 입주민이 남의 사진 삭제 403
+- Produces: `POST /api/certs/:id/report` → `{ hidden }` (같은 아파트 입주민만, 본인 사진 신고 400, 같은 사람 중복 신고 무시), `DELETE /api/certs/:id` (방장 또는 작성자) → R2 객체 삭제 + 행 삭제. 포인트는 회수하지 않는다
+- [ ] **Step 1: 실패하는 테스트** : 3명 신고 시 hidden=1 · 같은 사람 2번은 1건 · 다른 아파트 403 · 방장 삭제 시 R2 객체 없음 · 일반 입주민이 남의 사진 삭제 403
 - [ ] **Step 2:** 실행 → FAIL
 - [ ] **Step 3:** 구현
 - [ ] **Step 4:** 실행 → PASS
@@ -431,8 +431,8 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
 - Test: `src/worker/badges/badges.test.ts`
 
 **Interfaces:**
-- Produces: `GET /api/badges` → `{ recoveryApprovals: number }`; 설정 화면 항목 : 닉네임, 종목, 캐릭터, 비밀번호 변경(`POST /api/me/password {current, next}`), 복구 코드 재발급, 빌라 이름(방장), 초대 링크 재생성(방장), 빌라 나가기(확인 화면 "층은 1층부터 다시 시작해요"), 로그아웃, 탈퇴(`DELETE /api/me` : 계정 · 사진 · 루틴 · R2 객체 즉시 삭제, 빌라에서 나가기 처리)
-- [ ] **Step 1: 실패하는 테스트** : 승인 대기 2건 → `recoveryApprovals: 2` · 비밀번호 변경 시 현재 비밀번호 틀리면 400 · 탈퇴 후 R2에 해당 사용자 객체 0개, 빌라 방장 승계됨
+- Produces: `GET /api/badges` → `{ recoveryApprovals: number }`; 설정 화면 항목 : 닉네임, 종목, 캐릭터, 비밀번호 변경(`POST /api/me/password {current, next}`), 복구 코드 재발급, 아파트 이름(방장), 초대 링크 재생성(방장), 아파트 나가기(확인 화면 "층은 1층부터 다시 시작해요"), 로그아웃, 탈퇴(`DELETE /api/me` : 계정 · 사진 · 루틴 · R2 객체 즉시 삭제, 아파트에서 나가기 처리)
+- [ ] **Step 1: 실패하는 테스트** : 승인 대기 2건 → `recoveryApprovals: 2` · 비밀번호 변경 시 현재 비밀번호 틀리면 400 · 탈퇴 후 R2에 해당 사용자 객체 0개, 아파트 방장 승계됨
 - [ ] **Step 2:** 실행 → FAIL
 - [ ] **Step 3:** 구현. Terms · Privacy는 "운영자 명의 · 시행일은 2차 공개 전 확정" 자리표시 문구와 수집 항목(아이디, 비밀번호 해시, 닉네임, 인증 사진 · 루틴) · 보관 기간(탈퇴 시 즉시 삭제)만 우선 기재
 - [ ] **Step 4:** 실행 → PASS
@@ -446,7 +446,7 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
 
 - [ ] **Step 1:** 기획자 Cloudflare 계정에서 D1(`ownwan-villa`) · R2(`ownwan-villa-photos`) 생성, `wrangler.jsonc`에 database_id 기입, `wrangler d1 migrations apply ownwan-villa --remote`
 - [ ] **Step 2:** `.github/workflows/deploy.yml` : main 푸시 시 `npm ci && npx vitest run && npx wrangler deploy` (시크릿 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`)
-- [ ] **Step 3:** 배포 후 `https://ownwan-villa.<계정>.workers.dev`에서 점검표 실행 : 휴대폰 2대로 가입 → 복구 코드 → 빌라 만들기 → 초대 링크 입주 → 종목 · 캐릭터 → 사진 인증(아이폰 · 안드로이드 각각) → 불 켜짐 확인 → 상점 구매 · 배치 → 신고 → 나가기 · 재입주 → 다음 날 자정 정산 결과 확인(`wrangler tail`)
+- [ ] **Step 3:** 배포 후 `https://ownwan-villa.<계정>.workers.dev`에서 점검표 실행 : 휴대폰 2대로 가입 → 복구 코드 → 아파트 만들기 → 초대 링크 입주 → 종목 · 캐릭터 → 사진 인증(아이폰 · 안드로이드 각각) → 불 켜짐 확인 → 상점 구매 · 배치 → 신고 → 나가기 · 재입주 → 다음 날 자정 정산 결과 확인(`wrangler tail`)
 - [ ] **Step 4:** Cloudflare 대시보드에서 사용량 알림 설정(R2 저장량, Workers 요청 수) 방법을 `launch-checklist.md`에 기록
 - [ ] **Step 5:** Commit `chore: 배포 파이프라인과 오픈 점검표`
 
@@ -454,4 +454,4 @@ expect(pickPenthouse([{userId:"a",floor:6,streak:1,floorReachedAt:9},{userId:"b"
 
 ## Spec 대비 1차 범위 밖 (2차)
 
-빈방 모집 · 입주 신청, 도시 지도 · 공개 설정(`villas.public` 컬럼만 미리 둠), 사진 저장량 90% 업로드 차단, 가구 추가. 집값 대결 · 아파트 · 후원은 다음 버전.
+빈방 모집 · 입주 신청, 도시 지도 · 공개 설정(`villas.public` 컬럼만 미리 둠), 사진 저장량 90% 업로드 차단, 가구 추가. 집값 대결 · 타워팰리스 · 후원은 다음 버전.

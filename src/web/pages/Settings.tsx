@@ -23,7 +23,7 @@ import { dropSubscription, endpointForLogout } from "../push/client";
 type Me = { id: string; username: string; nickname: string; sport: Sport | null; avatar: AvatarSpec };
 type VillaInfo = {
   id: string; name: string; ownerId: string; inviteToken?: string; public?: boolean; members: Member[];
-  /** 건물 종류 · 정원 (예전 서버 응답에는 없다 → 빌라 · 20명) */
+  /** 건물 종류 · 정원 (예전 서버 응답에는 없다 → 아파트 · 20명) */
   kind?: VillaKind; capacity?: number;
 } | null;
 type Pending = { id: string; nickname: string }[];
@@ -46,7 +46,7 @@ export function Settings() {
   const nav = useNavigate();
   const [me, setMe] = useState<Me | null>(null);
   const [villa, setVilla] = useState<VillaInfo>(null);
-  // 내가 사는 빌라 모두. 빌라 설정(방장 메뉴 · 공개 · 나가기)은 고른 빌라 하나에 대해 보여 준다
+  // 내가 사는 아파트 모두. 아파트 설정(방장 메뉴 · 공개 · 나가기)은 고른 아파트 하나에 대해 보여 준다
   const [villas, setVillas] = useState<MyVilla[]>([]);
   const [pending, setPending] = useState<Pending>([]);
   const [loadError, setLoadError] = useState("");
@@ -83,7 +83,7 @@ export function Settings() {
   async function loadPending() {
     setPending(await api<Pending>("/api/recover/pending"));
   }
-  /** 내 빌라 목록과 고른 빌라(want → 이 기기에서 마지막으로 본 빌라 → 첫 빌라)의 정보를 불러온다 */
+  /** 내 아파트 목록과 고른 아파트(want → 이 기기에서 마지막으로 본 아파트 → 첫 아파트)의 정보를 불러온다 */
   async function loadVillas(want?: string | null) {
     let list = await loadMyVillas();
     let id = pickVilla(list, want);
@@ -92,7 +92,7 @@ export function Settings() {
       v = id ? await api<NonNullable<VillaInfo>>(`/api/villas/${id}`) : null;
     } catch (e) {
       if (!(e instanceof ApiError && e.status === 404)) throw e;
-      // 목록을 받은 뒤 그 빌라에서 나갔거나 내보내졌다: 목록을 다시 받아 다른 빌라로
+      // 목록을 받은 뒤 그 아파트에서 나갔거나 내보내졌다: 목록을 다시 받아 다른 아파트로
       list = (await loadMyVillas()).filter((x) => x.id !== id);
       id = pickVilla(list);
       v = id ? await api<NonNullable<VillaInfo>>(`/api/villas/${id}`) : null;
@@ -104,7 +104,7 @@ export function Settings() {
     setConfirm((c) => (c === "leave" ? "" : c));
     return v;
   }
-  /** 방장 넘기기 · 내보내기 뒤: 빌라 정보(방장 · 입주민 · 초대 링크)를 다시 불러온다 */
+  /** 방장 넘기기 · 내보내기 뒤: 아파트 정보(방장 · 입주민 · 초대 링크)를 다시 불러온다 */
   async function reloadVilla() {
     const v = await loadVillas(villa?.id);
     pokeEvents();
@@ -128,7 +128,7 @@ export function Settings() {
     })();
   }, [nav]);
 
-  // 가진 옷 · 소품은 따로 불러온다: 실패해도 설정 화면(비밀번호 · 빌라 나가기 등)은 그대로 쓴다
+  // 가진 옷 · 소품은 따로 불러온다: 실패해도 설정 화면(비밀번호 · 아파트 나가기 등)은 그대로 쓴다
   useEffect(() => {
     api<{ owned: string[] }>("/api/shop").then((s) => setOwned(s.owned), () => {});
   }, []);
@@ -155,7 +155,7 @@ export function Settings() {
 
   return (
     <main className="page">
-      <Link className="back" to={villa ? `/villa/${villa.id}` : "/villa"}>← 빌라로</Link>
+      <Link className="back" to={villa ? `/villa/${villa.id}` : "/villa"}>← 아파트로</Link>
       <h1>설정</h1>
 
       {pending.length > 0 && (
@@ -287,13 +287,13 @@ export function Settings() {
       </>}
 
       {villas.length > 1 && villa && (
-        <section className="settings-section" aria-label="빌라 고르기">
-          <h2>빌라별 설정</h2>
-          <p className="muted small">아래 방장 메뉴 · 도시 지도 공개 · 빈방 모집 · 빌라 나가기는 고른 빌라에만 적용돼요.</p>
+        <section className="settings-section" aria-label="아파트 고르기">
+          <h2>아파트별 설정</h2>
+          <p className="muted small">아래 방장 메뉴 · 도시 지도 공개 · 빈방 모집 · 아파트 나가기는 고른 아파트에만 적용돼요.</p>
           <VillaSwitcher
             villas={villas}
             currentId={villa.id}
-            label="설정할 빌라"
+            label="설정할 아파트"
             onPick={(id) => {
               writeCurrentVilla(id);
               setNotes((p) => ({ ...p, villa: {}, city: {}, leave: {}, transfer: {} }));
@@ -304,9 +304,9 @@ export function Settings() {
       )}
 
       {villa && isOwner && (
-        <Section title={villas.length > 1 ? `${villa.name} (방장)` : "빌라 (방장)"} note={notes.villa}>
+        <Section title={villas.length > 1 ? `${villa.name} (방장)` : "아파트 (방장)"} note={notes.villa}>
           <div className="field">
-            <label htmlFor="villa-name">빌라 이름</label>
+            <label htmlFor="villa-name">아파트 이름</label>
             <input id="villa-name" type="text" value={villaName} onChange={(e) => setVillaName(e.target.value)} />
           </div>
           <div className="row">
@@ -335,7 +335,7 @@ export function Settings() {
               <label className="switch-row">
                 <span>
                   <b>{villa.public ? "지도에 나와요" : "지도에 나오지 않아요"}</b>
-                  <span className="muted small">켜면 다른 빌라도 빌라 이름 · 건물 · 불 켜진 방 수를 볼 수 있어요. 사진과 루틴은 계속 우리끼리만 봐요.</span>
+                  <span className="muted small">켜면 다른 아파트도 아파트 이름 · 건물 · 불 켜진 방 수를 볼 수 있어요. 사진과 루틴은 계속 우리끼리만 봐요.</span>
                 </span>
                 <button
                   type="button"
@@ -361,7 +361,7 @@ export function Settings() {
             </>
           ) : (
             <p className="muted small">
-              {villa.public ? "우리 빌라는 지도에 나와요." : "우리 빌라는 지도에 나오지 않아요."} 공개 설정은 방장이 해요.
+              {villa.public ? "우리 아파트는 지도에 나와요." : "우리 아파트는 지도에 나오지 않아요."} 공개 설정은 방장이 해요.
             </p>
           )}
         </Section>
@@ -371,8 +371,8 @@ export function Settings() {
         <Section title={villas.length > 1 ? `${villa.name} 집값 대결` : "집값 대결"}>
           <p className="muted small">
             {isOwner
-              ? "다른 공개 빌라에 7일 집값 대결을 신청하거나, 받은 신청에 답할 수 있어요."
-              : "우리 빌라 대결 상황을 볼 수 있어요. 신청하고 받는 건 방장이 해요."}
+              ? "다른 공개 아파트에 7일 집값 대결을 신청하거나, 받은 신청에 답할 수 있어요."
+              : "우리 아파트 대결 상황을 볼 수 있어요. 신청하고 받는 건 방장이 해요."}
           </p>
           <Link className="text-link" to={`/battle/${villa.id}`} style={{ marginTop: 0 }}>대결 화면 열기</Link>
         </Section>
@@ -383,7 +383,7 @@ export function Settings() {
           key={villa.id}
           villa={villa}
           isOwner={isOwner}
-          title={villas.length > 1 ? `${villa.name} 아파트 승격` : "아파트 승격"}
+          title={villas.length > 1 ? `${villa.name} 타워팰리스 승격` : "타워팰리스 승격"}
           onPromoted={(capacity) => {
             setVilla({ ...villa, kind: "apartment", capacity });
             // 축하 카드를 바로 보여 준다
@@ -423,13 +423,13 @@ export function Settings() {
       {notes.transfer?.ok && <p className="ok" role="status">{notes.transfer.ok}</p>}
 
       {villa && (
-        <Section title={villas.length > 1 ? `${villa.name} 나가기` : "빌라 나가기"} note={notes.leave}>
+        <Section title={villas.length > 1 ? `${villa.name} 나가기` : "아파트 나가기"} note={notes.leave}>
           {confirm === "leave" ? (
-            <div role="alertdialog" aria-label="빌라 나가기 확인">
+            <div role="alertdialog" aria-label="아파트 나가기 확인">
               <p>
                 {villas.length > 1
-                  ? `${villa.name}에서 나갈까요? 연속 기록과 포인트, 가구, 다른 빌라는 그대로예요. 다시 들어오면 이 빌라에서는 1층부터 시작해요.`
-                  : "빌라를 나갈까요? 연속 기록과 포인트, 가구는 그대로지만 층은 1층부터 다시 시작해요."}
+                  ? `${villa.name}에서 나갈까요? 연속 기록과 포인트, 가구, 다른 아파트는 그대로예요. 다시 들어오면 이 아파트에서는 1층부터 시작해요.`
+                  : "아파트를 나갈까요? 연속 기록과 포인트, 가구는 그대로지만 층은 1층부터 다시 시작해요."}
               </p>
               <div className="row">
                 <button className="btn danger" type="button" onClick={() => run("leave", "", async () => {
@@ -440,7 +440,7 @@ export function Settings() {
               </div>
             </div>
           ) : (
-            <button className="btn danger ghost" type="button" onClick={() => setConfirm("leave")}>빌라 나가기</button>
+            <button className="btn danger ghost" type="button" onClick={() => setConfirm("leave")}>아파트 나가기</button>
           )}
         </Section>
       )}

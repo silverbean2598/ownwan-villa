@@ -43,7 +43,7 @@ export function KakaoNickname() {
   return (
     <main className="page">
       <h1>닉네임 정하기</h1>
-      <p className="muted">빌라에서 보이는 이름이에요. 카카오에서는 회원번호만 받고, 이름이나 프로필은 받지 않아요.</p>
+      <p className="muted">아파트에서 보이는 이름이에요. 카카오에서는 회원번호만 받고, 이름이나 프로필은 받지 않아요.</p>
       <form onSubmit={submit} noValidate>
         <div className="field">
           <label htmlFor="nickname">닉네임</label>

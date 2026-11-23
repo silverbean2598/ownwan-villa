@@ -39,7 +39,7 @@ describe("인증 카드 자료", () => {
         if (path === "/api/me/villas") return ok([{ id: "A", name: "가" }, { id: "B", name: "나" }]);
         if (path === "/api/villas/B")
           return ok({
-            id: "B", name: "오운완빌라 3동", penthouseUserId: null,
+            id: "B", name: "오운완아파트 3동", penthouseUserId: null,
             members: [
               { userId: "me", nickname: "민지", sport: "pilates", avatar: {}, floor: 5, streak: 2, userStreak: 6, certifiedToday: true, certifiedAnywhere: true, placements: [] },
               { userId: "u2", nickname: "준호", sport: "gym", avatar: {}, floor: 1, streak: 0, certifiedToday: true, placements: [] },
@@ -56,7 +56,7 @@ describe("인증 카드 자료", () => {
   it("loads_my_floor_streak_villa_and_only_my_board", async () => {
     const calls = mockApi();
     const d = await loadCertCardData("B", NOW);
-    expect(d).toMatchObject({ day: DAY, nickname: "민지", sport: "pilates", streak: 7, floor: 5, penthouse: false, villaName: "오운완빌라 3동", routine: "플랭크", photoUrl: "/api/photos/p1" });
+    expect(d).toMatchObject({ day: DAY, nickname: "민지", sport: "pilates", streak: 7, floor: 5, penthouse: false, villaName: "오운완아파트 3동", routine: "플랭크", photoUrl: "/api/photos/p1" });
     // 내 게시판만 읽고, 사진 그림은 아직 받지 않는다
     expect(calls.filter((c) => c.includes("/board"))).toEqual(["/api/users/me/board?limit=20"]);
     expect(calls.some((c) => c.startsWith("/api/photos/"))).toBe(false);

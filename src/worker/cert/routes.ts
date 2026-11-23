@@ -15,11 +15,11 @@ import { photoPoints, routinePoints } from "../../shared/rules/points";
 export const cert = new Hono<AppEnv>();
 
 const MAX_BYTES = 300 * 1024;
-const FORBIDDEN = "같은 빌라 입주민만 볼 수 있어요";
+const FORBIDDEN = "같은 아파트 입주민만 볼 수 있어요";
 
 /**
- * 기록이 보이는 조건 [확정 — 기획자 결정, 2026-11-19]: 그 기록이 올라간 빌라 중 하나에 작성자와 보는 사람이 둘 다 지금 산다(해체 안 됨).
- * 인자는 SQL 식. 안쪽 별칭 sv(기록 ↔ 빌라) · svv(빌라) · sa(작성자 입주) · sb(보는 사람 입주)
+ * 기록이 보이는 조건 [확정 — 기획자 결정, 2026-11-19]: 그 기록이 올라간 아파트 중 하나에 작성자와 보는 사람이 둘 다 지금 산다(해체 안 됨).
+ * 인자는 SQL 식. 안쪽 별칭 sv(기록 ↔ 아파트) · svv(아파트) · sa(작성자 입주) · sb(보는 사람 입주)
  */
 export const sharedVillaOf = (cert: string, author: string, viewer: string) => `EXISTS (SELECT 1 FROM cert_villas sv
   JOIN villas svv ON svv.id = sv.villa_id AND svv.dissolved_at IS NULL
@@ -27,7 +27,7 @@ export const sharedVillaOf = (cert: string, author: string, viewer: string) => `
   JOIN memberships sb ON sb.villa_id = sv.villa_id AND sb.user_id = ${viewer} AND sb.left_at IS NULL
   WHERE sv.cert_id = ${cert})`;
 
-/** 본인이거나, 둘이 지금 함께 사는 (해체되지 않은) 빌라가 하나라도 있다. 게시판을 열 수 있는지(문 앞 확인)에 쓴다 */
+/** 본인이거나, 둘이 지금 함께 사는 (해체되지 않은) 아파트가 하나라도 있다. 게시판을 열 수 있는지(문 앞 확인)에 쓴다 */
 export async function canView(env: Env, viewerId: string, ownerId: string): Promise<boolean> {
   if (viewerId === ownerId) return true;
   const row = await env.DB.prepare(
@@ -41,15 +41,15 @@ export async function canView(env: Env, viewerId: string, ownerId: string): Prom
   return !!row;
 }
 
-/** 이 기록을 볼 수 있다: 작성자 본인이거나, 기록이 올라간 빌라에 둘 다 지금 산다 */
+/** 이 기록을 볼 수 있다: 작성자 본인이거나, 기록이 올라간 아파트에 둘 다 지금 산다 */
 export async function canViewCert(env: Env, viewerId: string, cert: { id: string; user_id: string }): Promise<boolean> {
   if (viewerId === cert.user_id) return true;
   return !!(await env.DB.prepare(`SELECT ${sharedVillaOf("?1", "?2", "?3")} AS ok`).bind(cert.id, cert.user_id, viewerId).first<{ ok: number }>())?.ok;
 }
 
 /**
- * viewer 가 이 기록을 지우거나 댓글을 정리할 수 있는 방장인지: 기록이 올라간 (해체되지 않은) 빌라 중
- * viewer 가 방장인 빌라가 있고, 작성자와 viewer 가 둘 다 그 빌라에 지금 산다
+ * viewer 가 이 기록을 지우거나 댓글을 정리할 수 있는 방장인지: 기록이 올라간 (해체되지 않은) 아파트 중
+ * viewer 가 방장인 아파트가 있고, 작성자와 viewer 가 둘 다 그 아파트에 지금 산다
  */
 export async function isModeratorOf(env: Env, viewerId: string, cert: { id: string; user_id: string }): Promise<boolean> {
   const row = await env.DB.prepare(
@@ -64,12 +64,12 @@ export async function isModeratorOf(env: Env, viewerId: string, cert: { id: stri
   return !!row;
 }
 
-const PICK_NONE = "올릴 빌라를 하나 이상 골라 주세요";
-const PICK_NOT_MINE = "내가 사는 빌라에만 올릴 수 있어요";
+const PICK_NONE = "올릴 아파트를 하나 이상 골라 주세요";
+const PICK_NOT_MINE = "내가 사는 아파트에만 올릴 수 있어요";
 
 /**
- * 인증을 올릴 빌라를 정한다. raw 가 없으면(예전 화면) 사는 빌라 모두. 있으면 내가 사는 빌라 중에서만,
- * 빌라에 산다면 1곳 이상. 빌라가 없는 사람은 빈 목록(지금처럼 기록만 남는다)
+ * 인증을 올릴 아파트를 정한다. raw 가 없으면(예전 화면) 사는 아파트 모두. 있으면 내가 사는 아파트 중에서만,
+ * 아파트에 산다면 1곳 이상. 아파트가 없는 사람은 빈 목록(지금처럼 기록만 남는다)
  */
 export async function pickVillas(env: Env, userId: string, raw: unknown): Promise<{ ids: string[] } | { status: number; message: string }> {
   const mine = await myVillaIds(env, userId);
@@ -81,7 +81,7 @@ export async function pickVillas(env: Env, userId: string, raw: unknown): Promis
   return { ids };
 }
 
-/** 고른 빌라에 기록을 올리는 문장. 기록(certs)을 넣기 전에 batch 에 넣는다 (먼저 넣어야 안전망 트리거가 모든 빌라에 올리지 않는다) */
+/** 고른 아파트에 기록을 올리는 문장. 기록(certs)을 넣기 전에 batch 에 넣는다 (먼저 넣어야 안전망 트리거가 모든 아파트에 올리지 않는다) */
 function linkStatement(env: Env, certId: string, userId: string, villaIds: string[], t: number) {
   return env.DB.prepare(
     `INSERT OR IGNORE INTO cert_villas (cert_id, villa_id, created_at)
@@ -111,17 +111,17 @@ WHERE ?6 = 0 OR EXISTS (SELECT 1 FROM cert_villas WHERE cert_id = ?1)`;
 
 const JPEG_MAGIC = [0xff, 0xd8, 0xff];
 
-// 기록이 실제로 들어갔을 때만 (빌라를 골랐는데 그 사이 모두 나가 기록이 안 들어간 경우 아무것도 하지 않는다)
+// 기록이 실제로 들어갔을 때만 (아파트를 골랐는데 그 사이 모두 나가 기록이 안 들어간 경우 아무것도 하지 않는다)
 const ADD_POINTS = "UPDATE users SET points = points + (SELECT points FROM certs WHERE id = ?1) WHERE id = ?2 AND EXISTS (SELECT 1 FROM certs WHERE id = ?1)";
 
 /**
- * 빌라 이야기: 기록 INSERT 는 빌라를 골랐다면(?8 / ?6 = 1) 고른 빌라 행이 하나라도 들어갔을 때만 일어난다.
- * 고른 빌라에서 그 사이 모두 나갔는데(다른 탭에서 나가기 · 내보내짐) 그냥 넣으면 0010 안전망 트리거가
- * 고르지 않은 다른 빌라 모두에 올려 버린다. 그래서 그때는 아무것도 넣지 않고 409 로 다시 고르게 한다.
+ * 아파트 이야기: 기록 INSERT 는 아파트를 골랐다면(?8 / ?6 = 1) 고른 아파트 행이 하나라도 들어갔을 때만 일어난다.
+ * 고른 아파트에서 그 사이 모두 나갔는데(다른 탭에서 나가기 · 내보내짐) 그냥 넣으면 0010 안전망 트리거가
+ * 고르지 않은 다른 아파트 모두에 올려 버린다. 그래서 그때는 아무것도 넣지 않고 409 로 다시 고르게 한다.
  */
-const PICK_GONE = "선택한 빌라에서 나가서 올리지 못했어요. 다시 골라 주세요";
+const PICK_GONE = "선택한 아파트에서 나가서 올리지 못했어요. 다시 골라 주세요";
 
-/** 테스트용: 빌라를 고른 뒤 기록을 쓰기 직전에 부른다 (그 사이 빌라에서 나가는 경쟁을 재현) */
+/** 테스트용: 아파트를 고른 뒤 기록을 쓰기 직전에 부른다 (그 사이 아파트에서 나가는 경쟁을 재현) */
 export const certTestHooks: { beforeWrite?: (userId: string) => Promise<void> } = {};
 
 cert.post("/api/certs/photo", requireUser, async (c) => {
@@ -172,7 +172,7 @@ cert.post("/api/certs/photo", requireUser, async (c) => {
   }
   const row = await c.env.DB.prepare("SELECT points FROM certs WHERE id = ?").bind(id).first<{ points: number }>();
   if (!row) {
-    // 고른 빌라에서 모두 나가 기록이 들어가지 않았다: 사진 파일만 지우고 알림 · 1등 계산 없이 끝낸다
+    // 고른 아파트에서 모두 나가 기록이 들어가지 않았다: 사진 파일만 지우고 알림 · 1등 계산 없이 끝낸다
     await deletePhotoBlob(c.env, { id, r2_key: key });
     return jsonError(c, 409, PICK_GONE);
   }
@@ -191,7 +191,7 @@ cert.post("/api/certs/photo", requireUser, async (c) => {
   return c.json({ certId: id, points: row.points, duplicate: !!duplicate, certifiedToday: !!today, villaIds: posted });
 });
 
-/** 이 기록이 실제로 올라간 빌라 (해체되지 않은 빌라만) */
+/** 이 기록이 실제로 올라간 아파트 (해체되지 않은 아파트만) */
 async function postedVillas(env: Env, certId: string): Promise<string[]> {
   const { results } = await env.DB.prepare(
     "SELECT cv.villa_id AS id FROM cert_villas cv JOIN villas v ON v.id = cv.villa_id AND v.dissolved_at IS NULL WHERE cv.cert_id = ?",
@@ -204,9 +204,9 @@ async function postedVillas(env: Env, certId: string): Promise<string[]> {
 /**
  * 사진 인증 뒤 알림.
  * - certified: 그날 첫 인증 토스트 (사용자당 하루 한 번, 포인트를 받는 사진에만)
- * - 빌라마다(이번에 이 빌라에 올라갔고 오늘 이 빌라 불이 켜졌을 때): 이 빌라 연속 기록이 7의 배수면 floor_up, 6이면 streak6.
- *   키에 빌라 id 를 넣어 같은 날 두 빌라에서 각각 축하한다
- * - 어느 빌라든 올린 날로 센 연속 기록이 7의 배수면 streak7 (같은 숫자의 floor_up 이 이번에 함께 생기면 겹치니 보내지 않는다)
+ * - 아파트마다(이번에 이 아파트에 올라갔고 오늘 이 아파트 불이 켜졌을 때): 이 아파트 연속 기록이 7의 배수면 floor_up, 6이면 streak6.
+ *   키에 아파트 id 를 넣어 같은 날 두 아파트에서 각각 축하한다
+ * - 어느 아파트든 올린 날로 센 연속 기록이 7의 배수면 streak7 (같은 숫자의 floor_up 이 이번에 함께 생기면 겹치니 보내지 않는다)
  * 키를 날짜로 고정해 하루 한 번만 남는다 (같은 날 두 번째 사진 · 지웠다 다시 올린 사진에는 다시 생기지 않는다).
  */
 async function certEvents(
@@ -223,7 +223,7 @@ async function certEvents(
   const u = await env.DB.prepare("SELECT streak FROM users WHERE id = ?").bind(userId).first<{ streak: number }>();
   if (!u) return evs;
   const floorUps = new Set<number>();
-  // 배포 당일: 예전 서버가 오늘 이미 층 축하(floor_up · streak6, 키 streak:{user}:{day})를 남겼다면 빌라별 축하를 다시 만들지 않는다
+  // 배포 당일: 예전 서버가 오늘 이미 층 축하(floor_up · streak6, 키 streak:{user}:{day})를 남겼다면 아파트별 축하를 다시 만들지 않는다
   const legacy = await env.DB.prepare("SELECT 1 AS x FROM events WHERE id = ? AND type IN ('floor_up', 'streak6')")
     .bind(`streak:${userId}:${day}`)
     .first();
@@ -241,7 +241,7 @@ async function certEvents(
       floorUps.add(streak);
       evs.push(...(await tagVilla(env, villaId, [{ userId, type: "floor_up", payload: { floor: displayFloor(m.floor, m.streak, true), streak }, key }])));
     } else if (streak % 7 === 6) {
-      // "내일 인증하면 한 층 올라가요": 이 빌라에 올렸을 때만
+      // "내일 인증하면 한 층 올라가요": 이 아파트에 올렸을 때만
       evs.push(...(await tagVilla(env, villaId, [{ userId, type: "streak6", payload: { streak }, key }])));
     }
   }
@@ -251,8 +251,8 @@ async function certEvents(
 }
 
 /**
- * 다른 빌라에도 올리기: 오늘(KST) 올린 내 기록(지우지 않은 사진 · 루틴)을 고른 빌라에 더 올린다.
- * 오늘 기록만 된다(어제 것은 못 올린다). 포인트는 더 주지 않는다. 빌라에서 내리기는 없다.
+ * 다른 아파트에도 올리기: 오늘(KST) 올린 내 기록(지우지 않은 사진 · 루틴)을 고른 아파트에 더 올린다.
+ * 오늘 기록만 된다(어제 것은 못 올린다). 포인트는 더 주지 않는다. 아파트에서 내리기는 없다.
  */
 cert.post("/api/certs/today/villas", requireUser, async (c) => {
   const userId = c.get("userId");
@@ -266,7 +266,7 @@ cert.post("/api/certs/today/villas", requireUser, async (c) => {
     .bind(userId, day)
     .first();
   if (!has) return jsonError(c, 409, "오늘 올린 인증 사진이 없어요. 먼저 인증해 주세요");
-  // 이번에 새로 불이 켜지는 빌라 (이미 올린 빌라는 알림 · 1등 계산을 다시 하지 않는다)
+  // 이번에 새로 불이 켜지는 아파트 (이미 올린 아파트는 알림 · 1등 계산을 다시 하지 않는다)
   const before = await c.env.DB.prepare(
     `SELECT v.id, ${certifiedInVilla("?1", "?2", "v.id")} AS lit FROM villas v WHERE v.id IN (${pick.ids.map((_, i) => `?${i + 3}`).join(",")})`,
   )
@@ -313,7 +313,7 @@ cert.post("/api/certs/routine", requireUser, async (c) => {
 
 /**
  * 루틴 수정 [제안]: 작성자 본인만, 지우지 않은 루틴 글만. 날짜 제한 없음. 글은 1~1000자(앞뒤 공백 제외).
- * 글과 수정 시각(edited_at)만 바뀌고 포인트 · 날짜 · 올린 빌라 · 응원 · 댓글은 그대로다.
+ * 글과 수정 시각(edited_at)만 바뀌고 포인트 · 날짜 · 올린 아파트 · 응원 · 댓글은 그대로다.
  * 신고로 가려진 글도 작성자는 고칠 수 있고, 고쳐도 계속 가려져 있다.
  * 순서: 없음 · 볼 수 없음 404 → 작성자가 아님 403 → 사진 409 → 글 확인 400
  */
@@ -346,7 +346,7 @@ cert.get("/api/users/:id/board", requireUser, async (c) => {
   const me = c.get("userId");
   if (!(await canView(c.env, me, ownerId))) return jsonError(c, 403, FORBIDDEN);
   const villaId = c.req.query("villa") ?? "";
-  // 빌라 화면에서 열면 그 빌라에 올린 기록만. 그 빌라에 둘 다 살아야 한다(본인은 내가 사는 빌라면 된다)
+  // 아파트 화면에서 열면 그 아파트에 올린 기록만. 그 아파트에 둘 다 살아야 한다(본인은 내가 사는 아파트면 된다)
   if (villaId) {
     const ok = await c.env.DB.prepare(
       `SELECT 1 AS ok FROM ${myActive("?1")} AND m.villa_id = ?3 AND EXISTS (SELECT 1 FROM memberships o WHERE o.villa_id = ?3 AND o.user_id = ?2 AND o.left_at IS NULL)`,
@@ -358,7 +358,7 @@ cert.get("/api/users/:id/board", requireUser, async (c) => {
   const before = Number(c.req.query("before"));
   const lim = Number(c.req.query("limit"));
   const limit = Number.isInteger(lim) && lim >= 1 ? Math.min(lim, 50) : 20;
-  // 본인은 내 기록 전부, 다른 사람은 함께 사는 빌라에 올라간 기록만 (빌라를 고르면 그 빌라에 올린 것만)
+  // 본인은 내 기록 전부, 다른 사람은 함께 사는 아파트에 올라간 기록만 (아파트를 고르면 그 아파트에 올린 것만)
   const scope = villaId
     ? "AND EXISTS (SELECT 1 FROM cert_villas fv WHERE fv.cert_id = certs.id AND fv.villa_id = ?5)"
     : `AND (?1 = ?4 OR ${sharedVillaOf("certs.id", "?1", "?4")})`;

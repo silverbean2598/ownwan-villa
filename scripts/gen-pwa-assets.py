@@ -45,7 +45,7 @@ def glyph_check(d, k):
 
 
 def glyph_villa(d, k):
-    # 지붕 + 창문 네 개 + 문 (빌라)
+    # 지붕 + 창문 네 개 + 문 (아파트)
     d.polygon([(48 * k, 18 * k), (78 * k, 40 * k), (18 * k, 40 * k)], fill=INK)
     d.rectangle((24 * k, 38 * k, 72 * k, 78 * k), fill=(255, 255, 255, 255), outline=INK, width=5 * k)
     for x in (32, 54):

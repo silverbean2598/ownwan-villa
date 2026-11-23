@@ -28,12 +28,12 @@ export function safeAvatar(raw: string) {
   }
 }
 
-const BAD_NAME = "빌라 이름은 1~20자로 지어 주세요";
+const BAD_NAME = "아파트 이름은 1~20자로 지어 주세요";
 const EXPIRED = "초대 링크가 만료됐어요";
-const BANNED = "이 빌라에는 다시 입주할 수 없어요";
-const NO_VILLA = "빌라를 찾을 수 없어요";
+const BANNED = "이 아파트에는 다시 입주할 수 없어요";
+const NO_VILLA = "아파트를 찾을 수 없어요";
 const OWNER_ONLY = "방장만 할 수 있어요";
-const NOT_MEMBER = "이 빌라에 사는 입주민이 아니에요";
+const NOT_MEMBER = "이 아파트에 사는 입주민이 아니에요";
 
 function cleanName(v: unknown): string | null {
   const s = typeof v === "string" ? v.trim() : "";
@@ -50,7 +50,7 @@ villa.post("/api/villas", requireUser, async (c) => {
   const inviteToken = newInviteToken();
   const t = now();
   const membershipId = crypto.randomUUID();
-  // 한 batch(트랜잭션): 사는 빌라가 3곳보다 적을 때만 입주 기록을 넣고, 넣었을 때만 빌라를 짓는다 (동시에 만들어도 넘치지 않게)
+  // 한 batch(트랜잭션): 사는 아파트가 3곳보다 적을 때만 입주 기록을 넣고, 넣었을 때만 아파트를 짓는다 (동시에 만들어도 넘치지 않게)
   const [, made] = await c.env.DB.batch([
     c.env.DB.prepare(
       `INSERT INTO memberships (id, user_id, villa_id, floor, floor_reached_at, joined_at)
@@ -65,7 +65,7 @@ villa.post("/api/villas", requireUser, async (c) => {
   return c.json({ id, inviteToken }, 201);
 });
 
-/** 내가 사는 빌라 목록 (입주한 순서). 빌라 바꾸기 · 인증할 빌라 고르기 · 설정에서 쓴다 */
+/** 내가 사는 아파트 목록 (입주한 순서). 아파트 바꾸기 · 인증할 아파트 고르기 · 설정에서 쓴다 */
 villa.get("/api/me/villas", requireUser, async (c) => {
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare(
@@ -80,9 +80,9 @@ villa.get("/api/me/villas", requireUser, async (c) => {
 });
 
 /**
- * 빌라 화면 한 채: 입주민 · 층 · 불 · 놓은 가구. 이 빌라 입주민만 본다.
- * 입주민마다 streak(이 빌라 층을 정하는 연속 기록), certifiedToday(오늘 이 빌라에 올림 = 이 빌라에서 불 켜짐),
- * userStreak · certifiedAnywhere(어느 빌라든 올린 날로 센 연속 기록 · 오늘 인증)를 함께 보낸다.
+ * 아파트 화면 한 채: 입주민 · 층 · 불 · 놓은 가구. 이 아파트 입주민만 본다.
+ * 입주민마다 streak(이 아파트 층을 정하는 연속 기록), certifiedToday(오늘 이 아파트에 올림 = 이 아파트에서 불 켜짐),
+ * userStreak · certifiedAnywhere(어느 아파트든 올린 날로 센 연속 기록 · 오늘 인증)를 함께 보낸다.
  */
 async function villaDetail(env: AppEnv["Bindings"], villaId: string, userId: string) {
   const v = await env.DB.prepare(
@@ -128,7 +128,7 @@ async function villaDetail(env: AppEnv["Bindings"], villaId: string, userId: str
   });
   // 초대 링크는 방장만 받는다
   const { inviteToken, ...rest } = v;
-  // 집값 대결: 우리 빌라 집값 · 전날 대비 · 지금 대결 (실패해도 빌라 화면은 그대로 보인다)
+  // 집값 대결: 우리 아파트 집값 · 전날 대비 · 지금 대결 (실패해도 아파트 화면은 그대로 보인다)
   const extra = await priceAndBattle(env, v.id).catch((e) => {
     console.error("villa price failed", e);
     return { price: null, priceChange: null, battle: null };
@@ -146,7 +146,7 @@ async function priceAndBattle(env: AppEnv["Bindings"], villaId: string) {
   };
 }
 
-/** 예전 화면(배포 전에 열어 둔 탭)용: 가장 먼저 입주한 빌라 한 채. 새 화면은 /api/me/villas + /api/villas/:id 를 쓴다 */
+/** 예전 화면(배포 전에 열어 둔 탭)용: 가장 먼저 입주한 아파트 한 채. 새 화면은 /api/me/villas + /api/villas/:id 를 쓴다 */
 villa.get("/api/villas/mine", requireUser, async (c) => {
   const userId = c.get("userId");
   const [first] = await myVillaIds(c.env, userId);
@@ -159,32 +159,32 @@ villa.get("/api/villas/:id", requireUser, async (c) => {
   return c.json(d);
 });
 
-/** 한 빌라에서 나가기. 다른 빌라 · 연속 기록 · 포인트 · 가구는 그대로 */
+/** 한 아파트에서 나가기. 다른 아파트 · 연속 기록 · 포인트 · 가구는 그대로 */
 villa.post("/api/villas/:id/leave", requireUser, async (c) => {
   try {
     await leaveVilla(c.env, c.get("userId"), c.req.param("id"));
   } catch (e) {
-    if (e instanceof NotInVillaError) return jsonError(c, 409, "이 빌라에 살고 있지 않아요");
+    if (e instanceof NotInVillaError) return jsonError(c, 409, "이 아파트에 살고 있지 않아요");
     throw e;
   }
   return c.json({ ok: true });
 });
 
-/** 예전 화면용 나가기: villaId 를 주거나, 빌라가 1곳뿐이면 그 빌라에서 나간다 */
+/** 예전 화면용 나가기: villaId 를 주거나, 아파트가 1곳뿐이면 그 아파트에서 나간다 */
 villa.post("/api/villas/leave", requireUser, async (c) => {
   const userId = c.get("userId");
   const b = await c.req.json().catch(() => null);
   let villaId = typeof b?.villaId === "string" ? b.villaId : "";
   if (!villaId) {
     const ids = await myVillaIds(c.env, userId);
-    if (ids.length === 0) return jsonError(c, 409, "살고 있는 빌라가 없어요");
-    if (ids.length > 1) return jsonError(c, 400, "어느 빌라에서 나갈지 골라 주세요");
+    if (ids.length === 0) return jsonError(c, 409, "살고 있는 아파트가 없어요");
+    if (ids.length > 1) return jsonError(c, 400, "어느 아파트에서 나갈지 골라 주세요");
     villaId = ids[0];
   }
   try {
     await leaveVilla(c.env, userId, villaId);
   } catch (e) {
-    if (e instanceof NotInVillaError) return jsonError(c, 409, "살고 있는 빌라가 없어요");
+    if (e instanceof NotInVillaError) return jsonError(c, 409, "살고 있는 아파트가 없어요");
     throw e;
   }
   return c.json({ ok: true });
@@ -198,7 +198,7 @@ async function ownedVilla(c: { env: AppEnv["Bindings"] }, id: string) {
 
 villa.patch("/api/villas/:id", requireUser, async (c) => {
   const v = await ownedVilla(c, c.req.param("id"));
-  if (!v) return jsonError(c, 404, "빌라를 찾을 수 없어요");
+  if (!v) return jsonError(c, 404, "아파트를 찾을 수 없어요");
   if (v.owner_id !== c.get("userId")) return jsonError(c, 403, "방장만 할 수 있어요");
   const b = await c.req.json().catch(() => null);
   const name = cleanName(b?.name);
@@ -209,7 +209,7 @@ villa.patch("/api/villas/:id", requireUser, async (c) => {
 
 villa.post("/api/villas/:id/invite/rotate", requireUser, async (c) => {
   const v = await ownedVilla(c, c.req.param("id"));
-  if (!v) return jsonError(c, 404, "빌라를 찾을 수 없어요");
+  if (!v) return jsonError(c, 404, "아파트를 찾을 수 없어요");
   if (v.owner_id !== c.get("userId")) return jsonError(c, 403, "방장만 할 수 있어요");
   const inviteToken = newInviteToken();
   await c.env.DB.prepare("UPDATE villas SET invite_token = ? WHERE id = ?").bind(inviteToken, c.req.param("id")).run();
@@ -229,7 +229,7 @@ villa.get("/api/invite/:token", async (c) => {
     .first<{ id: string; villaName: string; kind: VillaKind; capacity: number; memberCount: number }>();
   if (!row) return jsonError(c, 404, EXPIRED);
   const { id, ...preview } = row;
-  // 로그인한 사람에게는 이미 이 빌라 입주민인지 / 빌라 3곳이 다 찼는지도 알려 준다
+  // 로그인한 사람에게는 이미 이 아파트 입주민인지 / 아파트 3곳이 다 찼는지도 알려 준다
   const userId = await sessionUserId(c);
   if (!userId) return c.json(preview);
   if (await isBanned(c.env, id, userId)) return jsonError(c, 403, BANNED);
@@ -238,11 +238,11 @@ villa.get("/api/invite/:token", async (c) => {
   return c.json({
     ...preview,
     alreadyMember,
-    // 이미 입주민일 때만 빌라 id 를 알려 준다 (바로 그 빌라 화면으로 보내려고)
+    // 이미 입주민일 때만 아파트 id 를 알려 준다 (바로 그 아파트 화면으로 보내려고)
     ...(alreadyMember ? { villaId: id } : {}),
     myVillaCount: mine.length,
     atLimit: !alreadyMember && mine.length >= MAX_VILLAS_PER_USER,
-    // 예전 화면용: 이제 다른 빌라에 살아도 입주할 수 있다
+    // 예전 화면용: 이제 다른 아파트에 살아도 입주할 수 있다
     inOtherVilla: false,
   });
 });
@@ -253,13 +253,13 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
     .bind(c.req.param("token"))
     .first<{ id: string }>();
   if (!v) return jsonError(c, 404, EXPIRED);
-  // 이미 이 빌라 입주민이면 아무것도 바꾸지 않고 성공 (온보딩 중 나갔다가 링크를 다시 연 경우)
+  // 이미 이 아파트 입주민이면 아무것도 바꾸지 않고 성공 (온보딩 중 나갔다가 링크를 다시 연 경우)
   if (await isMember(c.env, v.id, userId)) return c.json({ ok: true, alreadyMember: true, villaId: v.id });
   const t = now();
   const membershipId = crypto.randomUUID();
   let changes = 0;
   try {
-    // 정원 · 해체 · 입주 금지 · 내 빌라 3곳 제한을 한 문장 안에서 본다 (동시에 입주해도 넘치지 않게)
+    // 정원 · 해체 · 입주 금지 · 내 아파트 3곳 제한을 한 문장 안에서 본다 (동시에 입주해도 넘치지 않게)
     const res = await c.env.DB.prepare(
       `INSERT INTO memberships (id, user_id, villa_id, floor, floor_reached_at, joined_at)
        SELECT ?1, ?2, ?3, 1, ?4, ?4 WHERE (SELECT COUNT(*) FROM memberships WHERE villa_id = ?3 AND left_at IS NULL) < ${CAPACITY_OF("?3")}
@@ -271,7 +271,7 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
       .run();
     changes = res.meta.changes;
   } catch (e) {
-    // 같은 빌라에 동시에 두 번 입주를 누른 경우 (one_active_membership)
+    // 같은 아파트에 동시에 두 번 입주를 누른 경우 (one_active_membership)
     if (isUnique(e)) return c.json({ ok: true, alreadyMember: true, villaId: v.id });
     throw e;
   }
@@ -285,12 +285,12 @@ villa.post("/api/invite/:token/join", requireUser, async (c) => {
   }
   await logJoinEvents(c.env, userId, v.id, membershipId).catch((e) => console.error("join events failed", e));
   await recomputePenthouse(c.env, v.id);
-  // 이 빌라에 보내 둔 입주 신청은 초대 링크로 들어왔으니 끝낸다. 정원이 찼으면 모집도 끈다 (실패해도 입주는 그대로)
+  // 이 아파트에 보내 둔 입주 신청은 초대 링크로 들어왔으니 끝낸다. 정원이 찼으면 모집도 끈다 (실패해도 입주는 그대로)
   await afterJoin(c.env, userId, v.id).catch((e) => console.error("recruit cleanup failed", e));
   return c.json({ ok: true, villaId: v.id });
 });
 
-/** 입주한 뒤 모집 · 신청 정리: 그 빌라에 보낸 내 신청은 끝내고, 정원이 찼으면 모집을 끈다 */
+/** 입주한 뒤 모집 · 신청 정리: 그 아파트에 보낸 내 신청은 끝내고, 정원이 찼으면 모집을 끈다 */
 export async function afterJoin(env: AppEnv["Bindings"], userId: string, villaId: string) {
   await env.DB.prepare(
     "UPDATE villa_applications SET status = 'cancelled', reason = 'joined', decided_at = ? WHERE villa_id = ? AND user_id = ? AND status = 'pending'",
@@ -305,7 +305,7 @@ function ownerError(c: Context<AppEnv>, e: unknown) {
   if (e instanceof VillaGoneError) return jsonError(c, 404, NO_VILLA);
   if (e instanceof NotOwnerError) return jsonError(c, 403, OWNER_ONLY);
   if (e instanceof NotMemberError) return jsonError(c, 404, NOT_MEMBER);
-  if (e instanceof NameMismatchError) return jsonError(c, 400, "빌라 이름이 맞지 않아요");
+  if (e instanceof NameMismatchError) return jsonError(c, 400, "아파트 이름이 맞지 않아요");
   throw e;
 }
 
@@ -377,8 +377,8 @@ villa.post("/api/villas/:id/transfer", requireUser, async (c) => {
 });
 
 /**
- * 아파트로 승격 [제안 — 기획자 확인 필요, 2026-11-20]: 방장만, 정원이 다 찬 빌라만, 한 번만 (되돌릴 수 없다).
- * 409 의 reason: "already"(이미 아파트) · "not_full"(아직 정원이 안 참, memberCount · capacity 를 함께 보낸다)
+ * 타워팰리스로 승격 [제안 — 기획자 확인 필요, 2026-11-20]: 방장만, 정원이 다 찬 아파트만, 한 번만 (되돌릴 수 없다).
+ * 409 의 reason: "already"(이미 타워팰리스) · "not_full"(아직 정원이 안 참, memberCount · capacity 를 함께 보낸다)
  */
 villa.post("/api/villas/:id/promote", requireUser, async (c) => {
   try {
@@ -386,7 +386,7 @@ villa.post("/api/villas/:id/promote", requireUser, async (c) => {
     return c.json({ ok: true, kind: "apartment" satisfies VillaKind, capacity: r.capacity });
   } catch (e) {
     if (e instanceof PromoteError) {
-      const error = e.reason === "already" ? "이미 아파트예요" : `입주민이 ${e.capacity}명 모여야 아파트로 바꿀 수 있어요 (지금 ${e.memberCount}명)`;
+      const error = e.reason === "already" ? "이미 타워팰리스예요" : `입주민이 ${e.capacity}명 모여야 타워팰리스로 바꿀 수 있어요 (지금 ${e.memberCount}명)`;
       return c.json({ error, reason: e.reason, memberCount: e.memberCount, capacity: e.capacity }, 409);
     }
     return ownerError(c, e);

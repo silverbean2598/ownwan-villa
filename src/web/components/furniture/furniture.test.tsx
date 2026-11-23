@@ -93,7 +93,7 @@ describe("가구 그림(webp)", () => {
   });
 
   it("detail_room_is_wide_and_tiles_keep_their_geometry", () => {
-    // 방 상세는 가로가 더 긴 넓은 방, 빌라 칸은 그대로
+    // 방 상세는 가로가 더 긴 넓은 방, 아파트 칸은 그대로
     expect(GEOM.detail.W).toBeGreaterThan(GEOM.detail.H);
     expect((GEOM.detail.bx1 - GEOM.detail.bx0) / GEOM.detail.W).toBeGreaterThan(0.5);
     expect(GEOM.tile).toEqual({ W: 150, H: 100, bx0: 30, bx1: 120, by0: 16, by1: 68 });

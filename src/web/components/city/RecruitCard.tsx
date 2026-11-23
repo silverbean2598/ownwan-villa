@@ -24,7 +24,7 @@ export function RecruitPostView({ intro, sports, vacancies }: { intro: string; s
 }
 
 /**
- * 도시 카드 안 빈방 모집 칸. 상태: 우리 빌라(읽기만) / 신청함(취소) / 신청할 수 없음(입주 금지 · 3곳) /
+ * 도시 카드 안 빈방 모집 칸. 상태: 우리 아파트(읽기만) / 신청함(취소) / 신청할 수 없음(입주 금지 · 3곳) /
  * 다른 곳에 신청 중(그 신청 취소) / 신청 가능([입주 신청] → 한마디 + [신청 보내기])
  */
 export function RecruitCard({
@@ -64,7 +64,7 @@ export function RecruitCard({
   const over = charLen(message) > APPLY_MESSAGE_MAX;
 
   let action: JSX.Element;
-  if (mine) action = <p className="recruit-state">우리 빌라 모집 글이에요.</p>;
+  if (mine) action = <p className="recruit-state">우리 아파트 모집 글이에요.</p>;
   else if (myApp?.villaId === v.id)
     action = (
       <div className="recruit-state waiting" role="status">
@@ -77,7 +77,7 @@ export function RecruitCard({
       </div>
     );
   else if (r.blocked) action = <p className="recruit-state">{APPLY_BLOCKED_MSG}</p>;
-  else if (villaCount >= MAX_VILLAS_PER_USER) action = <p className="recruit-state">빌라는 {MAX_VILLAS_PER_USER}곳까지 살 수 있어요. 한 곳을 나가면 신청할 수 있어요.</p>;
+  else if (villaCount >= MAX_VILLAS_PER_USER) action = <p className="recruit-state">아파트는 {MAX_VILLAS_PER_USER}곳까지 살 수 있어요. 한 곳을 나가면 신청할 수 있어요.</p>;
   else if (myApp)
     action = (
       <div className="recruit-state">

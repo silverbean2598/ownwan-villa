@@ -135,7 +135,7 @@ export function EventCenter({ now = Date.now }: { now?: () => number }) {
 function Card({ event, type, spec, onClose: close }: { event: AppEvent; type: CardType; spec: AvatarSpec; onClose: () => void }) {
   const btn = useRef<HTMLButtonElement>(null);
   const nav = useNavigate();
-  // 대결 신청 카드: 닫으면서 그 빌라 대결 화면으로 (받기 · 거절은 그 화면에서)
+  // 대결 신청 카드: 닫으면서 그 아파트 대결 화면으로 (받기 · 거절은 그 화면에서)
   const link = cardLink(event);
   const onGo = () => {
     close();

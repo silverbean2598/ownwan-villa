@@ -180,7 +180,7 @@ export function CardArt({ type, spec, variant }: { type: CardType; spec: AvatarS
       break;
     }
     case "kicked": {
-      // 빌라를 등지고 나와 시무룩, 상자는 발 옆에
+      // 아파트를 등지고 나와 시무룩, 상자는 발 옆에
       body = (
         <>
           <MiniVilla x={40} y={176} w={52} />
@@ -207,7 +207,7 @@ export function CardArt({ type, spec, variant }: { type: CardType; spec: AvatarS
       break;
     }
     case "dissolved": {
-      // 불 꺼진 빌라 앞에서 아쉬워한다
+      // 불 꺼진 아파트 앞에서 아쉬워한다
       body = (
         <>
           <MiniVilla x={188} y={178} w={60} />
@@ -219,7 +219,7 @@ export function CardArt({ type, spec, variant }: { type: CardType; spec: AvatarS
       break;
     }
     case "application_rejected": {
-      // 답장 편지를 받고 아쉽지만 다시 힘내자. 멀리 다른 빌라들
+      // 답장 편지를 받고 아쉽지만 다시 힘내자. 멀리 다른 아파트들
       body = (
         <>
           <MiniVilla x={200} y={150} w={40} floors={2} />
@@ -249,7 +249,7 @@ export function CardArt({ type, spec, variant }: { type: CardType; spec: AvatarS
       break;
     }
     case "battle_challenged": {
-      // 도전장(편지)이 날아왔다. 뒤에 빌라 두 채가 마주 본다
+      // 도전장(편지)이 날아왔다. 뒤에 아파트 두 채가 마주 본다
       body = (
         <>
           <MiniVilla x={200} y={150} w={40} floors={3} />
@@ -263,7 +263,7 @@ export function CardArt({ type, spec, variant }: { type: CardType; spec: AvatarS
       break;
     }
     case "apartment_promoted": {
-      // 우리 빌라가 아파트가 됐다: 만세 + 색종이, 뒤에 금색 돔을 얹은 높은 아파트
+      // 우리 아파트가 타워팰리스가 됐다: 만세 + 색종이, 뒤에 금색 돔을 얹은 높은 타워팰리스
       body = (
         <>
           <Confetti pieces={CONFETTI} />

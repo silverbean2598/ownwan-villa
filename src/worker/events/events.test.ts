@@ -36,10 +36,10 @@ function upload(u: U, dhash = HASHES[h++ % HASHES.length]) {
   fd.set("dhash", dhash);
   return app.request("/api/certs/photo", { method: "POST", headers: { cookie: u.cookie }, body: fd }, env);
 }
-async function createVilla(u: U, name = "우리빌라") {
+async function createVilla(u: U, name = "우리아파트") {
   return (await (await send("POST", "/api/villas", u.cookie, { name })).json()) as { id: string; inviteToken: string };
 }
-// 사용자 연속 기록과 지금 사는 빌라의 연속 기록을 함께 (빌라 1곳에만 살던 기존 데이터와 같은 모양)
+// 사용자 연속 기록과 지금 사는 아파트의 연속 기록을 함께 (아파트 1곳에만 살던 기존 데이터와 같은 모양)
 const setStreak = (u: U, streak: number) =>
   env.DB.batch([
     env.DB.prepare("UPDATE users SET streak = ? WHERE id = ?").bind(streak, u.id),
@@ -137,7 +137,7 @@ describe("cert events", () => {
     await upload(u);
     const got = await ofType(u, "streak6");
     expect(got).toHaveLength(1);
-    expect(got[0].payload).toMatchObject({ streak: 6, villaName: "우리빌라", multi: false });
+    expect(got[0].payload).toMatchObject({ streak: 6, villaName: "우리아파트", multi: false });
     expect(await ofType(u, "streak7")).toEqual([]);
   });
 
@@ -163,7 +163,7 @@ describe("cert events", () => {
     await upload(u);
     const up = await ofType(u, "floor_up");
     expect(up).toHaveLength(1);
-    expect(up[0].payload).toMatchObject({ floor: 2, streak: 7, villaName: "우리빌라", multi: false });
+    expect(up[0].payload).toMatchObject({ floor: 2, streak: 7, villaName: "우리아파트", multi: false });
     expect(await ofType(u, "streak7")).toEqual([]);
     expect(await ofType(u, "streak6")).toEqual([]);
   });
@@ -238,17 +238,17 @@ describe("penthouse events", () => {
 describe("villa join events", () => {
   it("welcome_on_create", async () => {
     const a = await signup();
-    await createVilla(a, "땀빌라");
+    await createVilla(a, "땀아파트");
     const got = await ofType(a, "welcome");
     expect(got).toHaveLength(1);
-    expect(got[0].payload).toMatchObject({ villaName: "땀빌라", multi: false });
+    expect(got[0].payload).toMatchObject({ villaName: "땀아파트", multi: false });
   });
 
   it("join_welcomes_joiner_and_tells_every_other_member_once", async () => {
     const a = await signup("에이");
     const b = await signup("비비");
     const c = await signup("씨씨");
-    const v = await createVilla(a, "땀빌라");
+    const v = await createVilla(a, "땀아파트");
     await send("POST", `/api/invite/${v.inviteToken}/join`, b.cookie);
     await clear(a);
     await clear(b);
@@ -257,7 +257,7 @@ describe("villa join events", () => {
     await send("POST", `/api/invite/${v.inviteToken}/join`, c.cookie);
     const w = await ofType(c, "welcome");
     expect(w).toHaveLength(1);
-    expect(w[0].payload).toMatchObject({ villaName: "땀빌라", multi: false });
+    expect(w[0].payload).toMatchObject({ villaName: "땀아파트", multi: false });
     expect(await ofType(c, "friend_joined")).toEqual([]);
     for (const u of [a, b]) {
       const f = await ofType(u, "friend_joined");
@@ -280,7 +280,7 @@ describe("settle events", () => {
     await settle(env, day);
     const got = (await ofType(u, "floor_down"));
     expect(got).toHaveLength(1);
-    expect(got[0].payload).toMatchObject({ floor: 2, villaName: "우리빌라", multi: false });
+    expect(got[0].payload).toMatchObject({ floor: 2, villaName: "우리아파트", multi: false });
   });
 });
 

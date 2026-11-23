@@ -1,4 +1,4 @@
-// 오운완빌라 서비스 워커: 휴대폰 푸시 알림만 다룬다.
+// 오운완아파트 서비스 워커: 휴대폰 푸시 알림만 다룬다.
 // 오프라인 캐시는 하지 않는다 (배포 뒤 예전 화면이 남는 문제를 피하려고). fetch 이벤트도 받지 않는다.
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -12,7 +12,7 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "오운완빌라";
+  const title = data.title || "오운완아파트";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "새 소식이 있어요",

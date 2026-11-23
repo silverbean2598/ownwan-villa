@@ -67,7 +67,7 @@ describe("설정 → 카카오 연결 세 가지 상태", () => {
 
   it("callback_notice_is_shown", () => {
     expect(section({ configured: true, linked: false, hasPassword: true }, "linked_other")).toContain(
-      "이 카카오 계정은 다른 오운완빌라 계정에 연결돼 있어요",
+      "이 카카오 계정은 다른 오운완아파트 계정에 연결돼 있어요",
     );
     expect(section({ configured: true, linked: true, hasPassword: true }, "linked")).toContain("카카오를 연결했어요");
     expect(section({ configured: true, linked: false, hasPassword: true }, "link_mismatch")).toContain("다른 계정으로 로그인되어 있어요. 다시 시도해 주세요");

@@ -8,11 +8,11 @@ import { RECRUIT_INTRO_MAX, RECRUIT_NEED_PUBLIC_MSG, charLen, type RecruitPost }
 const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
 
 /**
- * 설정 → 빈방 모집 (고른 빌라). [확정 — 기획자 결정, 2026-11-19]
+ * 설정 → 빈방 모집 (고른 아파트). [확정 — 기획자 결정, 2026-11-19]
  * - 신규입력: 방장, 아직 모집 안 함 → 스위치를 켜면 소개 · 종목 칸 + [모집 시작하기]
  * - 수정: 방장, 모집 중 → 소개 · 종목을 고치고 [저장], 스위치를 끄면 모집 끝 (받은 신청은 취소)
  * - 읽기전용: 입주민 → 지금 모집 글만 보인다
- * 지도에 공개하지 않은 빌라는 모집할 수 없다(방장에게 [지도에 공개하기]), 꽉 찬 빌라도 모집할 수 없다.
+ * 지도에 공개하지 않은 아파트는 모집할 수 없다(방장에게 [지도에 공개하기]), 꽉 찬 아파트도 모집할 수 없다.
  */
 export function RecruitSettings({
   villa, isOwner, title, onPublished, onAuthLost,
@@ -47,7 +47,7 @@ export function RecruitSettings({
     return () => {
       alive = false;
     };
-    // 아파트로 승격하면 정원이 바뀌므로 다시 불러온다
+    // 타워팰리스로 승격하면 정원이 바뀌므로 다시 불러온다
   }, [villa.id, villa.public, memberCount, villa.kind]);
 
   if (!post) return null;
@@ -110,7 +110,7 @@ export function RecruitSettings({
     body = (
       <div className="recruit-hint">
         <b>{RECRUIT_NEED_PUBLIC_MSG}</b>
-        <div className="muted small">모집 글은 도시 지도의 우리 빌라 건물에 걸려요. 사진과 루틴은 계속 우리끼리만 봐요.</div>
+        <div className="muted small">모집 글은 도시 지도의 우리 아파트 건물에 걸려요. 사진과 루틴은 계속 우리끼리만 봐요.</div>
         <button type="button" className="btn" disabled={busy} onClick={publish}>지도에 공개하기</button>
       </div>
     );
@@ -118,7 +118,7 @@ export function RecruitSettings({
     body = (
       <p className="recruit-hint">
         {kindLabel(post.kind)}가 꽉 차서 지금은 모집할 수 없어요 ({post.memberCount}/{capacityOf(post)}명). 빈방이 생기면 다시 켤 수 있어요.
-        {post.kind !== "apartment" && " 아파트로 승격하면 정원이 늘어요."}
+        {post.kind !== "apartment" && " 타워팰리스로 승격하면 정원이 늘어요."}
       </p>
     );
   } else {
@@ -127,7 +127,7 @@ export function RecruitSettings({
         <label className="switch-row">
           <span>
             <b>{post.open ? "모집 중이에요" : "모집하지 않아요"}</b>
-            <span className="muted small">켜면 도시 지도의 우리 빌라에 "모집 중" 깃발이 꽂히고, 누구나 입주 신청을 보낼 수 있어요. 승인하면 바로 입주해요.</span>
+            <span className="muted small">켜면 도시 지도의 우리 아파트에 "모집 중" 깃발이 꽂히고, 누구나 입주 신청을 보낼 수 있어요. 승인하면 바로 입주해요.</span>
           </span>
           <button
             type="button"

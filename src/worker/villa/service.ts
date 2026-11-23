@@ -17,8 +17,8 @@ export function newInviteToken(): string {
 }
 
 /**
- * 한 빌라의 1등을 다시 계산한다. 층 · 연속 기록은 이 빌라 입주 기록의 값(이 빌라에 올린 날로 센다)이고,
- * 오늘 이 빌라에 올린 사진이 있으면 그것까지 친다.
+ * 한 아파트의 1등을 다시 계산한다. 층 · 연속 기록은 이 아파트 입주 기록의 값(이 아파트에 올린 날로 센다)이고,
+ * 오늘 이 아파트에 올린 사진이 있으면 그것까지 친다.
  */
 export async function recomputePenthouse(env: Env, villaId: string): Promise<string | null> {
   const prev = await env.DB.prepare("SELECT penthouse_user_id AS id FROM villas WHERE id = ?").bind(villaId).first<{ id: string | null }>();
@@ -36,7 +36,7 @@ export async function recomputePenthouse(env: Env, villaId: string): Promise<str
     results.map((r) => {
       const cert = !!r.certifiedToday;
       const floor = displayFloor(r.floor, r.streak, cert);
-      // 오늘 올라간 층은 이 빌라에 첫 사진 인증이 올라간 시각에 도달한 것으로 본다
+      // 오늘 올라간 층은 이 아파트에 첫 사진 인증이 올라간 시각에 도달한 것으로 본다
       const floorReachedAt = floor > r.floor && r.firstCertAt !== null ? r.firstCertAt : r.floorReachedAt;
       return { userId: r.userId, floor, streak: displayStreak(r.streak, cert), floorReachedAt };
     }),
@@ -52,7 +52,7 @@ export async function recomputePenthouse(env: Env, villaId: string): Promise<str
       env,
       await tagVilla(env, villaId, [
         { userId: id, type: "penthouse_in" },
-        // 빌라를 나간 전 1등에게는 알리지 않는다
+        // 아파트를 나간 전 1등에게는 알리지 않는다
         ...(prevId && prevId !== id && results.some((r) => r.userId === prevId)
           ? [{ userId: prevId, type: "penthouse_out" as const, payload: { nickname: holder.nickname, userId: id } }]
           : []),
@@ -62,18 +62,18 @@ export async function recomputePenthouse(env: Env, villaId: string): Promise<str
   return id;
 }
 
-/** 이 사람이 사는(해체되지 않은) 빌라 모두의 1등을 다시 계산한다. 빌라가 없으면 건너뛴다 */
+/** 이 사람이 사는(해체되지 않은) 아파트 모두의 1등을 다시 계산한다. 아파트가 없으면 건너뛴다 */
 export async function recomputeUserPenthouse(env: Env, userId: string): Promise<void> {
   for (const id of await myVillaIds(env, userId)) await recomputePenthouse(env, id);
 }
 
 /** 지금 사는 입주민 (나가기 · 승계 · 해체 판단에 쓴다) */
 const ACTIVE = "SELECT user_id FROM memberships WHERE villa_id = ? AND left_at IS NULL";
-/** 이 사람이 아직 이 빌라에 산다 (?, ? = villaId, userId) */
+/** 이 사람이 아직 이 아파트에 산다 (?, ? = villaId, userId) */
 const STILL_IN = "SELECT 1 FROM memberships WHERE villa_id = ? AND user_id = ? AND left_at IS NULL";
 
 /**
- * 한 사람이 빌라를 떠나는 문장들 (한 batch 안에서 쓴다): 나가기 → 방장 승계(남은 입주민 중 가장 먼저 입주한 사람)
+ * 한 사람이 아파트를 떠나는 문장들 (한 batch 안에서 쓴다): 나가기 → 방장 승계(남은 입주민 중 가장 먼저 입주한 사람)
  * → 아무도 없으면 해체. guard 를 주면 나가기 자체가 그 조건(SQL, 뒤에 붙는 값은 guardArgs)일 때만 일어난다.
  */
 function leaveStatements(env: Env, villaId: string, userId: string, t: number, guard = "", guardArgs: unknown[] = []) {
@@ -93,7 +93,7 @@ function leaveStatements(env: Env, villaId: string, userId: string, t: number, g
   ];
 }
 
-/** 한 빌라에서 나간다. 다른 빌라에는 아무 영향이 없다 */
+/** 한 아파트에서 나간다. 다른 아파트에는 아무 영향이 없다 */
 export async function leaveVilla(env: Env, userId: string, villaId: string): Promise<void> {
   const m = await env.DB.prepare("SELECT 1 AS x FROM memberships WHERE user_id = ? AND villa_id = ? AND left_at IS NULL")
     .bind(userId, villaId)
@@ -109,7 +109,7 @@ export async function leaveVilla(env: Env, userId: string, villaId: string): Pro
   await cancelGoneBattles(env, villaId).catch((e) => console.error("battle cleanup failed", e));
 }
 
-/** 사는 빌라 모두에서 나간다 (탈퇴) */
+/** 사는 아파트 모두에서 나간다 (탈퇴) */
 export async function leaveAllVillas(env: Env, userId: string): Promise<void> {
   const { results } = await env.DB.prepare("SELECT villa_id AS id FROM memberships WHERE user_id = ? AND left_at IS NULL")
     .bind(userId)
@@ -127,18 +127,18 @@ export class NotOwnerError extends Error {}
 export class NotMemberError extends Error {}
 export class NameMismatchError extends Error {}
 export class VillaGoneError extends Error {}
-/** 아파트로 바꿀 수 없는 이유: 이미 아파트 · 아직 정원이 안 참 */
+/** 타워팰리스로 바꿀 수 없는 이유: 이미 타워팰리스 · 아직 정원이 안 참 */
 export class PromoteError extends Error {
   constructor(readonly reason: "already" | "not_full", readonly memberCount: number, readonly capacity: number) {
     super(reason);
   }
 }
 
-/** 이 사람이 지금 이 (해체되지 않은) 빌라의 방장일 때만 참. batch 안 문장의 조건으로 붙인다 (?, ? = villaId, ownerId) */
+/** 이 사람이 지금 이 (해체되지 않은) 아파트의 방장일 때만 참. batch 안 문장의 조건으로 붙인다 (?, ? = villaId, ownerId) */
 const IS_OWNER = "EXISTS (SELECT 1 FROM villas WHERE id = ? AND owner_id = ? AND dissolved_at IS NULL)";
 const IS_MEMBER = "EXISTS (SELECT 1 FROM memberships WHERE villa_id = ? AND user_id = ? AND left_at IS NULL)";
 
-/** 왜 실패했는지: 빌라가 없으면 VillaGone, 방장이 아니면 NotOwner, 아니면 NotMember */
+/** 왜 실패했는지: 아파트가 없으면 VillaGone, 방장이 아니면 NotOwner, 아니면 NotMember */
 async function whyNot(env: Env, villaId: string, ownerId: string): Promise<Error> {
   const v = await env.DB.prepare("SELECT owner_id FROM villas WHERE id = ? AND dissolved_at IS NULL").bind(villaId).first<{ owner_id: string }>();
   if (!v) return new VillaGoneError();
@@ -168,7 +168,7 @@ export async function kickMember(env: Env, villaId: string, ownerId: string, tar
   // 내보낸 사람에게만 알린다 (다른 입주민에게는 알리지 않는다)
   await logEvents(env, [{ userId: targetId, type: "kicked", payload: { villaName: v?.name ?? "" }, key: `kicked:${m.id}` }]);
   await recomputePenthouse(env, villaId);
-  // 내보낸 사람이 이 빌라에 보내 둔 입주 신청이 남아 있으면 거절로 끝낸다 (내보냄 알림을 이미 받았으니 따로 알리지 않는다)
+  // 내보낸 사람이 이 아파트에 보내 둔 입주 신청이 남아 있으면 거절로 끝낸다 (내보냄 알림을 이미 받았으니 따로 알리지 않는다)
   await env.DB.prepare(
     "UPDATE villa_applications SET status = 'rejected', reason = 'kicked', decided_at = ? WHERE villa_id = ? AND user_id = ? AND status = 'pending'",
   )
@@ -208,8 +208,8 @@ export async function transferOwner(env: Env, villaId: string, ownerId: string, 
 }
 
 /**
- * 빌라 해체: 입주민 모두 나가기 + 빌라 해체(초대 링크는 해체된 빌라라 못 쓴다) + 내보낸 사람 목록 지우기를 한 batch 로.
- * 빌라 이름이 맞고 아직 방장일 때만 해체되고, 해체가 일어난 경우에만 나머지가 따라간다. 도시 지도 자리도 비운다.
+ * 아파트 해체: 입주민 모두 나가기 + 아파트 해체(초대 링크는 해체된 아파트라 못 쓴다) + 내보낸 사람 목록 지우기를 한 batch 로.
+ * 아파트 이름이 맞고 아직 방장일 때만 해체되고, 해체가 일어난 경우에만 나머지가 따라간다. 도시 지도 자리도 비운다.
  */
 export async function dissolveVilla(env: Env, villaId: string, ownerId: string, confirmName: string): Promise<void> {
   const v = await env.DB.prepare("SELECT name, owner_id FROM villas WHERE id = ? AND dissolved_at IS NULL").bind(villaId).first<{ name: string; owner_id: string }>();
@@ -248,10 +248,10 @@ export async function dissolveVilla(env: Env, villaId: string, ownerId: string, 
 }
 
 /**
- * 아파트 승격 [제안 — 기획자 확인 필요, 2026-11-20]: 정원이 다 찬 빌라를 방장이 아파트(정원 50명)로 바꾼다. 되돌릴 수 없다.
- * 한 batch: ① 아직 빌라 · 해체 안 됨 · 아직 방장 · 지금 입주민 수 ≥ 정원일 때만 바꾼다 (두 번 눌러도 · 넘기기 · 나가기와 겹쳐도 한 번만)
- * ② 바꿨을 때만(changes() = 1) 그때 사는 입주민 모두에게 축하 카드를 고정 키(apartment:{빌라}:{사람})로 쓴다.
- * 축하 카드에는 tagVilla 와 같은 villaId · villaName · multi 를 붙인다 (빌라 여러 곳에 사는 사람에게만 이름이 보인다)
+ * 타워팰리스 승격 [제안 — 기획자 확인 필요, 2026-11-20]: 정원이 다 찬 아파트를 방장이 타워팰리스(정원 50명)로 바꾼다. 되돌릴 수 없다.
+ * 한 batch: ① 아직 아파트 · 해체 안 됨 · 아직 방장 · 지금 입주민 수 ≥ 정원일 때만 바꾼다 (두 번 눌러도 · 넘기기 · 나가기와 겹쳐도 한 번만)
+ * ② 바꿨을 때만(changes() = 1) 그때 사는 입주민 모두에게 축하 카드를 고정 키(apartment:{아파트}:{사람})로 쓴다.
+ * 축하 카드에는 tagVilla 와 같은 villaId · villaName · multi 를 붙인다 (아파트 여러 곳에 사는 사람에게만 이름이 보인다)
  */
 export async function promoteVilla(env: Env, villaId: string, ownerId: string): Promise<{ capacity: number }> {
   const t = now();

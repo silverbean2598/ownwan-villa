@@ -24,7 +24,7 @@
 @keyframes city-flag { 0%, 100% { transform: skewY(0deg) scaleX(1); } 50% { transform: skewY(-4deg) scaleX(.94); } }
 @keyframes city-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
-/* 빌라 카드 (아래에서 올라오는 작은 창) */
+/* 아파트 카드 (아래에서 올라오는 작은 창) */
 .city-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 800; display: flex; justify-content: center; pointer-events: none;
   /* 홈 화면 앱: 홈 막대 · 가로 모드 노치에 가리지 않게 */
   padding: 0 calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left)); }

@@ -1,4 +1,4 @@
-/** floor null = 빌라 없음 */
+/** floor null = 아파트 없음 */
 export type DayState = { streak: number; missRun: number; floor: number | null };
 
 export function settleDay(

@@ -201,7 +201,7 @@ describe("SpriteAvatar", () => {
       expect(i.getAttribute("height")).toBe("400");
       expect(i.getAttribute("decoding")).toBe("async");
     }
-    // 요소 수 ≤ 5 (빌라 화면에 50명)
+    // 요소 수 ≤ 5 (아파트 화면에 50명)
     expect(doc.querySelectorAll("svg, svg *").length).toBeLessThanOrEqual(5);
   });
   it("accessory_adds_one_image_per_worn_item", () => {

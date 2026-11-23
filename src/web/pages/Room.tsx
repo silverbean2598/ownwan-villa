@@ -52,7 +52,7 @@ type RoomState = { me: Me; member: Member | null; penthouse: boolean; iAmVillaOw
 
 /**
  * 방 주인의 방 정보를 불러온다. 401이면 로그인으로 보낸다.
- * 어느 빌라에서 보는지는 주소의 ?villa= 로 정한다. 없으면(예전 주소) 이 기기에서 마지막으로 본 빌라부터, 그 사람이 사는 빌라를 찾는다.
+ * 어느 아파트에서 보는지는 주소의 ?villa= 로 정한다. 없으면(예전 주소) 이 기기에서 마지막으로 본 아파트부터, 그 사람이 사는 아파트를 찾는다.
  */
 export function useRoomMember(userId: string | undefined, path: string) {
   const nav = useNavigate();
@@ -93,7 +93,7 @@ export function NotFoundRoom() {
   return (
     <main className="page">
       <h1>이 방을 찾을 수 없어요</h1>
-      <Link className="btn" to="/villa">빌라로</Link>
+      <Link className="btn" to="/villa">아파트로</Link>
     </main>
   );
 }
@@ -205,7 +205,7 @@ export function Room() {
 
   return (
     <main className="villa-page room-page">
-      <Link className="back" to={villaPath(villaId)}>← 빌라로</Link>
+      <Link className="back" to={villaPath(villaId)}>← 아파트로</Link>
       <header className="room-head">
         <h1>{member.nickname}</h1>
         <div className="stats">
@@ -213,8 +213,8 @@ export function Room() {
           <span className="chip">{penthouse ? "펜트하우스" : `${member.floor}층`}</span>
           {member.floorUpToday && <span className="chip up-chip">+1층</span>}
           <span className="chip">연속 <b>{userStreak}</b>일</span>
-          {/* 빌라 여러 곳에 살면 이 빌라 층을 정하는 연속 기록이 다를 수 있다 */}
-          {multi && villaStreak !== userStreak && <span className="chip">이 빌라 <b>{villaStreak}</b>일</span>}
+          {/* 아파트 여러 곳에 살면 이 아파트 층을 정하는 연속 기록이 다를 수 있다 */}
+          {multi && villaStreak !== userStreak && <span className="chip">이 아파트 <b>{villaStreak}</b>일</span>}
         </div>
         {isMe && <CertifyButton certifiedToday={member.certifiedToday} certifiedElsewhere={multi && !!member.certifiedAnywhere} villaId={villaId} />}
       </header>

@@ -140,16 +140,16 @@ describe("설정 → 빈방 모집", () => {
   it("full_villa_cannot_recruit", async () => {
     mockApi({ "GET /api/villas/v1/recruit": post({ memberCount: 20 }) });
     await mount(settings(true));
-    expect(host.textContent).toContain("빌라가 꽉 차서 지금은 모집할 수 없어요");
+    expect(host.textContent).toContain("아파트가 꽉 차서 지금은 모집할 수 없어요");
     expect(host.querySelector('[role="switch"]')).toBeNull();
   });
 });
 
 const V: CityVilla = {
-  id: "v9", name: "햇살빌라", slot: 0, topFloor: 3, memberCount: 6, litCount: 2, penthouseNickname: "민지",
+  id: "v9", name: "햇살아파트", slot: 0, topFloor: 3, memberCount: 6, litCount: 2, penthouseNickname: "민지",
   recruit: { intro: "아침 7시 러닝 크루", sports: ["running"], vacancies: 14 },
 };
-const APP: MyApplication = { id: "a1", villaId: "v9", villaName: "햇살빌라", message: "", createdAt: 0, expiresAt: Date.now() + 3 * 86_400_000 };
+const APP: MyApplication = { id: "a1", villaId: "v9", villaName: "햇살아파트", message: "", createdAt: 0, expiresAt: Date.now() + 3 * 86_400_000 };
 const card = (p: Partial<Parameters<typeof RecruitCard>[0]> = {}, onChanged = async () => {}) => (
   <RecruitCard v={V} mine={false} myApp={null} villaCount={1} onChanged={onChanged} {...p} />
 );
@@ -187,26 +187,26 @@ describe("도시 카드 → 입주 신청", () => {
     mockApi({});
     await mount(card({ villaCount: 3 }));
     expect(button("입주 신청")).toBeUndefined();
-    expect(host.textContent).toContain("빌라는 3곳까지 살 수 있어요");
+    expect(host.textContent).toContain("아파트는 3곳까지 살 수 있어요");
     act(() => root.unmount());
     host.remove();
 
     await mount(card({ v: { ...V, recruit: { ...V.recruit!, blocked: true } } }));
     expect(button("입주 신청")).toBeUndefined();
-    expect(host.textContent).toContain("이 빌라에는 신청할 수 없어요");
+    expect(host.textContent).toContain("이 아파트에는 신청할 수 없어요");
     act(() => root.unmount());
     host.remove();
 
-    await mount(card({ myApp: { ...APP, villaId: "other", villaName: "새벽빌라" } }));
+    await mount(card({ myApp: { ...APP, villaId: "other", villaName: "새벽아파트" } }));
     expect(button("입주 신청")).toBeUndefined();
-    expect(host.textContent).toContain("새벽빌라에 보낸 신청을 기다리는 중이에요");
+    expect(host.textContent).toContain("새벽아파트에 보낸 신청을 기다리는 중이에요");
     expect(button("그 신청 취소")).toBeDefined();
     act(() => root.unmount());
     host.remove();
 
     await mount(card({ mine: true }));
     expect(button("입주 신청")).toBeUndefined();
-    expect(host.textContent).toContain("우리 빌라 모집 글이에요");
+    expect(host.textContent).toContain("우리 아파트 모집 글이에요");
   });
 
   it("map_flags_only_recruiting_buildings", async () => {
@@ -224,7 +224,7 @@ describe("입주민 관리 → 받은 입주 신청", () => {
   const apps = [{ id: "a1", userId: "u9", nickname: "새식구", avatar: AV, sport: "gym", streak: 12, message: "잘 부탁해요", createdAt: Date.parse("2026-11-19T09:00:00+09:00") }];
   const manage = (onChanged = vi.fn(async () => {})) => (
     <MemberManage
-      villa={{ id: "v1", name: "땀빌라", ownerId: "me", members: [{ userId: "me", nickname: "나", sport: "gym", avatar: AV as any }] }}
+      villa={{ id: "v1", name: "땀아파트", ownerId: "me", members: [{ userId: "me", nickname: "나", sport: "gym", avatar: AV as any }] }}
       meId="me"
       onChanged={onChanged}
       onTransferred={async () => {}}
@@ -255,11 +255,11 @@ describe("입주민 관리 → 받은 입주 신청", () => {
     mockApi({
       "GET /api/villas/v1/applications": apps,
       "GET /api/villas/v1/bans": [],
-      "POST /api/villas/v1/applications/a1/approve": () => new Response(JSON.stringify({ error: "빌라가 꽉 차서 승인할 수 없어요" }), { status: 409 }),
+      "POST /api/villas/v1/applications/a1/approve": () => new Response(JSON.stringify({ error: "아파트가 꽉 차서 승인할 수 없어요" }), { status: 409 }),
     });
     await mount(manage());
     await click(button("승인", host.querySelector(".apply-row")!));
-    expect(host.querySelector('[role="alert"]')?.textContent).toBe("빌라가 꽉 차서 승인할 수 없어요");
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("아파트가 꽉 차서 승인할 수 없어요");
     await click(button("거절", host.querySelector(".apply-row")!));
     expect(calls).toContainEqual({ path: "/api/villas/v1/applications/a1/reject", method: "POST", body: undefined });
   });
@@ -279,12 +279,12 @@ describe("알림 문구", () => {
     expect(isCard("application_rejected")).toBe(true);
     expect(cardButton("application_rejected")).toBe("알겠어요");
     expect(eventCopy(e("application_received", { nickname: "민수" }))).toBe("민수 님의 입주 신청이 왔어요");
-    expect(eventCopy(e("application_received", { nickname: "민수", villaName: "햇살빌라", multi: true }))).toBe("햇살빌라에 민수 님의 입주 신청이 왔어요");
-    expect(eventCopy(e("application_rejected", { villaName: "햇살빌라" }))).toBe("이번에는 햇살빌라에 함께하지 못하게 됐어요. 다른 빌라도 둘러봐요");
-    expect(eventCopy(e("welcome", { villaName: "햇살빌라", via: "recruit" }))).toBe("입주 신청이 승인됐어요! 햇살빌라에 입주했어요");
-    expect(eventCopy(e("welcome", { villaName: "햇살빌라" }))).toBe("햇살빌라에 입주했어요");
-    expect(eventCopy(e("application_closed", { villaName: "햇살빌라", reason: "full" }))).toBe("햇살빌라가 꽉 차서 입주 신청이 취소됐어요");
-    expect(eventCopy(e("application_closed", { villaName: "새벽빌라", reason: "expired" }))).toBe("새벽빌라 입주 신청이 7일이 지나 만료됐어요");
-    expect(eventCopy(e("application_closed", { villaName: "새벽빌라", reason: "recruit_off" }))).toBe("새벽빌라 빈방 모집이 끝나서 입주 신청이 취소됐어요");
+    expect(eventCopy(e("application_received", { nickname: "민수", villaName: "햇살아파트", multi: true }))).toBe("햇살아파트에 민수 님의 입주 신청이 왔어요");
+    expect(eventCopy(e("application_rejected", { villaName: "햇살아파트" }))).toBe("이번에는 햇살아파트에 함께하지 못하게 됐어요. 다른 아파트도 둘러봐요");
+    expect(eventCopy(e("welcome", { villaName: "햇살아파트", via: "recruit" }))).toBe("입주 신청이 승인됐어요! 햇살아파트에 입주했어요");
+    expect(eventCopy(e("welcome", { villaName: "햇살아파트" }))).toBe("햇살아파트에 입주했어요");
+    expect(eventCopy(e("application_closed", { villaName: "햇살아파트", reason: "full" }))).toBe("햇살아파트가 꽉 차서 입주 신청이 취소됐어요");
+    expect(eventCopy(e("application_closed", { villaName: "새벽아파트", reason: "expired" }))).toBe("새벽아파트 입주 신청이 7일이 지나 만료됐어요");
+    expect(eventCopy(e("application_closed", { villaName: "새벽아파트", reason: "recruit_off" }))).toBe("새벽아파트 빈방 모집이 끝나서 입주 신청이 취소됐어요");
   });
 });

@@ -62,7 +62,7 @@ const eventsOf = async (u: U, type: string) =>
     (r) => JSON.parse(r.payload) as Record<string, unknown>,
   );
 
-/** 사진 인증 하나를 고른 빌라에만 올린다 (cert_villas 를 먼저 넣어 기본 트리거가 모든 빌라에 붙이지 않게) */
+/** 사진 인증 하나를 고른 아파트에만 올린다 (cert_villas 를 먼저 넣어 기본 트리거가 모든 아파트에 붙이지 않게) */
 async function photo(u: U, villas: string[], day: string, extra: { duplicate?: number; deleted?: number } = {}) {
   const id = crypto.randomUUID();
   for (const v of villas) await env.DB.prepare("INSERT INTO cert_villas (cert_id, villa_id, created_at) VALUES (?, ?, 1)").bind(id, v).run();
@@ -95,10 +95,10 @@ describe("price", () => {
   it("counts_only_certs_posted_to_that_villa_and_multi_villa_user_counted_per_villa", async () => {
     const a = await signup("에이");
     const b = await signup("비비");
-    const A = await create(a, "에이빌라");
-    const B = await create(a, "비빌라");
+    const A = await create(a, "에이아파트");
+    const B = await create(a, "비아파트");
     await join(b, A.inviteToken);
-    // a: 에이빌라 3일, 비빌라 1일 (다른 기록). b: 에이빌라 2일 + 중복 · 지운 사진은 세지 않는다
+    // a: 에이아파트 3일, 비아파트 1일 (다른 기록). b: 에이아파트 2일 + 중복 · 지운 사진은 세지 않는다
     for (const d of ["2026-11-02", "2026-11-03", "2026-11-04"]) await photo(a, [A.id], d);
     await photo(a, [B.id], "2026-11-05");
     await photo(b, [A.id], "2026-11-03");
@@ -118,7 +118,7 @@ describe("price", () => {
 
   it("floor_above_first_adds_price_after_settle_floor", async () => {
     const a = await signup();
-    const A = await create(a, "층빌라");
+    const A = await create(a, "층아파트");
     for (let d = "2026-11-02"; d <= "2026-11-08"; d = nextDay(d)) await photo(a, [A.id], d);
     await settleDays("2026-11-02", "2026-11-08");
     // 7일 연속 → 그날 정산 뒤 2층: 10 + 1 + 7 + 1
@@ -128,7 +128,7 @@ describe("price", () => {
 
   it("daily_change_and_villa_screen_and_price_endpoint", async () => {
     const a = await signup();
-    const A = await create(a, "변동빌라");
+    const A = await create(a, "변동아파트");
     await settleDays("2026-11-02", "2026-11-02");
     await photo(a, [A.id], "2026-11-03");
     await settleDays("2026-11-03", "2026-11-03");
@@ -144,9 +144,9 @@ describe("price", () => {
   it("dissolved_villa_and_late_joiner_not_priced", async () => {
     const a = await signup();
     const b = await signup();
-    const A = await create(a, "해체빌라");
-    const B = await create(b, "늦은빌라");
-    await send("POST", `/api/villas/${A.id}/dissolve`, { confirmName: "해체빌라" }, a.cookie);
+    const A = await create(a, "해체아파트");
+    const B = await create(b, "늦은아파트");
+    await send("POST", `/api/villas/${A.id}/dissolve`, { confirmName: "해체아파트" }, a.cookie);
     // 11-02 이 끝난 뒤(11-03 12시) 입주한 사람은 11-02 집값에 들어가지 않는다 (밀린 날 정산)
     setClock(at("2026-11-03"));
     const c = await signup();
@@ -158,7 +158,7 @@ describe("price", () => {
 
   it("price_written_once_with_settlement_claim", async () => {
     const a = await signup();
-    const A = await create(a, "한번빌라");
+    const A = await create(a, "한번아파트");
     await photo(a, [A.id], "2026-11-02");
     setClock(at("2026-11-03", 0) + 1000);
     const rs = await Promise.all([settle(env, "2026-11-02"), settle(env, "2026-11-02")]);
@@ -173,7 +173,7 @@ describe("price", () => {
   it("price_endpoint_private_only_for_members", async () => {
     const a = await signup();
     const x = await signup();
-    const A = await create(a, "비밀빌라");
+    const A = await create(a, "비밀아파트");
     await settleDays("2026-11-02", "2026-11-02");
     expect((await send("GET", `/api/villas/${A.id}/price`, undefined, x.cookie)).status).toBe(404);
     expect((await send("GET", `/api/villas/${A.id}/price`, undefined, a.cookie)).status).toBe(200);
@@ -188,8 +188,8 @@ describe("ranking & city", () => {
     const a = await signup();
     const b = await signup();
     const c = await signup();
-    const A = await create(a, "가빌라");
-    const B = await create(b, "나빌라");
+    const A = await create(a, "가아파트");
+    const B = await create(b, "나아파트");
     const C = await create(c, "비공개");
     await setPublic(a, A.id, true);
     await setPublic(b, B.id, true);
@@ -200,10 +200,10 @@ describe("ranking & city", () => {
     const r = await get<RankingResponse>(a, "/api/ranking");
     expect(r.day).toBe("2026-11-03");
     expect(r.villas.map((v) => [v.name, v.rank, v.price, v.change])).toEqual([
-      ["나빌라", 1, 12, 0],
-      ["가빌라", 2, 11, 0],
+      ["나아파트", 1, 12, 0],
+      ["가아파트", 2, 11, 0],
     ]);
-    expect(r.mine).toEqual([{ villaId: A.id, name: "가빌라", isOwner: true, public: true, inBattle: false, memberCount: 1 }]);
+    expect(r.mine).toEqual([{ villaId: A.id, name: "가아파트", isOwner: true, public: true, inBattle: false, memberCount: 1 }]);
     const raw = JSON.stringify(r);
     for (const u of [b, c]) expect(raw).not.toContain(u.id);
     expect(raw).not.toContain(C.id);
@@ -215,10 +215,10 @@ describe("ranking & city", () => {
   });
 });
 
-/** 공개 빌라 3곳 + 비공개 1곳: 월~일 인증 수가 다르다 */
+/** 공개 아파트 3곳 + 비공개 1곳: 월~일 인증 수가 다르다 */
 async function leagueSetup() {
   const owners = [await signup("일등"), await signup("이등"), await signup("삼등"), await signup("비공개"), await signup("사등")];
-  const names = ["일등빌라", "이등빌라", "삼등빌라", "숨은빌라", "사등빌라"];
+  const names = ["일등아파트", "이등아파트", "삼등아파트", "숨은아파트", "사등아파트"];
   const V = [];
   for (let i = 0; i < owners.length; i++) V.push(await create(owners[i], names[i]));
   for (const i of [0, 1, 2, 4]) await setPublic(owners[i], V[i].id, true);
@@ -257,7 +257,7 @@ describe("weekly league", () => {
     expect(await points(owners[2])).toBe(30);
     expect(await points(owners[3])).toBe(0);
     expect(await points(owners[4])).toBe(0);
-    expect(await eventsOf(late, "league_rank")).toMatchObject([{ rank: 1, points: 0, villaName: "일등빌라" }]);
+    expect(await eventsOf(late, "league_rank")).toMatchObject([{ rank: 1, points: 0, villaName: "일등아파트" }]);
     expect(await eventsOf(owners[1], "league_rank")).toMatchObject([{ rank: 2, points: 60 }]);
     expect(await eventsOf(owners[4], "league_rank")).toEqual([]);
 
@@ -269,7 +269,7 @@ describe("weekly league", () => {
     expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM price_rewards").first<{ n: number }>())!.n).toBe(9);
     expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM events WHERE type = 'league_rank'").first<{ n: number }>())!.n).toBe(10);
 
-    // 트로피: 순위 · 도시 · 빌라 화면
+    // 트로피: 순위 · 도시 · 아파트 화면
     const r = await get<RankingResponse>(owners[3], "/api/ranking");
     expect(r.leagueWeek).toBe("2026-11-09");
     expect(r.villas.find((v) => v.id === V[0].id)!.trophy).toBe(1);
@@ -281,7 +281,7 @@ describe("weekly league", () => {
 
   it("villa_without_certs_in_week_not_ranked_and_nothing_when_no_villas", async () => {
     const a = await signup();
-    const A = await create(a, "조용한빌라");
+    const A = await create(a, "조용한아파트");
     await setPublic(a, A.id, true);
     await settleDays("2026-11-09", "2026-11-15");
     expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM league_results").first<{ n: number }>())!.n).toBe(0);
@@ -290,7 +290,7 @@ describe("weekly league", () => {
 
   it("villa_with_fewer_than_three_members_not_ranked", async () => {
     const a = await signup();
-    const A = await create(a, "둘빌라");
+    const A = await create(a, "둘아파트");
     await fill(A.inviteToken, 1);
     await setPublic(a, A.id, true);
     await photo(a, [A.id], "2026-11-10");
@@ -303,13 +303,13 @@ describe("weekly league", () => {
   });
 });
 
-/** 공개 빌라 둘 (방장 + 입주민 하나씩) */
+/** 공개 아파트 둘 (방장 + 입주민 하나씩) */
 async function battlePair() {
   const ao = await signup("에이방장");
   const bo = await signup("비방장");
   const am = await signup("에이이웃");
-  const A = await create(ao, "에이빌라");
-  const B = await create(bo, "비빌라");
+  const A = await create(ao, "에이아파트");
+  const B = await create(bo, "비아파트");
   await join(am, A.inviteToken);
   await fill(A.inviteToken, 1);
   const bm = await fill(B.inviteToken, 2);
@@ -330,9 +330,9 @@ describe("1:1 battle", () => {
     const res = await challenge(ao, A.id, B.id);
     expect(res.status).toBe(201);
     const mine = (await res.json()) as VillaBattles;
-    expect(mine.current).toMatchObject({ status: "pending", side: "challenger", them: { name: "비빌라" } });
+    expect(mine.current).toMatchObject({ status: "pending", side: "challenger", them: { name: "비아파트" } });
     const bid = mine.current!.id;
-    expect(await eventsOf(bo, "battle_challenged")).toMatchObject([{ battleId: bid, fromName: "에이빌라" }]);
+    expect(await eventsOf(bo, "battle_challenged")).toMatchObject([{ battleId: bid, fromName: "에이아파트" }]);
 
     // 입주민은 보기만 (같은 상태가 보인다)
     expect((await battles(am, A.id)).current).toMatchObject({ id: bid, status: "pending" });
@@ -346,11 +346,11 @@ describe("1:1 battle", () => {
     expect(ok.status).toBe(200);
     const view = ((await ok.json()) as VillaBattles).current!;
     expect(view).toMatchObject({ status: "active", side: "opponent", startDay: "2026-11-11", endDay: "2026-11-17", daysLeft: 7, started: false });
-    expect(await eventsOf(am, "battle_started")).toMatchObject([{ opponentName: "비빌라", startDay: "2026-11-11" }]);
+    expect(await eventsOf(am, "battle_started")).toMatchObject([{ opponentName: "비아파트", startDay: "2026-11-11" }]);
     // 두 번 받아도 한 번
     expect((await act(bo, bid, "accept")).status).toBe(409);
     expect((await act(ao, bid, "cancel")).status).toBe(409);
-    // 빌라 화면 · 도시에 대결 표시
+    // 아파트 화면 · 도시에 대결 표시
     expect((await get<{ battle: { id: string } }>(am, `/api/villas/${A.id}`)).battle.id).toBe(bid);
     expect((await get<CityResponse>(am, "/api/city")).villas.find((v) => v.id === B.id)!.inBattle).toBe(true);
   });
@@ -359,23 +359,23 @@ describe("1:1 battle", () => {
     const { ao, bo, A, B } = await battlePair();
     const co = await signup();
     const doo = await signup();
-    const C = await create(co, "씨빌라");
-    const D = await create(doo, "디빌라");
+    const C = await create(co, "씨아파트");
+    const D = await create(doo, "디아파트");
     await fill(C.inviteToken, 2);
     await fill(D.inviteToken, 2);
     await setPublic(co, C.id, true);
     await setPublic(doo, D.id, true);
-    // 둘이 동시에 비빌라에 신청 → 하나만
+    // 둘이 동시에 비아파트에 신청 → 하나만
     const rs = await Promise.all([challenge(ao, A.id, B.id), challenge(co, C.id, B.id)]);
     expect(rs.map((r) => r.status).sort()).toEqual([201, 409]);
     const winner = rs[0].status === 201 ? { u: ao, v: A } : { u: co, v: C };
     const loser = rs[0].status === 201 ? { u: co, v: C } : { u: ao, v: A };
-    // 신청 중인 빌라는 다른 곳에 신청하지 못하고, 받는 쪽도 다른 곳에 신청하지 못한다
+    // 신청 중인 아파트는 다른 곳에 신청하지 못하고, 받는 쪽도 다른 곳에 신청하지 못한다
     expect((await challenge(winner.u, winner.v.id, D.id)).status).toBe(409);
     expect((await challenge(bo, B.id, D.id)).status).toBe(409);
     const busy = await challenge(loser.u, loser.v.id, B.id);
     expect(((await busy.json()) as { error: string }).error).toContain("다른 대결");
-    // 상관없는 빌라끼리는 된다
+    // 상관없는 아파트끼리는 된다
     expect((await challenge(loser.u, loser.v.id, D.id)).status).toBe(201);
     // 서로에게 동시에 신청해도 하나만
     const e1 = await signup();
@@ -394,7 +394,7 @@ describe("1:1 battle", () => {
   it("refusals_private_self_and_own_both", async () => {
     const { ao, A, B } = await battlePair();
     const x = await signup();
-    const X = await create(x, "비공개빌라");
+    const X = await create(x, "비공개아파트");
     expect((await challenge(ao, A.id, X.id)).status).toBe(404);
     expect((await challenge(ao, A.id, A.id)).status).toBe(400);
     expect((await challenge(x, X.id, B.id)).status).toBe(409);
@@ -409,7 +409,7 @@ describe("1:1 battle", () => {
     setClock(at("2026-11-10"));
     const b1 = ((await (await challenge(ao, A.id, B.id)).json()) as VillaBattles).current!.id;
     expect((await act(bo, b1, "decline")).status).toBe(200);
-    expect(await eventsOf(ao, "battle_declined")).toMatchObject([{ opponentName: "비빌라" }]);
+    expect(await eventsOf(ao, "battle_declined")).toMatchObject([{ opponentName: "비아파트" }]);
     expect((await battles(ao, A.id)).recent[0]).toMatchObject({ id: b1, status: "declined" });
 
     const b2 = ((await (await challenge(ao, A.id, B.id)).json()) as VillaBattles).current!.id;
@@ -436,7 +436,7 @@ describe("1:1 battle", () => {
     setClock(at("2026-11-10"));
     const bid = ((await (await challenge(ao, A.id, B.id)).json()) as VillaBattles).current!.id;
     await act(bo, bid, "accept");
-    // 기준일 11-10: 비빌라가 더 높게 시작해도 오른 값으로 판정한다
+    // 기준일 11-10: 비아파트가 더 높게 시작해도 오른 값으로 판정한다
     for (const d of ["2026-11-04", "2026-11-05", "2026-11-06", "2026-11-07", "2026-11-08", "2026-11-09", "2026-11-10"]) await photo(bo, [B.id], d);
     for (const d of ["2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14", "2026-11-15", "2026-11-16", "2026-11-17"]) {
       await photo(ao, [A.id], d);
@@ -463,7 +463,7 @@ describe("1:1 battle", () => {
     expect(await points(am)).toBe(before.am + 50);
     expect(await points(late)).toBe(before.late);
     expect(await points(bo)).toBe(before.bo);
-    expect(await eventsOf(am, "battle_result")).toMatchObject([{ result: "won", opponentName: "비빌라", points: 50 }]);
+    expect(await eventsOf(am, "battle_result")).toMatchObject([{ result: "won", opponentName: "비아파트", points: 50 }]);
     expect(await eventsOf(late, "battle_result")).toMatchObject([{ result: "won", points: 0 }]);
     expect(await eventsOf(bo, "battle_result")).toMatchObject([{ result: "lost", points: 0 }]);
 
@@ -498,7 +498,7 @@ describe("1:1 battle", () => {
     const b0 = ((await (await challenge(ao, A.id, B.id)).json()) as VillaBattles).current!.id;
     expect((await setPublic(bo, B.id, false)).status).toBe(200);
     expect(await env.DB.prepare("SELECT status, reason FROM battles WHERE id = ?").bind(b0).first()).toEqual({ status: "cancelled", reason: "private" });
-    expect(await eventsOf(ao, "battle_cancelled")).toMatchObject([{ opponentName: "비빌라", reason: "private" }]);
+    expect(await eventsOf(ao, "battle_cancelled")).toMatchObject([{ opponentName: "비아파트", reason: "private" }]);
     await setPublic(bo, B.id, true);
 
     // 진행 중에는 비공개로 바꿀 수 없다 (양쪽 모두)
@@ -520,20 +520,20 @@ describe("1:1 battle", () => {
 
     // 방장 해체는 진행 중이어도 되고, 바로 취소
     const co = await signup();
-    const C = await create(co, "씨빌라");
+    const C = await create(co, "씨아파트");
     await fill(C.inviteToken, 2);
     await setPublic(co, C.id, true);
     setClock(at("2026-11-19"));
     const b3 = ((await (await challenge(co, C.id, A.id)).json()) as VillaBattles).current!.id;
     await act(ao, b3, "accept");
-    expect((await send("POST", `/api/villas/${C.id}/dissolve`, { confirmName: "씨빌라" }, co.cookie)).status).toBe(200);
+    expect((await send("POST", `/api/villas/${C.id}/dissolve`, { confirmName: "씨아파트" }, co.cookie)).status).toBe(200);
     expect(await env.DB.prepare("SELECT status FROM battles WHERE id = ?").bind(b3).first()).toEqual({ status: "cancelled" });
   });
 
   it("needs_three_members_at_challenge_accept_and_finish", async () => {
     const { ao, bo, am, bm, A, B } = await battlePair();
     const x = await signup();
-    const X = await create(x, "둘빌라");
+    const X = await create(x, "둘아파트");
     await fill(X.inviteToken, 1);
     await setPublic(x, X.id, true);
     setClock(at("2026-11-10"));
@@ -542,9 +542,9 @@ describe("1:1 battle", () => {
     expect(((await r1.json()) as { error: string }).error).toBe("입주민이 3명 이상이어야 대결할 수 있어요");
     const r2 = await challenge(ao, A.id, X.id);
     expect(r2.status).toBe(409);
-    expect(((await r2.json()) as { error: string }).error).toContain("3명 이상인 빌라와만");
+    expect(((await r2.json()) as { error: string }).error).toContain("3명 이상인 아파트와만");
 
-    // 받기 전에 신청한 빌라가 2명이 되면 받을 수 없다
+    // 받기 전에 신청한 아파트가 2명이 되면 받을 수 없다
     const b1 = ((await (await challenge(ao, A.id, B.id)).json()) as VillaBattles).current!.id;
     expect((await send("POST", `/api/villas/${A.id}/leave`, undefined, am.cookie)).status).toBe(200);
     const acc = await act(bo, b1, "accept");

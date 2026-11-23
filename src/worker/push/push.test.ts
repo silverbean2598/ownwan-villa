@@ -50,7 +50,7 @@ async function photo(u: U) {
   return ((await r.json()) as { certId: string }).certId;
 }
 async function villaOf(owner: U, ...members: U[]) {
-  const v = (await (await send("POST", "/api/villas", owner.cookie, { name: "빌라" })).json()) as { id: string; inviteToken: string };
+  const v = (await (await send("POST", "/api/villas", owner.cookie, { name: "아파트" })).json()) as { id: string; inviteToken: string };
   for (const m of members) await send("POST", `/api/invite/${v.inviteToken}/join`, m.cookie, {});
   return v;
 }
@@ -184,7 +184,7 @@ describe("앱 알림 → 휴대폰 푸시", () => {
     await flushPushes();
     expect(to(d)).toHaveLength(1);
     const p = await payloadOf(to(d)[0], d);
-    expect(p).toEqual({ title: "오운완빌라", body: "이웃 님이 응원했어요", url: `/room/${author.id}/board`, tag: "ownwan-cheer" });
+    expect(p).toEqual({ title: "오운완아파트", body: "이웃 님이 응원했어요", url: `/room/${author.id}/board`, tag: "ownwan-cheer" });
     const hd = to(d)[0].init.headers as Record<string, string>;
     expect(hd.topic).toBe("ownwan-cheer");
     expect(hd.authorization).toContain(`k=${E.VAPID_PUBLIC_KEY}`);
@@ -297,15 +297,15 @@ describe("앱 알림 → 휴대폰 푸시", () => {
   it("recruit_welcome_and_battle_challenge_map_to_apply", async () => {
     const { author, d } = await setup();
     await logEvents(E, [
-      { userId: author.id, type: "welcome", payload: { villaName: "초록빌라", villaId: "v1" } }, // 초대 링크 입주: 안 보냄
-      { userId: author.id, type: "battle_challenged", payload: { fromName: "파랑빌라", villaId: "v9" } },
+      { userId: author.id, type: "welcome", payload: { villaName: "초록아파트", villaId: "v1" } }, // 초대 링크 입주: 안 보냄
+      { userId: author.id, type: "battle_challenged", payload: { fromName: "파랑아파트", villaId: "v9" } },
     ]);
     await flushPushes();
     expect(to(d)).toHaveLength(1);
     const p = await payloadOf(to(d)[0], d);
     expect(p.tag).toBe("ownwan-apply");
     expect(p.url).toBe("/battle/v9");
-    expect(p.body).toContain("파랑빌라에서 집값 대결을 신청했어요");
+    expect(p.body).toContain("파랑아파트에서 집값 대결을 신청했어요");
   });
 });
 
@@ -331,7 +331,7 @@ describe("저녁 9시 운동 알림", () => {
     expect(to(dd)).toHaveLength(0);
     expect(to(doff)).toHaveLength(0);
     const p = await payloadOf(to(dl)[0], dl);
-    expect(p).toEqual({ title: "오운완빌라", body: REMINDER_BODY, url: "/certify", tag: "ownwan-reminder" });
+    expect(p).toEqual({ title: "오운완아파트", body: REMINDER_BODY, url: "/certify", tag: "ownwan-reminder" });
     expect((to(dl)[0].init.headers as Record<string, string>).urgency).toBe("high");
     // 같은 날 다시 돌아도 한 번만
     setNow(() => NINE_PM + 30 * 60_000);

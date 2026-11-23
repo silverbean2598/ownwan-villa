@@ -11,13 +11,13 @@ export type Member = {
   avatar: AvatarSpec;
   floor: number;
   floorUpToday?: boolean;
-  /** 이 빌라 층을 정하는 연속 기록 (이 빌라에 올린 날로 센다) */
+  /** 이 아파트 층을 정하는 연속 기록 (이 아파트에 올린 날로 센다) */
   streak: number;
-  /** 어느 빌라든 올린 날로 센 연속 기록 (프로필) */
+  /** 어느 아파트든 올린 날로 센 연속 기록 (프로필) */
   userStreak?: number;
-  /** 오늘 이 빌라에 올렸다 = 이 빌라에서 불이 켜졌다 */
+  /** 오늘 이 아파트에 올렸다 = 이 아파트에서 불이 켜졌다 */
   certifiedToday: boolean;
-  /** 오늘 어느 빌라든 올렸다 */
+  /** 오늘 어느 아파트든 올렸다 */
   certifiedAnywhere?: boolean;
   placements: { slot: string; itemId: string }[];
 };
@@ -30,7 +30,7 @@ export type Row = FloorRow | GapRow;
 
 /**
  * 위(펜트하우스)에서 아래(1층) 순서의 행. 빈 층 구간은 하나로 접고, 한 행에는 최대 3명.
- * capacity: 이 건물의 정원 (빌라 20 · 아파트 50). 빈방 수 = 정원 − 입주민
+ * capacity: 이 건물의 정원 (아파트 20 · 타워팰리스 50). 빈방 수 = 정원 − 입주민
  */
 export function layoutFloors(members: Member[], penthouseUserId: string | null, capacity = VILLA_CAPACITY): Row[] {
   const rows: Row[] = [];
@@ -78,7 +78,7 @@ function VacantRoom() {
 
 type Props = {
   members: Member[]; penthouseUserId: string | null; ownerId: string; meId: string; villaId?: string;
-  /** 정원 · 종류 (아파트면 지붕에 "아파트" 간판). 없으면 빌라 · 20명 */
+  /** 정원 · 종류 (타워팰리스면 지붕에 "타워팰리스" 간판). 없으면 아파트 · 20명 */
   capacity?: number; kind?: VillaKind;
 };
 
@@ -91,7 +91,7 @@ export function Building({ members, penthouseUserId, ownerId, meId, villaId, cap
   return (
     <section className={`bldg${apt ? " apt" : ""}`} aria-label={`${kindLabel(kind)} 단면`}>
       <div className="tower">
-        <div className="roof">{apt && <span className="roof-sign">아파트</span>}</div>
+        <div className="roof">{apt && <span className="roof-sign">타워팰리스</span>}</div>
         {rows.map((r, i) => {
           if ("gap" in r) {
             const [lo, hi] = r.gap;

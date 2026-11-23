@@ -11,7 +11,7 @@ export function Login() {
   const nextParam = params.get("next");
   // 카카오에서 실패해 돌아오면 (?kakao=코드) 안내한다
   const kakaoErr = KAKAO_NOTICE[params.get("kakao") ?? ""]?.err;
-  // 기본은 빌라 화면 (빌라가 없으면 그 화면이 빌라 만들기를 안내한다)
+  // 기본은 아파트 화면 (아파트가 없으면 그 화면이 아파트 만들기를 안내한다)
   const next = nextParam ? safeNext(nextParam) : "/villa";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");

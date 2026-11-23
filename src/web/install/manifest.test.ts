@@ -22,8 +22,8 @@ describe("manifest.webmanifest", () => {
   it("required_fields", () => {
     expect(manifest).toMatchObject({
       id: "/",
-      name: "오운완빌라",
-      short_name: "오운완빌라",
+      name: "오운완아파트",
+      short_name: "오운완아파트",
       start_url: "/",
       scope: "/",
       display: "standalone",
@@ -82,7 +82,7 @@ describe("index.html 홈 화면 앱 메타", () => {
     expect(html).toContain('name="apple-mobile-web-app-capable" content="yes"');
     expect(html).toContain('name="mobile-web-app-capable" content="yes"');
     expect(html).toContain('name="apple-mobile-web-app-status-bar-style" content="default"');
-    expect(html).toContain('name="apple-mobile-web-app-title" content="오운완빌라"');
+    expect(html).toContain('name="apple-mobile-web-app-title" content="오운완아파트"');
     // 머리말과 같은 흰색
     expect(html).toContain(`name="theme-color" content="${manifest.theme_color}"`);
   });

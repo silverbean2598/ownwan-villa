@@ -12,7 +12,7 @@ const AV = { skin: 0, hair: "short", shirt: 0 };
 const NOW = Date.now();
 const villa = {
   id: "v1",
-  name: "땀빌라",
+  name: "땀아파트",
   ownerId: "me",
   members: [
     { userId: "me", nickname: "나", sport: "gym", avatar: AV, placements: [] },
@@ -39,7 +39,7 @@ function mockApi(boardOf: string, items: unknown[], extra?: Handler) {
       const r = extra?.(path, method);
       if (r) return r;
       if (path === "/api/me") return body({ id: "me" });
-      if (path === "/api/me/villas") return body([{ id: "v1", name: "땀빌라", ownerId: "me", public: false, memberCount: 2, joinedAt: 0, certifiedToday: false }]);
+      if (path === "/api/me/villas") return body([{ id: "v1", name: "땀아파트", ownerId: "me", public: false, memberCount: 2, joinedAt: 0, certifiedToday: false }]);
       if (path === "/api/villas/v1") return body(villa);
       if (path.startsWith(`/api/users/${boardOf}/board`)) return body(items);
       if (path === "/api/certs/c1/comments" && method === "GET")
@@ -106,14 +106,14 @@ describe("RoomBoard 응원 · 댓글", () => {
 
   it("heart_rolls_back_on_error", async () => {
     mockApi("b", [item("c1")], (path) =>
-      path === "/api/certs/c1/cheer" ? new Response(JSON.stringify({ error: "같은 빌라 입주민만 응원할 수 있어요" }), { status: 403 }) : undefined,
+      path === "/api/certs/c1/cheer" ? new Response(JSON.stringify({ error: "같은 아파트 입주민만 응원할 수 있어요" }), { status: 403 }) : undefined,
     );
     await mount("b");
     await click(byLabel("응원하기"));
     const heart = byLabel("응원하기")!;
     expect(heart.getAttribute("aria-pressed")).toBe("false");
     expect(heart.textContent).toContain("1");
-    expect(host.textContent).toContain("같은 빌라 입주민만 응원할 수 있어요");
+    expect(host.textContent).toContain("같은 아파트 입주민만 응원할 수 있어요");
   });
 
   it("heart_disabled_on_my_items", async () => {

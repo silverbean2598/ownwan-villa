@@ -47,8 +47,8 @@ function Confirm({ label, children, onCancel }: { label: string; children: React
 }
 
 /**
- * 설정 → 방장 → 입주민 관리: 내보내기 · 방장 넘기기 · 내보낸 사람 다시 받기 · 빌라 해체.
- * onChanged: 입주민이 바뀌었으니 빌라 정보를 다시 불러온다. onTransferred: 방장을 넘긴 뒤. onDissolved: 해체된 뒤.
+ * 설정 → 방장 → 입주민 관리: 내보내기 · 방장 넘기기 · 내보낸 사람 다시 받기 · 아파트 해체.
+ * onChanged: 입주민이 바뀌었으니 아파트 정보를 다시 불러온다. onTransferred: 방장을 넘긴 뒤. onDissolved: 해체된 뒤.
  */
 export function MemberManage({
   villa, meId, onChanged, onTransferred, onDissolved, onAuthLost,
@@ -218,9 +218,9 @@ export function MemberManage({
       )}
 
       <div className="danger-zone">
-        <h3 className="sub-title">빌라 해체</h3>
-        <p className="muted small">해체하면 입주민 모두 빌라를 나가고 초대 링크도 쓸 수 없어요. 연속 기록 · 포인트 · 가구는 그대로예요.</p>
-        <button className="btn danger ghost" type="button" onClick={() => setAsk({ kind: "dissolve" })}>빌라 해체하기</button>
+        <h3 className="sub-title">아파트 해체</h3>
+        <p className="muted small">해체하면 입주민 모두 아파트를 나가고 초대 링크도 쓸 수 없어요. 연속 기록 · 포인트 · 가구는 그대로예요.</p>
+        <button className="btn danger ghost" type="button" onClick={() => setAsk({ kind: "dissolve" })}>아파트 해체하기</button>
       </div>
 
       {note.ok && <p className="ok" role="status">{note.ok}</p>}
@@ -228,7 +228,7 @@ export function MemberManage({
 
       {ask?.kind === "kick" && (
         <Confirm label="내보내기 확인" onCancel={close}>
-          <p>{ask.m.nickname} 님을 빌라에서 내보낼까요? 내보낸 사람은 방장이 풀어 줄 때까지 다시 입주할 수 없어요.</p>
+          <p>{ask.m.nickname} 님을 아파트에서 내보낼까요? 내보낸 사람은 방장이 풀어 줄 때까지 다시 입주할 수 없어요.</p>
           <div className="row">
             <button className="btn danger" type="button" disabled={busy} onClick={() => kick(ask.m)}>내보내기</button>
             <button className="btn ghost" type="button" onClick={close}>취소</button>
@@ -245,12 +245,12 @@ export function MemberManage({
         </Confirm>
       )}
       {ask?.kind === "dissolve" && (
-        <Confirm label="빌라 해체 확인" onCancel={close}>
+        <Confirm label="아파트 해체 확인" onCancel={close}>
           <p>
             <b>{villa.name}</b>{objParticle(villa.name)} 해체할까요? 되돌릴 수 없어요.
           </p>
           <div className="field">
-            <label htmlFor="confirm-villa-name">빌라 이름을 입력하면 해체돼요</label>
+            <label htmlFor="confirm-villa-name">아파트 이름을 입력하면 해체돼요</label>
             <input id="confirm-villa-name" type="text" autoComplete="off" placeholder={villa.name} value={typed} onChange={(e) => setTyped(e.target.value)} />
           </div>
           <div className="row">

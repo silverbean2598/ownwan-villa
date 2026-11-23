@@ -18,12 +18,12 @@ async function villa(dissolved = false) {
   const id = `v${n++}`;
   await env.DB.prepare(
     "INSERT INTO villas(id, name, owner_id, invite_token, created_at, dissolved_at) VALUES(?,?,?,?,0,?)",
-  ).bind(id, "빌라", "o", id, dissolved ? 1 : null).run();
+  ).bind(id, "아파트", "o", id, dissolved ? 1 : null).run();
   return id;
 }
 async function member(userId: string, villaId: string, floor = 1, reachedAt = 100) {
   await env.DB.prepare(
-    // 빌라 1곳에만 살던 기존 데이터처럼 사용자 연속 기록 · 쉰 날을 입주 기록에 그대로 둔다 (0010 마이그레이션과 같다)
+    // 아파트 1곳에만 살던 기존 데이터처럼 사용자 연속 기록 · 쉰 날을 입주 기록에 그대로 둔다 (0010 마이그레이션과 같다)
     `INSERT INTO memberships(id, user_id, villa_id, floor, floor_reached_at, joined_at, streak, miss_run)
      SELECT ?, ?, ?, ?, ?, 0, streak, miss_run FROM users WHERE id = ?`,
   ).bind(`m${n++}`, userId, villaId, floor, reachedAt, userId).run();

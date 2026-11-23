@@ -21,7 +21,7 @@ type VillaData = {
   penthouseUserId: string | null;
   inviteToken?: string;
   members: Member[];
-  /** 건물 종류 · 정원 (예전 서버 응답에는 없다 → 빌라 · 20명) */
+  /** 건물 종류 · 정원 (예전 서버 응답에는 없다 → 아파트 · 20명) */
   kind?: VillaKind;
   capacity?: number;
   /** 집값 대결 (예전 서버 응답에는 없다) */
@@ -32,8 +32,8 @@ type VillaData = {
 type Me = { id: string; sport: string | null };
 
 /**
- * 빌라 화면. 주소는 /villa/:id. 예전 주소 /villa 는 이 기기에서 마지막으로 본 빌라(없으면 가장 먼저 입주한 빌라)로 보낸다.
- * 빌라 여러 곳에 살면 위쪽 탭으로 바꾼다.
+ * 아파트 화면. 주소는 /villa/:id. 예전 주소 /villa 는 이 기기에서 마지막으로 본 아파트(없으면 가장 먼저 입주한 아파트)로 보낸다.
+ * 아파트 여러 곳에 살면 위쪽 탭으로 바꾼다.
  */
 export function Villa() {
   const nav = useNavigate();
@@ -59,14 +59,14 @@ export function Villa() {
           if (alive) setState({ me, villas, villa: null });
           return;
         }
-        // 주소에 빌라가 없거나 내가 살지 않는 빌라면 보여 줄 빌라 주소로 바꾼다
+        // 주소에 아파트가 없거나 내가 살지 않는 아파트면 보여 줄 아파트 주소로 바꾼다
         if (pick !== id) return nav(villaPath(pick), { replace: true });
         writeCurrentVilla(pick);
         let villa: VillaData;
         try {
           villa = await api<VillaData>(`/api/villas/${pick}`);
         } catch (e) {
-          // 목록을 받은 뒤 이 빌라에서 나갔거나 내보내졌다: 목록을 다시 받아 다른 빌라로 (한 번만)
+          // 목록을 받은 뒤 이 아파트에서 나갔거나 내보내졌다: 목록을 다시 받아 다른 아파트로 (한 번만)
           if (e instanceof ApiError && e.status === 404 && !retried.current) {
             retried.current = true;
             const again = pickVilla((await loadMyVillas()).filter((v) => v.id !== pick));
@@ -99,9 +99,9 @@ export function Villa() {
   if (!villa) {
     return (
       <main className="page">
-        <h1>아직 입주한 빌라가 없어요</h1>
-        <p className="muted">빌라를 만들어 친구를 초대하거나, 도시에서 입주자를 모집하는 빌라에 신청해 보세요.</p>
-        <Link className="btn" to="/villa/new">빌라 만들기</Link>
+        <h1>아직 입주한 아파트가 없어요</h1>
+        <p className="muted">아파트를 만들어 친구를 초대하거나, 도시에서 입주자를 모집하는 아파트에 신청해 보세요.</p>
+        <Link className="btn" to="/villa/new">아파트 만들기</Link>
         <Link className="btn ghost" to="/city" style={{ marginTop: 10 }}>도시에서 빈방 찾기</Link>
       </main>
     );
@@ -134,7 +134,7 @@ export function Villa() {
       />
       <header className="villa-head">
         <div className="villa-title">
-          <h1>{villa.name}{villa.kind === "apartment" && <span className="kind-badge">아파트</span>}</h1>
+          <h1>{villa.name}{villa.kind === "apartment" && <span className="kind-badge">타워팰리스</span>}</h1>
           <Link className="btn ghost city-link" to="/city">도시 보기</Link>
         </div>
         <div className="stats">
@@ -178,7 +178,7 @@ export function Villa() {
   );
 }
 
-/** 빌라 화면 위쪽: 집값 · 전날 대비(→ 집값 순위), 대결이 있으면 한 줄(→ 대결 화면). 입주민 모두 본다 */
+/** 아파트 화면 위쪽: 집값 · 전날 대비(→ 집값 순위), 대결이 있으면 한 줄(→ 대결 화면). 입주민 모두 본다 */
 function VillaPriceRows({ villa }: { villa: VillaData }) {
   const b = villa.battle;
   let battle: JSX.Element | null = null;
@@ -206,7 +206,7 @@ function VillaPriceRows({ villa }: { villa: VillaData }) {
         <span className="go">순위 보기 ›</span>
       </Link>
       <Link className={`vp-row battle${b?.status === "pending" && b.side === "opponent" ? " incoming" : ""}`} to={`/battle/${villa.id}`}>
-        {battle ?? <span className="txt">집값 대결 · 다른 빌라와 7일 동안 겨뤄요</span>}
+        {battle ?? <span className="txt">집값 대결 · 다른 아파트와 7일 동안 겨뤄요</span>}
         <span className="go">{b?.status === "pending" && b.side === "opponent" ? "답하기 ›" : "보기 ›"}</span>
       </Link>
     </div>

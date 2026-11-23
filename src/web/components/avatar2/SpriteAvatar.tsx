@@ -27,7 +27,7 @@ export const SpriteStillContext = createContext<{ frame: number } | null>(null);
 const ASYNC = { decoding: "async" } as object;
 
 /**
- * 화면 가까이 왔을 때만 그림을 받는다 (빌라에 방이 50개까지 있다). 받을 때 실제로 그려질 크기를 재서
+ * 화면 가까이 왔을 때만 그림을 받는다 (아파트에 방이 50개까지 있다). 받을 때 실제로 그려질 크기를 재서
  * 작으면(세로 × 화면 배율 ≤ 160px) sm/ 작은 그림을 고른다. IntersectionObserver 가 없으면 바로 받는다
  */
 function useSpriteRes<T extends SVGSVGElement>(fh: number, still: boolean) {
@@ -66,7 +66,7 @@ function useSpriteRes<T extends SVGSVGElement>(fh: number, still: boolean) {
 /**
  * 새 캐릭터: 같은 크기의 그림 띠(3칸)를 뒷머리 → 몸 → 앞머리 → 소품 → 바벨 순으로 겹치고,
  * 한 칸 크기의 svg 창으로 잘라 보여 준다. 칸 넘기기는 sprite.css 가 띠를 옮겨서 한다.
- * 요소 수 = svg 1 + 그림 3~4 (도복 자세는 머리가 몸 그림에 있어 1) + 낀 소품 수. 빌라 화면 DOM 을 작게.
+ * 요소 수 = svg 1 + 그림 3~4 (도복 자세는 머리가 몸 그림에 있어 1) + 낀 소품 수. 아파트 화면 DOM 을 작게.
  */
 export function SpriteAvatar({ spec, size, pose = "idle", className, label = "캐릭터", x, y }: Props) {
   const still = useContext(SpriteStillContext);

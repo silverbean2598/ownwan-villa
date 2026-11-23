@@ -16,7 +16,7 @@ const msg = (e: unknown) => (e instanceof ApiError ? e.message : "문제가 생�
 const width = () => (typeof window === "undefined" ? 390 : Math.min(window.innerWidth, 1100));
 
 /**
- * 누른 빌라의 작은 카드: 이름 · 입주 인원 · 오늘 불 켜진 방 · 펜트하우스 주인 (사진 · 루틴 · 입주민 목록은 없다).
+ * 누른 아파트의 작은 카드: 이름 · 입주 인원 · 오늘 불 켜진 방 · 펜트하우스 주인 (사진 · 루틴 · 입주민 목록은 없다).
  * 빈방 모집 중이면 모집 글과 [입주 신청]
  */
 function VillaCard({
@@ -24,7 +24,7 @@ function VillaCard({
 }: {
   v: CityVilla;
   mine: boolean;
-  /** 내가 사는 빌라 (대결 신청 버튼) */
+  /** 내가 사는 아파트 (대결 신청 버튼) */
   myVillas: RankingMine[];
   myApp: MyApplication | null;
   villaCount: number;
@@ -47,7 +47,7 @@ function VillaCard({
         <div className="city-card-top">
           <div>
             {mine && <span className="mine-tag">우리 {kindLabel(v.kind)}</span>}
-            <h2>{v.name}{v.kind === "apartment" && <span className="kind-badge">아파트</span>}</h2>
+            <h2>{v.name}{v.kind === "apartment" && <span className="kind-badge">타워팰리스</span>}</h2>
             <PriceBadges trophy={v.trophy} battleWin={v.battleWin} inBattle={v.inBattle} />
           </div>
           <button type="button" className="x" aria-label="닫기" onClick={onClose}>×</button>
@@ -69,7 +69,7 @@ function VillaCard({
         </ul>
         {"price" in v && <ChallengeBox key={`c${v.id}`} target={{ id: v.id, name: v.name, inBattle: !!v.inBattle, memberCount: v.memberCount }} mine={myVillas} compact />}
         <RecruitCard key={v.id} v={v} mine={mine} myApp={myApp} villaCount={villaCount} onChanged={onChanged} />
-        {!mine && <p className="note">사진과 루틴은 그 빌라 입주민끼리만 봐요.</p>}
+        {!mine && <p className="note">사진과 루틴은 그 아파트 입주민끼리만 봐요.</p>}
       </div>
     </div>
   );
@@ -104,7 +104,7 @@ export function City() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // 처음 열 때 우리 빌라가 지도에 있으면 그 자리로
+  // 처음 열 때 우리 아파트가 지도에 있으면 그 자리로
   useEffect(() => {
     if (!data || scrolled.current) return;
     const el = document.getElementById("city-mine");
@@ -118,7 +118,7 @@ export function City() {
   if (!data) return <main className="page"><p className="muted">도시를 불러오는 중이에요</p></main>;
 
   const { villas } = data;
-  // 내가 사는 빌라 모두 (예전 서버 응답이면 mine 하나)
+  // 내가 사는 아파트 모두 (예전 서버 응답이면 mine 하나)
   const mineAll: CityMine[] = data.myVillas ?? (data.mine ? [data.mine] : []);
   const mineIds = mineAll.map((m) => m.villaId);
   const sel = villas.find((v) => v.id === selected) ?? null;
@@ -142,26 +142,26 @@ export function City() {
     <main className="city-page">
       <header className="city-head">
         <div className="city-head-links">
-          <Link className="back" to="/villa">← 빌라로</Link>
+          <Link className="back" to="/villa">← 아파트로</Link>
           <Link className="rank-link" to="/ranking?from=city">집값 순위 ›</Link>
         </div>
         <h1>도시</h1>
         <p>
-          {villas.length ? `공개한 빌라 ${villas.length}곳이 모여 있어요. ` : "아직 공개한 빌라가 없어요. "}
+          {villas.length ? `공개한 아파트 ${villas.length}곳이 모여 있어요. ` : "아직 공개한 아파트가 없어요. "}
           불 켜진 창문은 오늘 운동한 사람이에요.
-          {villas.some((v) => v.recruit) && " 깃발이 꽂힌 빌라는 입주자를 모집하고 있어요."}
+          {villas.some((v) => v.recruit) && " 깃발이 꽂힌 아파트는 입주자를 모집하고 있어요."}
         </p>
       </header>
 
-      {mineAll.length === 0 && <div className="city-hint">빌라에 입주하면 우리 빌라도 지도에 올릴 수 있어요.</div>}
+      {mineAll.length === 0 && <div className="city-hint">아파트에 입주하면 우리 아파트도 지도에 올릴 수 있어요.</div>}
       {mineAll.length === 1 && hidden.length === 1 && hidden[0].isOwner && (
         <div className="city-hint" role="status">
-          <span>우리 빌라는 아직 지도에 없어요. 공개하면 다른 빌라도 구경할 수 있어요.</span>
+          <span>우리 아파트는 아직 지도에 없어요. 공개하면 다른 아파트도 구경할 수 있어요.</span>
           <button type="button" className="btn" disabled={busy} onClick={() => publish(hidden[0].villaId)}>지도에 공개하기</button>
         </div>
       )}
       {mineAll.length === 1 && hidden.length === 1 && !hidden[0].isOwner && <div className="city-hint" role="status">방장이 공개하면 지도에 나와요.</div>}
-      {/* 빌라 여러 곳에 살면 지도에 없는 빌라마다 한 줄씩 */}
+      {/* 아파트 여러 곳에 살면 지도에 없는 아파트마다 한 줄씩 */}
       {mineAll.length > 1 &&
         hidden.map((m) => (
           <div className="city-hint" role="status" key={m.villaId}>

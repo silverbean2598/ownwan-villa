@@ -36,7 +36,7 @@ const FLOOR_PAD: Partial<Record<Pose, number>> = { sleep: 2, pilates: 2, yoga: 3
 export type SpriteRes = "full" | "sm";
 
 /**
- * 실제로 그려질 세로 크기(CSS px × devicePixelRatio)가 작은 그림 세로(160px) 이하면 sm/ 를 쓴다 (빌라 방 칸).
+ * 실제로 그려질 세로 크기(CSS px × devicePixelRatio)가 작은 그림 세로(160px) 이하면 sm/ 를 쓴다 (아파트 방 칸).
  * 크기를 모르면(0 · 측정 전) 원본
  */
 export function spriteRes(cssH: number, dpr = 1): SpriteRes {

@@ -15,7 +15,7 @@ type Props = {
   lit: boolean;
   avatar: AvatarSpec;
   penthouse?: boolean;
-  /** tile: 빌라 단면의 작은 방 / detail: 방 상세(왼쪽 벽에 게시판) */
+  /** tile: 아파트 단면의 작은 방 / detail: 방 상세(왼쪽 벽에 게시판) */
   variant?: "tile" | "detail";
   /** detail에서 왼쪽 벽에 붙일 게시판(HTML) */
   board?: ReactNode;

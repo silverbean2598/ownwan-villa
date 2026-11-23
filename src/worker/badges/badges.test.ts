@@ -30,7 +30,7 @@ const req = (path: string, method: string, cookie?: string, body?: unknown) =>
     env,
   );
 async function makeVilla(cookie: string) {
-  const r = await req("/api/villas", "POST", cookie, { name: "빌라" });
+  const r = await req("/api/villas", "POST", cookie, { name: "아파트" });
   return (await r.json<any>()).inviteToken as string;
 }
 const join = (cookie: string, token: string) => req(`/api/invite/${token}/join`, "POST", cookie, {});

@@ -8,16 +8,16 @@ import type { CityResponse } from "../../shared/city";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const V = { id: "v1", name: "햇살빌라", slot: 0, topFloor: 3, memberCount: 6, litCount: 4, penthouseNickname: "민지" };
+const V = { id: "v1", name: "햇살아파트", slot: 0, topFloor: 3, memberCount: 6, litCount: 4, penthouseNickname: "민지" };
 const W = { id: "v2", name: "새벽런닝", slot: 1, topFloor: 8, memberCount: 12, litCount: 7, penthouseNickname: "달리기" };
 let root: Root;
 let host: HTMLDivElement;
 let calls: { path: string; method: string }[];
 
 type Old = Omit<CityResponse, "myVillas" | "mine"> & { mine: Omit<NonNullable<CityResponse["mine"]>, "name"> | null; myVillas?: CityResponse["myVillas"] };
-/** 빌라 1곳 응답은 mine 하나로 쓰고 myVillas 를 채운다 */
+/** 아파트 1곳 응답은 mine 하나로 쓰고 myVillas 를 채운다 */
 const res = (r: Old): CityResponse => {
-  const mine = r.mine ? { name: "햇살빌라", ...r.mine } : null;
+  const mine = r.mine ? { name: "햇살아파트", ...r.mine } : null;
   return { ...r, mine, myVillas: r.myVillas ?? (mine ? [mine] : []) };
 };
 function mockApi(firstIn: Old, afterIn?: Old) {
@@ -61,7 +61,7 @@ describe("City", () => {
     mockApi({ mine: { villaId: "v1", public: true, isOwner: true }, villas: [V, W] });
     await mount();
     expect(host.querySelectorAll('[role="button"]').length).toBe(2);
-    expect(host.querySelector("#city-mine")?.getAttribute("aria-label")).toBe("우리 빌라, 햇살빌라, 오늘 불 켜진 방 4개");
+    expect(host.querySelector("#city-mine")?.getAttribute("aria-label")).toBe("우리 아파트, 햇살아파트, 오늘 불 켜진 방 4개");
     expect(host.querySelector(".city-hint")).toBeNull();
     await click(host.querySelector('[aria-label="새벽런닝, 오늘 불 켜진 방 7개"]'));
     const card = host.querySelector(".city-card")!;
@@ -80,7 +80,7 @@ describe("City", () => {
       { mine: { villaId: "v1", public: true, isOwner: true }, villas: [V, W] },
     );
     await mount();
-    expect(host.querySelector(".city-hint")?.textContent).toContain("우리 빌라는 아직 지도에 없어요");
+    expect(host.querySelector(".city-hint")?.textContent).toContain("우리 아파트는 아직 지도에 없어요");
     expect(host.querySelector("#city-mine")).toBeNull();
     await click(Array.from(host.querySelectorAll("button")).find((b) => b.textContent === "지도에 공개하기"));
     expect(calls).toContainEqual({ path: "/api/villas/v1/public", method: "PUT" });
@@ -93,7 +93,7 @@ describe("City", () => {
     mockApi({
       mine: { villaId: "v1", public: true, isOwner: false },
       myVillas: [
-        { villaId: "v1", name: "햇살빌라", public: true, isOwner: false },
+        { villaId: "v1", name: "햇살아파트", public: true, isOwner: false },
         { villaId: "v3", name: "달빛클럽", public: true, isOwner: true },
         { villaId: "v9", name: "비밀집", public: false, isOwner: true },
       ],
@@ -102,16 +102,16 @@ describe("City", () => {
     await mount();
     expect(host.querySelectorAll(".city-bldg.mine").length).toBe(2);
     expect(host.querySelectorAll("#city-mine").length).toBe(1);
-    expect(host.querySelector("#city-mine")?.getAttribute("aria-label")).toBe("우리 빌라, 햇살빌라, 오늘 불 켜진 방 4개");
-    expect(host.querySelector('[aria-label="우리 빌라, 달빛클럽, 오늘 불 켜진 방 0개"]')).not.toBeNull();
+    expect(host.querySelector("#city-mine")?.getAttribute("aria-label")).toBe("우리 아파트, 햇살아파트, 오늘 불 켜진 방 4개");
+    expect(host.querySelector('[aria-label="우리 아파트, 달빛클럽, 오늘 불 켜진 방 0개"]')).not.toBeNull();
     expect(host.querySelector('[aria-label="새벽런닝, 오늘 불 켜진 방 7개"]')).not.toBeNull();
     const hints = host.querySelectorAll(".city-hint");
     expect(hints.length).toBe(1);
     expect(hints[0].textContent).toContain("비밀집은 아직 지도에 없어요.");
     await click(host.querySelector('[aria-label="비밀집 지도에 공개하기"]'));
     expect(calls).toContainEqual({ path: "/api/villas/v9/public", method: "PUT" });
-    await click(host.querySelector('[aria-label="우리 빌라, 달빛클럽, 오늘 불 켜진 방 0개"]'));
-    expect(host.querySelector(".city-card .mine-tag")?.textContent).toBe("우리 빌라");
+    await click(host.querySelector('[aria-label="우리 아파트, 달빛클럽, 오늘 불 켜진 방 0개"]'));
+    expect(host.querySelector(".city-card .mine-tag")?.textContent).toBe("우리 아파트");
   });
 
   it("non_owner_of_private_villa_sees_wait_message", async () => {
@@ -119,7 +119,7 @@ describe("City", () => {
     await mount();
     expect(host.querySelector(".city-hint")?.textContent).toBe("방장이 공개하면 지도에 나와요.");
     expect(host.querySelector(".city-hint button")).toBeNull();
-    // 빌라가 하나도 없어도 지도(소품)는 그린다
+    // 아파트가 하나도 없어도 지도(소품)는 그린다
     expect(host.querySelector(".city-map")).not.toBeNull();
   });
 
@@ -127,9 +127,9 @@ describe("City", () => {
     const A = { ...W, id: "a1", name: "하늘", memberCount: 31, kind: "apartment" as const, capacity: 50 };
     mockApi({ mine: { villaId: "v1", public: true, isOwner: true }, villas: [V, A] });
     await mount();
-    await click(host.querySelector('[aria-label="하늘, 아파트, 오늘 불 켜진 방 7개"]'));
+    await click(host.querySelector('[aria-label="하늘, 타워팰리스, 오늘 불 켜진 방 7개"]'));
     const card = host.querySelector(".city-card")!;
-    expect(card.querySelector(".kind-badge")?.textContent).toBe("아파트");
+    expect(card.querySelector(".kind-badge")?.textContent).toBe("타워팰리스");
     expect(card.textContent).toContain("31/50명");
   });
 });

@@ -8,7 +8,7 @@ import "./push.css";
 
 export const PREF_ROWS: { key: PushCategory; label: string; desc: string }[] = [
   { key: "cheer", label: "응원 · 댓글", desc: "내 기록에 응원이나 댓글이 달리면" },
-  { key: "villa", label: "빌라 소식", desc: "새 이웃 입주 · 층 오름 · 펜트하우스 · 축하" },
+  { key: "villa", label: "아파트 소식", desc: "새 이웃 입주 · 층 오름 · 펜트하우스 · 축하" },
   { key: "apply", label: "입주 신청 · 대결", desc: "입주 신청 · 승인 · 집값 대결 신청과 결과" },
   { key: "reminder", label: "운동 알림", desc: "밤 9시까지 인증하지 않았으면 한 번" },
 ];
@@ -35,7 +35,7 @@ export function IosGuide() {
       <ol>
         <li>사파리 아래쪽 <b>공유 버튼</b>(네모에 위쪽 화살표)을 눌러요</li>
         <li><b>홈 화면에 추가</b>를 골라요</li>
-        <li>홈 화면에 생긴 <b>오운완빌라</b>로 열고, 설정 → 휴대폰 알림에서 켜요</li>
+        <li>홈 화면에 생긴 <b>오운완아파트</b>로 열고, 설정 → 휴대폰 알림에서 켜요</li>
       </ol>
       <p className="muted small">
         iOS 16.4 이상에서 돼요. <a href="#install">앱처럼 쓰기 안내 보기</a>
@@ -59,12 +59,12 @@ export function PushSectionView({ state, prefs, busy, note, onEnable, onDisable,
       )}
       {state === "denied" && (
         <p className="muted small">
-          알림이 꺼져 있어요(차단됨). 휴대폰 설정 → 알림, 또는 브라우저의 사이트 설정에서 오운완빌라 알림을 허용한 뒤 다시 와 주세요.
+          알림이 꺼져 있어요(차단됨). 휴대폰 설정 → 알림, 또는 브라우저의 사이트 설정에서 오운완아파트 알림을 허용한 뒤 다시 와 주세요.
         </p>
       )}
       {state === "off" && (
         <>
-          <p className="muted small">응원 · 댓글, 빌라 소식, 저녁 운동 알림을 휴대폰으로 받아요. 밤 11시부터 아침 8시까지는 보내지 않아요.</p>
+          <p className="muted small">응원 · 댓글, 아파트 소식, 저녁 운동 알림을 휴대폰으로 받아요. 밤 11시부터 아침 8시까지는 보내지 않아요.</p>
           <button className="btn" type="button" disabled={busy} onClick={onEnable}>이 기기에서 알림 켜기</button>
         </>
       )}

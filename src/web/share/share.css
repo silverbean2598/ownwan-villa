@@ -34,7 +34,7 @@
 @keyframes share-rot { to { transform: rotate(360deg); } }
 @keyframes share-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .share-spin, .share-ph { animation: none; } }
-/* 놓는 곳: 인증 화면 · 내 기록 오늘 칸 · 방 · 빌라 */
+/* 놓는 곳: 인증 화면 · 내 기록 오늘 칸 · 방 · 아파트 */
 .share-cta { margin: 16px 0; padding: 14px; border-radius: 14px; background: #FFF8E1; border: 1px solid #F6E3A8; display: flex; flex-direction: column; gap: 10px; }
 .share-cta p { margin: 0; font-size: 14.5px; }
 .share-cta .btn.share-open { align-self: flex-start; background: #fff; }

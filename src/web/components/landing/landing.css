@@ -8,7 +8,7 @@
 .lp-cta { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
 .lp-cta .btn { font-weight: 700; }
 
-/* 빌라 단면 */
+/* 아파트 단면 */
 .lp-villa { margin: 26px 0 0; padding: 0 6px; }
 .lp-roof { position: relative; height: 12px; margin: 0 -4px; background: var(--lp-ink); border-radius: 6px 6px 2px 2px; }
 .lp-flag { position: absolute; right: 18%; bottom: 12px; width: 2px; height: 20px; background: var(--lp-ink); }
@@ -61,7 +61,7 @@
 @keyframes lp-bob { 50% { translate: 0 -1.5px; } }
 @keyframes lp-twinkle { 50% { opacity: 0.35; transform: scale(0.7); } }
 
-/* 데스크톱: 글과 빌라를 좌우로, 단계는 3열 */
+/* 데스크톱: 글과 아파트를 좌우로, 단계는 3열 */
 @media (min-width: 900px) {
   .lp { max-width: 1000px; padding: 56px 32px 32px; }
   .lp-hero { display: grid; grid-template-columns: 1fr 410px; grid-template-rows: 1fr auto auto 1fr; column-gap: 80px; }

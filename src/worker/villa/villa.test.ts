@@ -26,7 +26,7 @@ async function signup() {
   return { id: row!.id, cookie };
 }
 type U = Awaited<ReturnType<typeof signup>>;
-async function create(u: U, name = "우리빌라") {
+async function create(u: U, name = "우리아파트") {
   const res = await send("POST", "/api/villas", { name }, u.cookie);
   return (await res.json()) as { id: string; inviteToken: string };
 }
@@ -43,7 +43,7 @@ afterEach(() => setNow(null));
 describe("villa", () => {
   it("create_makes_owner_and_penthouse", async () => {
     const u = await signup();
-    const res = await send("POST", "/api/villas", { name: "  우리빌라 " }, u.cookie);
+    const res = await send("POST", "/api/villas", { name: "  우리아파트 " }, u.cookie);
     expect(res.status).toBe(201);
     const { id, inviteToken } = (await res.json()) as { id: string; inviteToken: string };
     expect(inviteToken.length).toBeGreaterThanOrEqual(22);
@@ -51,7 +51,7 @@ describe("villa", () => {
     const m = await env.DB.prepare("SELECT floor FROM memberships WHERE user_id = ? AND left_at IS NULL").bind(u.id).first<{ floor: number }>();
     expect(m!.floor).toBe(1);
     const mine = (await (await send("GET", "/api/villas/mine", undefined, u.cookie)).json()) as any;
-    expect(mine.name).toBe("우리빌라");
+    expect(mine.name).toBe("우리아파트");
     expect(mine.members[0]).toMatchObject({ userId: u.id, floor: 1, certifiedToday: false, placements: [] });
     expect(mine.members[0].avatar).toBeTypeOf("object");
   });
@@ -61,15 +61,15 @@ describe("villa", () => {
     for (const name of ["", "   ", "가".repeat(21)]) {
       const r = await send("POST", "/api/villas", { name }, u.cookie);
       expect(r.status).toBe(400);
-      expect(((await r.json()) as any).error).toBe("빌라 이름은 1~20자로 지어 주세요");
+      expect(((await r.json()) as any).error).toBe("아파트 이름은 1~20자로 지어 주세요");
     }
-    // [확정 — 기획자 결정, 2026-11-19] 빌라는 3곳까지: 만든 빌라도 센다
+    // [확정 — 기획자 결정, 2026-11-19] 아파트는 3곳까지: 만든 아파트도 센다
     await create(u);
     expect((await send("POST", "/api/villas", { name: "둘째" }, u.cookie)).status).toBe(201);
     expect((await send("POST", "/api/villas", { name: "셋째" }, u.cookie)).status).toBe(201);
     const r = await send("POST", "/api/villas", { name: "넷째" }, u.cookie);
     expect(r.status).toBe(409);
-    expect(((await r.json()) as any).error).toBe("빌라는 3곳까지 살 수 있어요. 한 곳을 나가면 들어올 수 있어요");
+    expect(((await r.json()) as any).error).toBe("아파트는 3곳까지 살 수 있어요. 한 곳을 나가면 들어올 수 있어요");
     expect((await env.DB.prepare("SELECT COUNT(*) AS c FROM villas WHERE owner_id = ?").bind(u.id).first<{ c: number }>())!.c).toBe(3);
   });
 
@@ -128,7 +128,7 @@ describe("villa", () => {
     expect(await active(id)).toBe(20);
     const r = await join(await signup(), inviteToken);
     expect(r.status).toBe(409);
-    expect(((await r.json()) as any).error).toBe("빌라가 꽉 찼어요");
+    expect(((await r.json()) as any).error).toBe("아파트가 꽉 찼어요");
   });
 
   it("concurrent_joins_never_exceed_20", async () => {
@@ -181,7 +181,7 @@ describe("villa", () => {
     const a = await signup();
     const { inviteToken } = await create(a);
     const b = await signup();
-    await create(b, "다른빌라");
+    await create(b, "다른아파트");
     expect(await (await send("GET", `/api/invite/${inviteToken}`, undefined, a.cookie)).json()).toMatchObject({ alreadyMember: true, myVillaCount: 1, atLimit: false });
     expect(await (await send("GET", `/api/invite/${inviteToken}`, undefined, b.cookie)).json()).toMatchObject({ alreadyMember: false, myVillaCount: 1, atLimit: false, inOtherVilla: false });
     const anon = (await (await send("GET", `/api/invite/${inviteToken}`)).json()) as Record<string, unknown>;
@@ -226,7 +226,7 @@ describe("villa", () => {
     const u = await signup();
     const r = await send("POST", "/api/villas/leave", undefined, u.cookie);
     expect(r.status).toBe(409);
-    expect(((await r.json()) as any).error).toBe("살고 있는 빌라가 없어요");
+    expect(((await r.json()) as any).error).toBe("살고 있는 아파트가 없어요");
   });
 
   it("owner_leave_passes_to_earliest_joined", async () => {

@@ -10,12 +10,12 @@ const GOLD = "#E8B84A";
 const LIT = "#FFE08A";
 const DARK = "#2C3656";
 
-/** 빌라 이름을 짧게 (표지판에 들어가게) */
+/** 아파트 이름을 짧게 (표지판에 들어가게) */
 export const shortName = (s: string, max = 8) => (Array.from(s).length > max ? `${Array.from(s).slice(0, max - 1).join("")}…` : s);
 
 /** 화면 낭독기용 설명 */
 export const buildingLabel = (v: CityVilla, mine: boolean) =>
-  `${mine ? `우리 ${kindLabel(v.kind)}, ` : ""}${v.name}${v.kind === "apartment" ? ", 아파트" : ""}, 오늘 불 켜진 방 ${v.litCount}개${v.trophy ? `, 지난주 집값 ${v.trophy}위` : ""}${v.battleWin ? ", 대결 승리" : ""}${v.recruit ? ", 입주자 모집 중" : ""}`;
+  `${mine ? `우리 ${kindLabel(v.kind)}, ` : ""}${v.name}${v.kind === "apartment" ? ", 타워팰리스" : ""}, 오늘 불 켜진 방 ${v.litCount}개${v.trophy ? `, 지난주 집값 ${v.trophy}위` : ""}${v.battleWin ? ", 대결 승리" : ""}${v.recruit ? ", 입주자 모집 중" : ""}`;
 
 const CUPS = {
   1: { fill: GOLD, dark: "#C9952A", hi: "#FCE59A" },
@@ -99,13 +99,13 @@ type Props = {
   x: number;
   y: number;
   mine: boolean;
-  /** 처음 열 때 화면을 맞출 건물 (우리 빌라 중 하나). 없으면 mine 을 따른다 */
+  /** 처음 열 때 화면을 맞출 건물 (우리 아파트 중 하나). 없으면 mine 을 따른다 */
   anchor?: boolean;
   selected: boolean;
   onSelect: (v: CityVilla) => void;
 };
 
-/** 공개 빌라 한 채. (x, y) = 건물 바닥 가운데. 누르면 카드가 열린다 */
+/** 공개 아파트 한 채. (x, y) = 건물 바닥 가운데. 누르면 카드가 열린다 */
 export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSelect }: Props) {
   const seed = hash(villa.id);
   const shape = shapeOf(villa, seed);
@@ -117,7 +117,7 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
   const roof = bodyTop - d.cornice;
   const phW = Math.round(W * (shape.tall ? 0.52 : 0.46));
   const phTop = roof - d.ph;
-  // 아파트 펜트하우스는 금색 돔을 얹는다 (참고 그림 apartments). 표시 · 누르는 영역은 돔 꼭대기에 맞춘다
+  // 타워팰리스 펜트하우스는 금색 돔을 얹는다 (참고 그림 apartments). 표시 · 누르는 영역은 돔 꼭대기에 맞춘다
   const top = apt ? phTop - 10 : phTop;
   const pad = shape.tall ? 9 : 10;
   const cellW = (W - pad * 2) / shape.cols;
@@ -182,12 +182,12 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
       <Planter x={-W / 2 + 12} y={0} />
       <Planter x={W / 2 - 12} y={0} />
 
-      {/* 지붕 (아파트는 높은 띠에 "아파트" 간판) */}
+      {/* 지붕 (타워팰리스는 높은 띠에 "타워팰리스" 간판) */}
       <rect x={-W / 2 - 3} y={roof} width={W + 6} height={d.cornice} rx="1.5" fill={shade(wall, 0.45)} {...ln} strokeWidth={1.2} />
       {apt && (
         <g className="cb-apt-sign" aria-hidden="true">
           <rect x="-22" y={roof + 2} width="44" height={d.cornice - 4} rx="3" fill="#3E3A6E" stroke={INK} strokeWidth="1" />
-          <text x="0" y={roof + d.cornice / 2 + 3.4} textAnchor="middle" fontSize="9.5" fontWeight="800" letterSpacing="1.5" fill={LIT}>아파트</text>
+          <text x="0" y={roof + d.cornice / 2 + 3.4} textAnchor="middle" fontSize="9.5" fontWeight="800" letterSpacing="1.5" fill={LIT}>타워</text>
         </g>
       )}
 
@@ -214,7 +214,7 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
 
       {mine && (
         <g className="cb-mine" transform={`translate(0 ${top - 12})`}>
-          <rect x={apt ? -32 : -27} y="-15" width={apt ? 64 : 54} height="17" rx="8.5" fill="#2F5BEA" stroke="#fff" strokeWidth="1.5" />
+          <rect x={apt ? -42 : -32} y="-15" width={apt ? 84 : 64} height="17" rx="8.5" fill="#2F5BEA" stroke="#fff" strokeWidth="1.5" />
           <path d="M-4 1.5 L0 6 L4 1.5 Z" fill="#2F5BEA" stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" />
           <path d="M-4 1 L4 1" stroke="#2F5BEA" strokeWidth="2" />
           <text x="0" y="-3.3" textAnchor="middle" fontSize="10" fontWeight="700" fill="#fff">우리 {kindLabel(villa.kind)}</text>
@@ -224,7 +224,7 @@ export function CityBuilding({ villa, x, y, mine, anchor = mine, selected, onSel
   );
 }
 
-/** 땅 아래쪽 보도에 세운 빌라 이름 표지판 */
+/** 땅 아래쪽 보도에 세운 아파트 이름 표지판 */
 export function NamePlate({ x, y, name, mine }: { x: number; y: number; name: string; mine: boolean }) {
   const label = shortName(name);
   const w = Math.max(44, Array.from(label).length * 10 + 16);

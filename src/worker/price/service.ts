@@ -15,10 +15,10 @@ import type { BattleSide, BattleView } from "../../shared/price";
  *   두 번 돌아도 · 동시에 돌아도 한 번만 바뀌고, 포인트는 보상 장부(price_rewards)에 새 줄이 들어갔을 때만 더한다
  */
 
-/** 신청 중 · 진행 중 (빌라마다 하나) */
+/** 신청 중 · 진행 중 (아파트마다 하나) */
 export const OPEN = "('pending','active')";
 
-/** 그 빌라 지금 입주민 수 (SQL 식) */
+/** 그 아파트 지금 입주민 수 (SQL 식) */
 export const MEMBERS = (villa: string) => `(SELECT COUNT(*) FROM memberships mc WHERE mc.villa_id = ${villa} AND mc.left_at IS NULL)`;
 
 /** 마지막으로 정산한 날 (KST). 없으면 null */
@@ -27,7 +27,7 @@ export async function lastSettledDay(env: Env): Promise<string | null> {
   return r ? r.value.slice(0, 10) : null;
 }
 
-/** 그 빌라 그날 집값 (SQL 식) */
+/** 그 아파트 그날 집값 (SQL 식) */
 export const PRICE_AT = (villa: string, day: string) => `(SELECT price FROM villa_prices WHERE villa_id = ${villa} AND day = ${day})`;
 
 /** 가장 최근 주간 리그 1~3위면 순위 (SQL 식) */
@@ -73,8 +73,8 @@ function rewardStatements(env: Env, ref: string, villaId: string, users: string[
 // ── 주간 리그 ──
 
 /**
- * 일요일(day) 집값으로 그 주 리그를 매긴다: 공개 · 해체 안 된 빌라 중 그 주(월~일)에 인증이 하루라도 있는 빌라.
- * 1 · 2 · 3위 빌라에서 그 주가 시작되기 전에 입주해 지금도 사는 입주민에게 100 · 60 · 30P.
+ * 일요일(day) 집값으로 그 주 리그를 매긴다: 공개 · 해체 안 된 아파트 중 그 주(월~일)에 인증이 하루라도 있는 아파트.
+ * 1 · 2 · 3위 아파트에서 그 주가 시작되기 전에 입주해 지금도 사는 입주민에게 100 · 60 · 30P.
  * 순위 줄 · 보상 장부 · 포인트를 한 batch 로 쓰고, 그 주 순위가 이미 있으면 아무것도 하지 않는다.
  */
 export async function settleLeague(env: Env, day: string): Promise<{ settled: boolean }> {
@@ -99,7 +99,7 @@ export async function settleLeague(env: Env, day: string): Promise<{ settled: bo
   const eligible = new Map<string, string[]>();
   for (const r of podium) eligible.set(r.villaId, await activeMembers(env, r.villaId, weekStart));
 
-  // 축하 카드: 1~3위 빌라 입주민 모두 (포인트는 받은 사람에게만 적힌다). 보상과 같은 batch 에 넣어 카드만 빠지는 일이 없게
+  // 축하 카드: 1~3위 아파트 입주민 모두 (포인트는 받은 사람에게만 적힌다). 보상과 같은 batch 에 넣어 카드만 빠지는 일이 없게
   const cards: (NewEvent & { key: string })[] = [];
   for (const r of podium) {
     const got = new Set(eligible.get(r.villaId));
@@ -143,7 +143,7 @@ export const BATTLE_COLS = `b.id, b.challenger_villa_id AS challengerVillaId, b.
   b.start_day AS startDay, b.end_day AS endDay, b.challenger_base AS challengerBase, b.opponent_base AS opponentBase,
   b.challenger_end AS challengerEnd, b.opponent_end AS opponentEnd, b.winner_villa_id AS winnerVillaId, b.finished_at AS finishedAt`;
 
-/** 48시간 지난 신청을 만료로 바꾸고 신청한 빌라 방장에게 알린다. villaIds 를 주면 그 빌라가 낀 신청만 */
+/** 48시간 지난 신청을 만료로 바꾸고 신청한 아파트 방장에게 알린다. villaIds 를 주면 그 아파트가 낀 신청만 */
 export async function expireChallenges(env: Env, villaIds?: string[]): Promise<number> {
   const t = now();
   const only = villaIds?.length
@@ -170,8 +170,8 @@ export async function expireChallenges(env: Env, villaIds?: string[]): Promise<n
 }
 
 /**
- * 해체됐거나 지도에서 내려간 빌라가 낀 대결(신청 중 · 진행 중)을 취소한다. villaId 를 주면 그 빌라만 (공개 끔 · 해체 바로 뒤).
- * 진행 중이던 대결이면 남은 빌라 입주민에게 알린다. 보상은 없다
+ * 해체됐거나 지도에서 내려간 아파트가 낀 대결(신청 중 · 진행 중)을 취소한다. villaId 를 주면 그 아파트만 (공개 끔 · 해체 바로 뒤).
+ * 진행 중이던 대결이면 남은 아파트 입주민에게 알린다. 보상은 없다
  */
 export async function cancelGoneBattles(env: Env, villaId?: string): Promise<number> {
   const gone = (col: string) => `EXISTS (SELECT 1 FROM villas gv WHERE gv.id = battles.${col} AND (gv.dissolved_at IS NOT NULL OR gv.public = 0))`;
@@ -196,7 +196,7 @@ export async function cancelGoneBattles(env: Env, villaId?: string): Promise<num
       .run();
     if (res.meta.changes !== 1) continue;
     n++;
-    // 남은(해체 안 된) 빌라 쪽에 알린다: 진행 중이었으면 입주민 모두, 신청 중이었으면 방장만
+    // 남은(해체 안 된) 아파트 쪽에 알린다: 진행 중이었으면 입주민 모두, 신청 중이었으면 방장만
     for (const [mine, other] of [[b.c, b.o], [b.o, b.c]] as const) {
       const v = await env.DB.prepare("SELECT owner_id AS ownerId FROM villas WHERE id = ? AND dissolved_at IS NULL").bind(mine).first<{ ownerId: string }>();
       if (!v) continue;
@@ -216,8 +216,8 @@ export async function cancelGoneBattles(env: Env, villaId?: string): Promise<num
 }
 
 /**
- * 마지막 날(end_day)까지 정산된 진행 중 대결을 끝낸다: 오른 값(마지막 날 − 첫날 전날)이 큰 빌라가 이긴다. 같으면 무승부(보상 없음).
- * 이긴 빌라에서 첫날 전에 입주해 지금도 사는 입주민에게 50P. 상태 바꾸기 · 보상 장부 · 포인트를 한 batch 로.
+ * 마지막 날(end_day)까지 정산된 진행 중 대결을 끝낸다: 오른 값(마지막 날 − 첫날 전날)이 큰 아파트가 이긴다. 같으면 무승부(보상 없음).
+ * 이긴 아파트에서 첫날 전에 입주해 지금도 사는 입주민에게 50P. 상태 바꾸기 · 보상 장부 · 포인트를 한 batch 로.
  */
 export async function finishBattles(env: Env, lastDay: string): Promise<number> {
   const { results } = await env.DB.prepare(`SELECT ${BATTLE_COLS} FROM battles b WHERE b.status = 'active' AND b.end_day <= ?`)
@@ -235,7 +235,7 @@ export async function finishBattles(env: Env, lastDay: string): Promise<number> 
   return n;
 }
 
-/** 진행 중 대결을 이유와 함께 취소하고 두 빌라 입주민에게 알린다 (보상 없음) */
+/** 진행 중 대결을 이유와 함께 취소하고 두 아파트 입주민에게 알린다 (보상 없음) */
 async function cancelActive(env: Env, b: BattleRow, reason: string, t: number): Promise<void> {
   const res = await env.DB.prepare("UPDATE battles SET status = 'cancelled', reason = ?, finished_at = ? WHERE id = ? AND status = 'active'")
     .bind(reason, t, b.id)
@@ -280,7 +280,7 @@ async function finishOne(env: Env, b: BattleRow): Promise<boolean> {
   return upd.meta.changes === 1;
 }
 
-/** 대결 결과 카드(또는 cancelled 면 취소 알림): 두 빌라(해체 안 된 쪽) 입주민 모두. 키는 고정 */
+/** 대결 결과 카드(또는 cancelled 면 취소 알림): 두 아파트(해체 안 된 쪽) 입주민 모두. 키는 고정 */
 async function resultEvents(
   env: Env, b: BattleRow, winner: string | null, cancelled: string | null, rewarded = new Set<string>(),
 ): Promise<(NewEvent & { key: string })[]> {
@@ -316,7 +316,7 @@ async function resultEvents(
 }
 
 /**
- * 크론 (매일 정산 뒤): 48시간 지난 신청 만료 → 해체 · 비공개 빌라 대결 취소 → 끝난 대결 판정 → 최근 2주 일요일 리그.
+ * 크론 (매일 정산 뒤): 48시간 지난 신청 만료 → 해체 · 비공개 아파트 대결 취소 → 끝난 대결 판정 → 최근 2주 일요일 리그.
  * 리그는 그 주 순위가 아직 없을 때만 매기므로, 앞서 실패한 날이 있어도 다음 날 다시 이어 한다
  */
 export async function runCompetitions(env: Env): Promise<void> {
@@ -340,9 +340,9 @@ export async function runCompetitions(env: Env): Promise<void> {
   }
 }
 
-// ── 화면용: 우리 빌라에서 본 대결 ──
+// ── 화면용: 우리 아파트에서 본 대결 ──
 
-/** 대결 행 하나를 우리 빌라(villaId) 쪽에서 본 모양으로. 진행 중이면 지금까지 오른 값을 저장된 집값으로 계산한다 */
+/** 대결 행 하나를 우리 아파트(villaId) 쪽에서 본 모양으로. 진행 중이면 지금까지 오른 값을 저장된 집값으로 계산한다 */
 export async function battleView(env: Env, b: BattleRow, villaId: string, today: string, last: string | null): Promise<BattleView> {
   const side = b.challengerVillaId === villaId ? "challenger" : "opponent";
   const meId = side === "challenger" ? b.challengerVillaId : b.opponentVillaId;
@@ -393,7 +393,7 @@ export async function battleView(env: Env, b: BattleRow, villaId: string, today:
   return view;
 }
 
-/** 우리 빌라의 지금 대결(신청 중 · 진행 중) 하나. 48시간 지난 신청은 없는 것으로 본다 */
+/** 우리 아파트의 지금 대결(신청 중 · 진행 중) 하나. 48시간 지난 신청은 없는 것으로 본다 */
 export async function currentBattleRow(env: Env, villaId: string): Promise<BattleRow | null> {
   return env.DB.prepare(
     `SELECT ${BATTLE_COLS} FROM battles b WHERE b.status IN ${OPEN} AND (b.status = 'active' OR b.created_at > ?2)

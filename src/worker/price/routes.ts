@@ -16,23 +16,23 @@ import {
 
 /**
  * 집값 대결 [확정 — 기획자 결정, 2026-11-20]
- * - 순위 · 집값: 공개 빌라는 누구나(로그인), 비공개 빌라 집값은 그 빌라 입주민만. 입주민 목록은 보내지 않는다
+ * - 순위 · 집값: 공개 아파트는 누구나(로그인), 비공개 아파트 집값은 그 아파트 입주민만. 입주민 목록은 보내지 않는다
  * - 1:1 대결: 신청 · 받기 · 거절 · 신청 취소는 방장만. 바꾸는 문장 안에서 방장 · 공개 · 상태 · 한 번에 하나를 다시 본다
  */
 export const price = new Hono<AppEnv>();
 
 type Bindings = AppEnv["Bindings"];
-const NO_VILLA = "빌라를 찾을 수 없어요";
+const NO_VILLA = "아파트를 찾을 수 없어요";
 const OWNER_ONLY = "대결은 방장만 신청하고 받을 수 있어요";
 const NO_BATTLE = "대결을 찾을 수 없어요";
 const DONE = "이미 처리된 대결 신청이에요";
 const EXPIRED = "신청한 지 48시간이 지나 만료됐어요";
-const NEED_PUBLIC = "도시 지도에 공개한 빌라만 대결할 수 있어요";
+const NEED_PUBLIC = "도시 지도에 공개한 아파트만 대결할 수 있어요";
 const RANK_LIMIT = 200;
 
 const isUnique = (e: unknown) => String((e as Error)?.message ?? e).includes("UNIQUE");
 
-/** 집값 순위: 공개 · 해체 안 된 빌라, 마지막으로 정산한 날 집값 높은 순 (집계 전 빌라는 맨 뒤) */
+/** 집값 순위: 공개 · 해체 안 된 아파트, 마지막으로 정산한 날 집값 높은 순 (집계 전 아파트는 맨 뒤) */
 price.get("/api/ranking", requireUser, async (c) => {
   const me = c.get("userId");
   const t = now();
@@ -78,7 +78,7 @@ price.get("/api/ranking", requireUser, async (c) => {
   return c.json({ day, villas, mine: my, leagueWeek: (week.results[0] as { week: string | null } | undefined)?.week ?? null } satisfies RankingResponse);
 });
 
-/** 빌라 집값 · 최근 14일 기록. 그 빌라 입주민이거나 공개 빌라일 때만 */
+/** 아파트 집값 · 최근 14일 기록. 그 아파트 입주민이거나 공개 아파트일 때만 */
 price.get("/api/villas/:id/price", requireUser, async (c) => {
   const id = c.req.param("id");
   const v = await c.env.DB.prepare("SELECT public FROM villas WHERE id = ? AND dissolved_at IS NULL").bind(id).first<{ public: number }>();
@@ -97,11 +97,11 @@ export async function villaPrice(env: Bindings, villaId: string): Promise<VillaP
   return { day, price: cur?.price ?? null, change: cur && prev ? cur.price - prev.price : null, history };
 }
 
-/** 우리 빌라 대결: 지금 대결(신청 중 · 진행 중) + 최근 끝난 대결 5개. 입주민만 (방장이 아니면 보기만) */
+/** 우리 아파트 대결: 지금 대결(신청 중 · 진행 중) + 최근 끝난 대결 5개. 입주민만 (방장이 아니면 보기만) */
 price.get("/api/villas/:id/battles", requireUser, async (c) => {
   const id = c.req.param("id");
   const me = c.get("userId");
-  if (!(await isMember(c.env, id, me))) return jsonError(c, 404, "이 빌라에 사는 입주민이 아니에요");
+  if (!(await isMember(c.env, id, me))) return jsonError(c, 404, "이 아파트에 사는 입주민이 아니에요");
   return c.json(await villaBattles(c.env, id, me));
 });
 
@@ -127,13 +127,13 @@ const ownedVilla = (env: Bindings, id: string) =>
     .bind(id)
     .first<{ name: string; ownerId: string; public: number }>();
 
-/** 대결 신청: 우리 빌라(:id, 내가 방장) → 상대 빌라. 공개 · 방장 · 서로 대결 없음을 한 문장 안에서 본다 */
+/** 대결 신청: 우리 아파트(:id, 내가 방장) → 상대 아파트. 공개 · 방장 · 서로 대결 없음을 한 문장 안에서 본다 */
 price.post("/api/villas/:id/battles", requireUser, async (c) => {
   const id = c.req.param("id");
   const me = c.get("userId");
   const b = await c.req.json().catch(() => null);
   const target = typeof b?.opponentVillaId === "string" ? b.opponentVillaId : "";
-  if (!target) return jsonError(c, 400, "대결할 빌라를 골라 주세요");
+  if (!target) return jsonError(c, 400, "대결할 아파트를 골라 주세요");
   const mine = await ownedVilla(c.env, id);
   if (!mine) return jsonError(c, 404, NO_VILLA);
   if (mine.ownerId !== me) return jsonError(c, 403, OWNER_ONLY);
@@ -157,7 +157,7 @@ price.post("/api/villas/:id/battles", requireUser, async (c) => {
       .run();
     changes = res.meta.changes;
   } catch (e) {
-    // 같은 빌라가 동시에 두 곳에 신청한 경우 (battles_open_* 색인). 아래에서 이유를 고른다
+    // 같은 아파트가 동시에 두 곳에 신청한 경우 (battles_open_* 색인). 아래에서 이유를 고른다
     if (!isUnique(e)) throw e;
   }
   if (changes !== 1) return challengeRefusal(c, id, target, me, mine.public);
@@ -175,16 +175,16 @@ price.post("/api/villas/:id/battles", requireUser, async (c) => {
 });
 
 async function challengeRefusal(c: Context<AppEnv>, id: string, target: string, me: string, myPublic: number) {
-  if (id === target) return jsonError(c, 400, "우리 빌라와는 대결할 수 없어요");
+  if (id === target) return jsonError(c, 400, "우리 아파트와는 대결할 수 없어요");
   const other = await ownedVilla(c.env, target);
-  if (!other || !other.public) return jsonError(c, 404, "상대 빌라를 찾을 수 없어요. 지도에 공개된 빌라만 대결할 수 있어요");
+  if (!other || !other.public) return jsonError(c, 404, "상대 아파트를 찾을 수 없어요. 지도에 공개된 아파트만 대결할 수 있어요");
   if (!myPublic) return jsonError(c, 409, NEED_PUBLIC);
-  if (other.ownerId === me) return jsonError(c, 409, "내가 방장인 빌라끼리는 대결할 수 없어요");
+  if (other.ownerId === me) return jsonError(c, 409, "내가 방장인 아파트끼리는 대결할 수 없어요");
   const counts = await c.env.DB.prepare(`SELECT ${MEMBERS("?1")} AS a, ${MEMBERS("?2")} AS b`).bind(id, target).first<{ a: number; b: number }>();
   if ((counts?.a ?? 0) < MIN_MEMBERS_FOR_COMPETITION) return jsonError(c, 409, MIN_MEMBERS_MSG);
-  if ((counts?.b ?? 0) < MIN_MEMBERS_FOR_COMPETITION) return jsonError(c, 409, `입주민이 ${MIN_MEMBERS_FOR_COMPETITION}명 이상인 빌라와만 대결할 수 있어요`);
-  if (await currentBattleRow(c.env, id)) return jsonError(c, 409, "우리 빌라는 이미 대결 중이거나 신청이 오가는 중이에요. 대결은 한 번에 하나만 해요");
-  if (await currentBattleRow(c.env, target)) return jsonError(c, 409, "상대 빌라가 지금 다른 대결 중이에요");
+  if ((counts?.b ?? 0) < MIN_MEMBERS_FOR_COMPETITION) return jsonError(c, 409, `입주민이 ${MIN_MEMBERS_FOR_COMPETITION}명 이상인 아파트와만 대결할 수 있어요`);
+  if (await currentBattleRow(c.env, id)) return jsonError(c, 409, "우리 아파트는 이미 대결 중이거나 신청이 오가는 중이에요. 대결은 한 번에 하나만 해요");
+  if (await currentBattleRow(c.env, target)) return jsonError(c, 409, "상대 아파트가 지금 다른 대결 중이에요");
   return jsonError(c, 409, "신청하지 못했어요. 다시 해 주세요");
 }
 
@@ -209,11 +209,11 @@ async function actionRefusal(c: Context<AppEnv>, bid: string, villaCol: "c" | "o
   if (!v.public || !other?.public) return jsonError(c, 409, NEED_PUBLIC);
   const counts = await c.env.DB.prepare(`SELECT ${MEMBERS("?1")} AS mine, ${MEMBERS("?2")} AS theirs`).bind(b[villaCol], b[villaCol === "c" ? "o" : "c"]).first<{ mine: number; theirs: number }>();
   if ((counts?.mine ?? 0) < MIN_MEMBERS_FOR_COMPETITION) return jsonError(c, 409, MIN_MEMBERS_MSG);
-  if ((counts?.theirs ?? 0) < MIN_MEMBERS_FOR_COMPETITION) return jsonError(c, 409, `상대 빌라 입주민이 ${MIN_MEMBERS_FOR_COMPETITION}명보다 적어 지금은 받을 수 없어요`);
+  if ((counts?.theirs ?? 0) < MIN_MEMBERS_FOR_COMPETITION) return jsonError(c, 409, `상대 아파트 입주민이 ${MIN_MEMBERS_FOR_COMPETITION}명보다 적어 지금은 받을 수 없어요`);
   return jsonError(c, 409, "처리하지 못했어요. 다시 해 주세요");
 }
 
-/** 받기: 상대 빌라 방장만. 받은 다음 날부터 7일 */
+/** 받기: 상대 아파트 방장만. 받은 다음 날부터 7일 */
 price.post("/api/battles/:bid/accept", requireUser, async (c) => {
   const bid = c.req.param("bid");
   const t = now();
@@ -230,7 +230,7 @@ price.post("/api/battles/:bid/accept", requireUser, async (c) => {
     .all<{ c: string; o: string }>();
   if (!results.length) return actionRefusal(c, bid, "o");
   const { c: cv, o: ov } = results[0];
-  // 두 빌라 입주민 모두에게: 내일부터 7일
+  // 두 아파트 입주민 모두에게: 내일부터 7일
   for (const [mine, other] of [[cv, ov], [ov, cv]]) {
     const name = (await ownedVilla(c.env, other))?.name ?? "";
     const { results: users } = await c.env.DB.prepare("SELECT user_id AS u FROM memberships WHERE villa_id = ? AND left_at IS NULL").bind(mine).all<{ u: string }>();
@@ -246,7 +246,7 @@ price.post("/api/battles/:bid/accept", requireUser, async (c) => {
   return c.json(await villaBattles(c.env, ov, c.get("userId")));
 });
 
-/** 거절: 상대 빌라 방장만. 신청한 빌라 방장에게 알림 */
+/** 거절: 상대 아파트 방장만. 신청한 아파트 방장에게 알림 */
 price.post("/api/battles/:bid/decline", requireUser, async (c) => {
   const bid = c.req.param("bid");
   const t = now();
@@ -273,7 +273,7 @@ price.post("/api/battles/:bid/decline", requireUser, async (c) => {
   return c.json(await villaBattles(c.env, ov, c.get("userId")));
 });
 
-/** 신청 취소: 신청한 빌라 방장만, 상대가 받기 전에만 */
+/** 신청 취소: 신청한 아파트 방장만, 상대가 받기 전에만 */
 price.post("/api/battles/:bid/cancel", requireUser, async (c) => {
   const bid = c.req.param("bid");
   const t = now();

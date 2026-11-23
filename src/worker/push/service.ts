@@ -54,7 +54,7 @@ export function urlOf(e: Pick<NewEvent, "type" | "payload" | "userId">): string 
   return villaId ? `/villa/${villaId}` : "/villa";
 }
 
-export const TITLE = "오운완빌라";
+export const TITLE = "오운완아파트";
 export const REMINDER_BODY = "오늘 운동 인증 아직이에요! 자정 전까지 올리면 불이 켜져요";
 /** 같은 사람 · 같은 종류는 10분에 한 번만 [확정] */
 export const RATE_MS = 10 * 60_000;
@@ -127,7 +127,7 @@ export function queueEventPushes(env: Env, events: NewEvent[]): void {
   background("events", () => dispatchEventPushes(env, pushable, t));
 }
 
-/** 아파트 승격 축하 카드(SQL 로 한 batch 에 쓴 것)를 다시 읽어 푸시로도 보낸다 */
+/** 타워팰리스 승격 축하 카드(SQL 로 한 batch 에 쓴 것)를 다시 읽어 푸시로도 보낸다 */
 export async function queueApartmentPushes(env: Env, villaId: string): Promise<void> {
   if (!vapidOf(env)) return;
   const { results } = await env.DB.prepare("SELECT user_id AS userId, payload FROM events WHERE id LIKE ? ESCAPE '\\'")

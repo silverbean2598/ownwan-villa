@@ -20,7 +20,7 @@ type Opts = {
   /** 게시판 주인(사진 작성자) */
   ownerId: string;
   meId: string;
-  /** 내가 지금 빌라의 방장인지 */
+  /** 내가 지금 아파트의 방장인지 */
   iAmVillaOwner: boolean;
   onDone: () => void;
 };

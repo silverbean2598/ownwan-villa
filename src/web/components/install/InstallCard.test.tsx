@@ -122,7 +122,7 @@ afterEach(() => {
   host?.remove();
 });
 
-describe("빌라 화면 → 앱처럼 쓰기 카드", () => {
+describe("아파트 화면 → 앱처럼 쓰기 카드", () => {
   const now = () => Date.parse("2026-11-20T12:00:00+09:00");
 
   it("android_shows_after_beforeinstallprompt_and_prompts", async () => {

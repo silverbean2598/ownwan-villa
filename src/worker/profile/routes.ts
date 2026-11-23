@@ -80,12 +80,12 @@ profile.post("/api/me/password", requireUser, async (c) => {
   return c.json({ ok: true });
 });
 
-// 탈퇴: 사진 파일부터 지우고, 사는 빌라 모두에서 나간 뒤(방장 승계), 내 기록을 모두 지운다
+// 탈퇴: 사진 파일부터 지우고, 사는 아파트 모두에서 나간 뒤(방장 승계), 내 기록을 모두 지운다
 profile.delete("/api/me", requireUser, async (c) => {
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare("SELECT id, r2_key FROM certs WHERE user_id = ?").bind(userId).all<{ id: string; r2_key: string | null }>();
   await deletePhotoBlobs(c.env, results);
-  // 사는 빌라 모두에서 나간다 (빌라마다 방장 승계 · 해체)
+  // 사는 아파트 모두에서 나간다 (아파트마다 방장 승계 · 해체)
   await leaveAllVillas(c.env, userId);
   const q = (sql: string) => c.env.DB.prepare(sql).bind(userId);
   await c.env.DB.batch([
@@ -105,7 +105,7 @@ profile.delete("/api/me", requireUser, async (c) => {
     q("DELETE FROM push_subscriptions WHERE user_id = ?"),
     q("DELETE FROM push_prefs WHERE user_id = ?"),
     q("DELETE FROM push_log WHERE user_id = ?"),
-    // 집값 대결: 보상 장부 줄을 지우고, 대결 기록에 남은 신청한 사람 id 는 비운다 (빌라끼리의 기록은 남긴다)
+    // 집값 대결: 보상 장부 줄을 지우고, 대결 기록에 남은 신청한 사람 id 는 비운다 (아파트끼리의 기록은 남긴다)
     q("DELETE FROM price_rewards WHERE user_id = ?"),
     q("UPDATE battles SET challenger_user_id = '' WHERE challenger_user_id = ?"),
     q("DELETE FROM memberships WHERE user_id = ?"),

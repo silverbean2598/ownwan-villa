@@ -213,7 +213,7 @@ export function Key({ x, y, rot = 0 }: { x: number; y: number; rot?: number }) {
   );
 }
 
-/** 불 꺼진 작은 빌라 (해체 · 떠남). (x, y) = 바닥 가운데 */
+/** 불 꺼진 작은 아파트 (해체 · 떠남). (x, y) = 바닥 가운데 */
 export function MiniVilla({ x, y, w = 56, floors = 3 }: { x: number; y: number; w?: number; floors?: number }) {
   const fh = 18;
   const h = fh * floors + 8;
@@ -245,7 +245,7 @@ export function Letter({ x, y, s = 1, rot = 0 }: { x: number; y: number; s?: num
 }
 
 /**
- * 아파트 (아파트 승격 카드). 참고 그림 docs/art-reference/v2/apartments.webp 를 집 그림 선으로 다시 그린 것:
+ * 타워팰리스 (타워팰리스 승격 카드). 참고 그림 docs/art-reference/v2/apartments.webp 를 집 그림 선으로 다시 그린 것:
  * 파스텔 벽 · 층마다 띠 · 노란 불 켜진 창(몇 개는 남색) · 금색 돔 펜트하우스 · 아치 현관 · 화분. (x, y) = 바닥 가운데
  */
 export function MiniApartment({ x, y, w = 58, floors = 8, wall = "#D8CBEA" }: { x: number; y: number; w?: number; floors?: number; wall?: string }) {

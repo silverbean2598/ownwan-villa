@@ -14,7 +14,7 @@ const member = (userId: string, nickname: string, placements: { slot: string; it
 });
 const villa = {
   id: "v1",
-  name: "땀빌라",
+  name: "땀아파트",
   ownerId: "me",
   penthouseUserId: null,
   members: [member("me", "나", [{ slot: "wall2", itemId: "landscape-frame" }]), member("b", "비비", [{ slot: "floor1", itemId: "plant" }])],
@@ -29,7 +29,7 @@ function mockApi() {
     vi.fn(async (path: string) => {
       const body = (data: unknown) => new Response(JSON.stringify(data), { status: 200 });
       if (path === "/api/me") return body({ id: "me" });
-      if (path === "/api/me/villas") return body([{ id: "v1", name: "땀빌라", ownerId: "me", public: false, memberCount: 2, joinedAt: 0, certifiedToday: true }]);
+      if (path === "/api/me/villas") return body([{ id: "v1", name: "땀아파트", ownerId: "me", public: false, memberCount: 2, joinedAt: 0, certifiedToday: true }]);
       if (path === "/api/villas/v1") return body(villa);
       if (path === "/api/shop") return body({ points: 100, owned: ["landscape-frame", "plant", "bench"] });
       if (path.includes("/board")) return body([]);

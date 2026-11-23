@@ -18,19 +18,19 @@ import {
 
 /**
  * 빈방 모집 · 입주 신청 [확정 — 기획자 결정, 2026-11-19]
- * - 모집 글: 방장만 쓰고, 도시 지도에 공개한 빌라만 켤 수 있다. 정원이 차면 꺼진다
- * - 신청: 로그인한 누구나 (빌라 3곳 제한 · 이미 입주민 · 입주 금지 · 한 번에 한 곳). 7일 지나면 만료
+ * - 모집 글: 방장만 쓰고, 도시 지도에 공개한 아파트만 켤 수 있다. 정원이 차면 꺼진다
+ * - 신청: 로그인한 누구나 (아파트 3곳 제한 · 이미 입주민 · 입주 금지 · 한 번에 한 곳). 7일 지나면 만료
  * - 승인: 그 자리에서 바로 입주. 승인 문장 안에서 조건을 모두 다시 본다 (초대 링크 입주와 같은 입주 기록 · 알림 · 1등 계산)
- * - 신청한 사람의 정보는 그 빌라 방장만, 신청 상태는 신청한 사람만 본다
+ * - 신청한 사람의 정보는 그 아파트 방장만, 신청 상태는 신청한 사람만 본다
  */
 export const recruit = new Hono<AppEnv>();
 
-const NO_VILLA = "빌라를 찾을 수 없어요";
+const NO_VILLA = "아파트를 찾을 수 없어요";
 const OWNER_ONLY = "방장만 할 수 있어요";
-const NOT_MEMBER = "이 빌라에 사는 입주민이 아니에요";
-/** 꽉 참 (그 건물을 부르는 말로: 빌라가 · 아파트가) */
+const NOT_MEMBER = "이 아파트에 사는 입주민이 아니에요";
+/** 꽉 참 (그 건물을 부르는 말로: 아파트가 · 타워팰리스가) */
 const fullMsg = (kind: VillaKind) => `${kindLabel(kind)}가 꽉 찼어요`;
-const NOT_RECRUITING = "지금은 입주자를 모집하지 않는 빌라예요";
+const NOT_RECRUITING = "지금은 입주자를 모집하지 않는 아파트예요";
 const NO_APPLICATION = "신청을 찾을 수 없어요";
 const DONE = "이미 처리된 신청이에요";
 const EXPIRED = "신청한 지 7일이 지나 만료된 신청이에요";
@@ -58,7 +58,7 @@ const pendingCount = async (env: Bindings, villaId: string) =>
     .bind(villaId, cutoffOf(now()))
     .first<{ n: number }>())!.n;
 
-/** 이 빌라 모집 글 (입주민 누구나 본다. 방장에게는 받은 신청 수도) */
+/** 이 아파트 모집 글 (입주민 누구나 본다. 방장에게는 받은 신청 수도) */
 recruit.get("/api/villas/:id/recruit", requireUser, async (c) => {
   const id = c.req.param("id");
   const me = c.get("userId");
@@ -135,7 +135,7 @@ recruit.get("/api/villas/:id/applications", requireUser, async (c) => {
   )
     .bind(id, cutoffOf(t), kstDay(t))
     .all<Omit<ReceivedApplication, "avatar"> & { avatar: string; today: number }>();
-  // 연속 기록은 빌라 화면과 같은 기준 (오늘 어느 빌라든 사진 인증했으면 오늘까지 친다)
+  // 연속 기록은 아파트 화면과 같은 기준 (오늘 어느 아파트든 사진 인증했으면 오늘까지 친다)
   return c.json(
     results.map(({ today, ...r }) => ({ ...r, streak: displayStreak(r.streak, !!today), avatar: safeAvatar(r.avatar) })) satisfies ReceivedApplication[],
   );
@@ -196,7 +196,7 @@ recruit.post("/api/villas/:id/apply", requireUser, async (c) => {
     c.env.DB.prepare("SELECT nickname, avatar FROM users WHERE id = ?").bind(me).first<{ nickname: string; avatar: string }>(),
     villaOf(c.env, id),
   ]);
-  // 방장에게 알림 (신청 한 번당 한 번). 빌라 이름은 방장이 여러 빌라에 살 때만 보인다
+  // 방장에게 알림 (신청 한 번당 한 번). 아파트 이름은 방장이 여러 아파트에 살 때만 보인다
   if (v) {
     await logEvents(
       c.env,
@@ -217,7 +217,7 @@ recruit.post("/api/villas/:id/apply", requireUser, async (c) => {
 async function applyRefusal(c: Context<AppEnv>, id: string, me: string) {
   const v = await villaOf(c.env, id);
   if (!v) return jsonError(c, 404, NO_VILLA);
-  if (await isMember(c.env, id, me)) return jsonError(c, 409, "이미 이 빌라에 살고 있어요");
+  if (await isMember(c.env, id, me)) return jsonError(c, 409, "이미 이 아파트에 살고 있어요");
   const banned = await c.env.DB.prepare("SELECT 1 AS x FROM villa_bans WHERE villa_id = ? AND user_id = ?").bind(id, me).first();
   if (banned) return jsonError(c, 403, APPLY_BLOCKED_MSG);
   const open = await c.env.DB.prepare("SELECT open FROM villa_recruits WHERE villa_id = ?").bind(id).first<{ open: number }>();
@@ -225,7 +225,7 @@ async function applyRefusal(c: Context<AppEnv>, id: string, me: string) {
   if (v.memberCount >= v.capacity) return jsonError(c, 409, fullMsg(v.kind));
   if ((await myVillaIds(c.env, me)).length >= MAX_VILLAS_PER_USER) return jsonError(c, 409, VILLA_LIMIT_MSG);
   const mine = await myApplication(c.env, me);
-  if (mine?.villaId === id) return jsonError(c, 409, "이미 이 빌라에 신청했어요. 방장의 답을 기다려 주세요");
+  if (mine?.villaId === id) return jsonError(c, 409, "이미 이 아파트에 신청했어요. 방장의 답을 기다려 주세요");
   if (mine) return jsonError(c, 409, APPLY_ONE_AT_A_TIME_MSG);
   return jsonError(c, 409, "신청하지 못했어요. 다시 해 주세요");
 }
@@ -257,7 +257,7 @@ const settleApp = async (env: Bindings, appId: string, status: "rejected" | "can
 
 /**
  * 승인: 그 자리에서 입주. 입주 기록을 넣는 한 문장 안에서 다시 본다 —
- * 신청이 아직 기다리는 중 · 7일 안, 승인하는 사람이 해체 안 된 빌라의 방장, 빈방 있음, 입주 금지 아님, 아직 입주민 아님, 빌라 3곳 미만.
+ * 신청이 아직 기다리는 중 · 7일 안, 승인하는 사람이 해체 안 된 아파트의 방장, 빈방 있음, 입주 금지 아님, 아직 입주민 아님, 아파트 3곳 미만.
  * 입주 기록이 들어갔을 때만 신청을 승인으로 바꾼다 (같은 batch). 두 번 눌러도 입주는 한 번.
  */
 recruit.post("/api/villas/:id/applications/:appId/approve", requireUser, async (c) => {
@@ -291,7 +291,7 @@ recruit.post("/api/villas/:id/applications/:appId/approve", requireUser, async (
     ]);
     joined = ins.meta.changes;
   } catch (e) {
-    // 같은 사람이 그 사이 같은 빌라에 입주한 경우 (one_active_membership). 아래에서 "이미 입주민"으로 끝낸다
+    // 같은 사람이 그 사이 같은 아파트에 입주한 경우 (one_active_membership). 아래에서 "이미 입주민"으로 끝낸다
     if (!String((e as Error)?.message ?? e).includes("UNIQUE")) throw e;
   }
   if (joined !== 1) return approveRefusal(c, id, appId, me);
@@ -318,7 +318,7 @@ async function approveRefusal(c: Context<AppEnv>, id: string, appId: string, me:
   }
   if (await isMember(c.env, id, app.userId)) {
     await settleApp(c.env, appId, "cancelled", "joined");
-    return jsonError(c, 409, "이미 이 빌라에 사는 사람이에요");
+    return jsonError(c, 409, "이미 이 아파트에 사는 사람이에요");
   }
   const banned = await c.env.DB.prepare("SELECT 1 AS x FROM villa_bans WHERE villa_id = ? AND user_id = ?").bind(id, app.userId).first();
   if (banned) {
@@ -336,7 +336,7 @@ async function approveRefusal(c: Context<AppEnv>, id: string, appId: string, me:
         { userId: app.userId, type: "application_closed", payload: { villaId: id, villaName: v.name, reason: "limit" }, key: `apply_closed:${appId}` },
       ]);
     }
-    return jsonError(c, 409, "신청한 사람이 이미 빌라 3곳에 살고 있어 승인할 수 없어요");
+    return jsonError(c, 409, "신청한 사람이 이미 아파트 3곳에 살고 있어 승인할 수 없어요");
   }
   return jsonError(c, 409, "승인하지 못했어요. 다시 해 주세요");
 }
@@ -377,7 +377,7 @@ recruit.post("/api/villas/:id/applications/:appId/reject", requireUser, async (c
   return c.json({ ok: true });
 });
 
-/** 내가 방장인 빌라들에 온, 기다리는 신청 수 (설정 배지) */
+/** 내가 방장인 아파트들에 온, 기다리는 신청 수 (설정 배지) */
 export async function receivedCount(env: Bindings, userId: string): Promise<number> {
   return (await env.DB.prepare(
     `SELECT COUNT(*) AS n FROM villa_applications a JOIN villas v ON v.id = a.villa_id AND v.dissolved_at IS NULL AND v.owner_id = ?

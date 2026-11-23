@@ -132,7 +132,7 @@ describe("PUT /api/placements", () => {
   });
   it("placements_show_up_in_villa", async () => {
     const u = await signup(500);
-    await send(u.cookie, "/api/villas", { name: "빌라" });
+    await send(u.cookie, "/api/villas", { name: "아파트" });
     await buy(u.cookie, "trophy-shelf");
     await place(u.cookie, "wall1", "trophy-shelf");
     const v = await (await app.request("/api/villas/mine", { headers: { cookie: u.cookie } }, env)).json<any>();
@@ -141,7 +141,7 @@ describe("PUT /api/placements", () => {
 });
 
 describe("꾸미기 확장: 가구 · 옷 · 소품", () => {
-  const makeVilla = (cookie: string) => send(cookie, "/api/villas", { name: "빌라" });
+  const makeVilla = (cookie: string) => send(cookie, "/api/villas", { name: "아파트" });
   const villaOf = async (id: string) =>
     (await env.DB.prepare("SELECT villa_id FROM memberships WHERE user_id = ? AND left_at IS NULL").bind(id).first<{ villa_id: string }>())!.villa_id;
 
@@ -182,12 +182,12 @@ describe("꾸미기 확장: 가구 · 옷 · 소품", () => {
   });
   it("gold_statue_needs_current_penthouse_holder", async () => {
     const u = await signup(1000);
-    // 빌라 없음 → 403, 포인트 그대로
+    // 아파트 없음 → 403, 포인트 그대로
     let res = await buy(u.cookie, "gold-statue");
     expect(res.status).toBe(403);
     expect((await res.json<any>()).error).toBe("펜트하우스 주인만 살 수 있어요");
     expect((await shop(u.cookie)).penthouse).toBe(false);
-    // 빌라를 만들면 펜트하우스 주인
+    // 아파트를 만들면 펜트하우스 주인
     await makeVilla(u.cookie);
     expect((await shop(u.cookie)).penthouse).toBe(true);
     res = await buy(u.cookie, "gold-statue");

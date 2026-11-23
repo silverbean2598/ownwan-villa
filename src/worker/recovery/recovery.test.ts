@@ -30,7 +30,7 @@ type U = Awaited<ReturnType<typeof signup>>;
 
 async function villa(owner: U, members: Array<{ u: U; joinedAt: number }> = []) {
   const vid = crypto.randomUUID();
-  await env.DB.prepare("INSERT INTO villas (id, name, owner_id, invite_token, created_at) VALUES (?, '빌라', ?, ?, 1)")
+  await env.DB.prepare("INSERT INTO villas (id, name, owner_id, invite_token, created_at) VALUES (?, '아파트', ?, ?, 1)")
     .bind(vid, owner.id, crypto.randomUUID())
     .run();
   for (const [u, joinedAt] of [[owner, 1], ...members.map((m) => [m.u, m.joinedAt] as const)] as Array<[U, number]>) {
@@ -132,7 +132,7 @@ describe("approver", () => {
     const u = await signup();
     const r = await post("/api/recover/request", { username: u.username });
     expect(r.status).toBe(400);
-    expect(await r.json()).toEqual({ error: "빌라에 살고 있어야 방장 확인을 쓸 수 있어요" });
+    expect(await r.json()).toEqual({ error: "아파트에 살고 있어야 방장 확인을 쓸 수 있어요" });
     const r2 = await post("/api/recover/request", { username: "nobodyhere" });
     expect(r2.status).toBe(400);
     expect(await r2.json()).toEqual({ error: "아이디를 확인해 주세요" });
@@ -299,11 +299,11 @@ describe("approve and complete", () => {
     await post(`/api/recover/${id}/approve`, {}, owner.cookie);
     await leave(member);
     const other2 = await signup();
-    await villa(other2, [{ u: member, joinedAt: 7 }]); // 다른 빌라에 입주
+    await villa(other2, [{ u: member, joinedAt: 7 }]); // 다른 아파트에 입주
     setNow(() => t0 + 2 * DAY);
     const res = await post("/api/recover/complete", { username: member.username, ticket, newPassword: "newpassword1" });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "확인해 준 빌라에서 나가서 요청이 취소됐어요. 다시 요청해 주세요" });
+    expect(await res.json()).toEqual({ error: "확인해 준 아파트에서 나가서 요청이 취소됐어요. 다시 요청해 주세요" });
     expect(await status(member.id)).toEqual(["cancelled"]);
   });
 
@@ -316,7 +316,7 @@ describe("approve and complete", () => {
     setNow(() => t0 + 2 * DAY);
     const res = await post("/api/recover/complete", { username: member.username, ticket, newPassword: "newpassword1" });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "확인해 준 빌라에서 나가서 요청이 취소됐어요. 다시 요청해 주세요" });
+    expect(await res.json()).toEqual({ error: "확인해 준 아파트에서 나가서 요청이 취소됐어요. 다시 요청해 주세요" });
     expect(await status(member.id)).toEqual(["cancelled"]);
   });
 });
