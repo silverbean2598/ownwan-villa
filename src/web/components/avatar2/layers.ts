@@ -121,6 +121,7 @@ export function spriteLayers(raw: AvatarSpec, pose: Pose, res: SpriteRes = "full
     acc,
     stripW: res === "sm" ? (meta.smSw * meta.fh) / SPRITE_SM_H : meta.sw,
     urls: [
+      ...(meta.backdrop ? [`${dir}/backdrop.webp`] : []),
       ...(hair ? [`${dir}/hair-${hair}-back.webp`] : []),
       `${dir}/body-${outfit}-s${skin}.webp`,
       ...(hair ? [`${dir}/hair-${hair}-front.webp`] : []),

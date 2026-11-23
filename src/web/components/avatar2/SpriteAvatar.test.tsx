@@ -54,6 +54,12 @@ describe("새 캐릭터 그림 고르기", () => {
       "/avatar2/taekwondo/acc-towel.webp",
     ]);
     expect(spriteLayers(a({ hair: "wolf" }), "jiujitsu", "sm").urls).toEqual(["/avatar2/jiujitsu/sm/body-gi-wolf-s0.webp"]);
+    // 클라이밍: 벽(backdrop)이 맨 뒤, 뒷머리는 벽 앞 · 몸 뒤 (벽이 뒷머리를 가리지 않게)
+    const cl = urls(a({ hair: "afro" }), "climbing");
+    expect(cl[0]).toBe("/avatar2/climbing/backdrop.webp");
+    expect(cl.indexOf("/avatar2/climbing/hair-afro-back.webp")).toBe(1);
+    expect(cl.findIndex((u) => u.includes("/body-"))).toBe(2);
+    expect(urls(a({}), "idle").some((u) => u.includes("backdrop"))).toBe(false);
     for (const p of ["jiujitsu", "taekwondo"] as const) {
       const m = spriteMeta(p);
       expect(m.fullHair).toBe(true);
@@ -73,7 +79,10 @@ describe("새 캐릭터 그림 고르기", () => {
   });
   it("only_needed_layers_in_draw_order_props_only_for_gym", () => {
     for (const p of POSES) {
-      const u = urls(a({ hair: "afro", outfit: "hoodie" }), p);
+      const all = urls(a({ hair: "afro", outfit: "hoodie" }), p);
+      // 벽 배경이 있는 자세(클라이밍)는 맨 앞에 backdrop 한 장이 더 있다
+      if (spriteMeta(p).backdrop) expect(all[0]).toBe(`/avatar2/${p}/backdrop.webp`);
+      const u = spriteMeta(p).backdrop ? all.slice(1) : all;
       if (spriteMeta(p).fullHair) {
         expect(u).toEqual([`/avatar2/${p}/body-${p === "jiujitsu" ? "gi" : "dobok"}-afro-s0.webp`]);
         continue;
@@ -101,7 +110,7 @@ describe("새 캐릭터 그림 고르기", () => {
     ]);
     for (const p of POSES) {
       expect(spriteMeta(p).accs, p).toEqual(ACCESSORIES.map((x) => x.id));
-      const at = spriteMeta(p).fullHair ? 1 : 3;
+      const at = (spriteMeta(p).fullHair ? 1 : 3) + (spriteMeta(p).backdrop ? 1 : 0);
       for (const x of ACCESSORIES) expect(urls(a({ acc: [x.id] }), p)[at], `${p} ${x.id}`).toBe(`/avatar2/${p}/acc-${x.id}.webp`);
     }
     expect(spriteLayers(a({ acc: ["glasses", "headband"] }), "idle").acc).toEqual(["headband", "glasses"]);

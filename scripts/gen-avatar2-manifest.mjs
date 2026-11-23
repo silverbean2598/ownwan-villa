@@ -62,6 +62,7 @@ for (const pose of readdirSync(DIR).sort()) {
     hairs: m.hairs,
     fullHair,
     props: !!m.props,
+    backdrop: !!m.backdrop,
     accs: m.accs ?? [],
   };
 }
@@ -83,6 +84,8 @@ export type SpriteMeta = {
   /** 머리가 몸 그림에 들어 있다 (주짓수 · 태권도): body-<도복>-<머리>-s<피부>, 머리 층 없음 */
   fullHair: boolean;
   props: boolean;
+  /** 맨 뒤에 까는 배경 그림 backdrop.webp (클라이밍 벽): 뒷머리가 벽 앞 · 몸 뒤에 오게 */
+  backdrop: boolean;
   accs: readonly string[];
 };
 
