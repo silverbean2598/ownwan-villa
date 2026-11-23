@@ -18,13 +18,13 @@ INK = (91, 70, 64)  # 캐릭터 외곽선과 같은 갈색 잉크
 
 
 def maskable():
-    """얼굴(머리 bbox 중심 y≈213)을 한가운데 두고 87% 로 줄인다.
+    """얼굴(머리 bbox 중심 y≈225)을 한가운데 두고 87% 로 줄인다.
     머리 끝까지 반지름 ≈170px < 안전 영역(지름 80%) 반지름 205px. 몸은 아래 가장자리까지 이어진다."""
     s = 0.87
     size = round(512 * s)
     small = ICON.resize((size, size), Image.LANCZOS)
     out = Image.new("RGB", (512, 512), BG)
-    out.paste(small, ((512 - size) // 2, round(256 - 213 * s)))
+    out.paste(small, ((512 - size) // 2, max(round(256 - 225 * s), 512 - size)))  # 몸이 아래 끝까지 닿게
     out.save(PUB / "icon-maskable-512.png", optimize=True)
 
 
