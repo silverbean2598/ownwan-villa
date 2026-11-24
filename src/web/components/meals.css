@@ -1,0 +1,90 @@
+/*
+ * 아래 탭 · 식당(식단 공유) 화면 전용 스타일 — 확정 시안 "B안 · 끼니별 묶음" + 식단 올리기 + 탭바 (2026-11-24)
+ * 이 파일 안 클래스만 쓴다.
+ */
+
+/* ── 아래 탭 ── */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 700; display: flex;
+  background: #fff; border-top: 1px solid var(--line);
+  padding: 8px calc(6px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left)); }
+.tabbar-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; color: #9a9a9a;
+  font-size: 11px; text-decoration: none; }
+.tabbar-tab .tabbar-icon { width: 24px; height: 24px; }
+.tabbar-tab.on { color: var(--ink); font-weight: 700; }
+.tabbar-tab[aria-disabled="true"] { opacity: .5; }
+/* 탭이 있는 화면: 내용이 탭에 가리지 않게 (탭 높이 + 홈 막대) */
+body.has-tabbar { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+body.has-tabbar .confirm, body.has-tabbar .action-toast { bottom: calc(88px + env(safe-area-inset-bottom)); }
+
+/* ── 식당 (B안) ── */
+.meals-page { max-width: 420px; margin: 0 auto; padding: 28px 20px 96px; }
+.meals-page h1 { font-size: 24px; margin: 0 0 4px; }
+.meals-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.meals-villa { max-width: 55%; border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--ink); background: #fff; text-overflow: ellipsis; }
+.meals-sub { color: #6b6b6b; font-size: 14px; margin: 0 0 14px; }
+.meals-date { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 12px; font-size: 16px; }
+.meals-date strong { font-weight: 700; }
+.meals-date button { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 50%; background: #fff; color: #444;
+  display: flex; align-items: center; justify-content: center; font-size: 14px; padding: 0; cursor: pointer; }
+.meals-date button:disabled { color: #ccc; cursor: default; }
+.meals-note { margin: 0 0 12px; }
+
+.meal-sec { margin-bottom: 14px; }
+.meal-sec h2 { font-size: 14px; margin: 0 0 8px; display: flex; align-items: center; gap: 6px; }
+.meal-sec h2 small { color: #6b6b6b; font-weight: 500; font-size: 14px; }
+.meal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.meal-sec-empty { border: 1px dashed #d8d8d8; border-radius: 12px; padding: 12px; text-align: center; color: #a0a0a0; font-size: 13px; }
+.meal-mini { display: flex; flex-direction: column; min-width: 0; padding: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  background: #fff; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.meal-mini img { display: block; width: 100%; height: 96px; object-fit: cover; background: #f6f7f9; }
+.meal-mini-body { display: flex; flex-direction: column; padding: 7px 9px 9px; min-width: 0; }
+.meal-mini-memo { font-size: 13px; margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meal-mini-who { display: flex; justify-content: space-between; gap: 4px; font-size: 11px; color: #6b6b6b; white-space: nowrap; }
+.meal-mini-who > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.meal-mini-who b { color: var(--ink); }
+.meal-mini .heart.on { color: #e5484d; }
+.meal-mini:focus-visible { outline: 3px solid #2F5BEA; outline-offset: 2px; }
+
+.meals-fab { position: fixed; z-index: 710; right: max(18px, calc(50vw - 210px + 18px)); bottom: calc(80px + env(safe-area-inset-bottom));
+  background: var(--ink); color: #fff; border-radius: 999px; padding: 14px 18px; font-weight: 700; font-size: 15px; text-decoration: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .18); }
+
+/* 크게 보기 (아래에서 올라오는 창) */
+.meal-sheet-backdrop { position: fixed; inset: 0; z-index: 850; display: flex; align-items: flex-end; justify-content: center; background: rgba(20, 20, 24, .45); }
+.meal-sheet { position: relative; width: min(420px, 100%); max-height: 90vh; overflow-y: auto; background: #fff; border-radius: 20px 20px 0 0;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+.meal-sheet-close { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .92);
+  font-size: 15px; cursor: pointer; }
+.meal-sheet-photo { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover; background: #f6f7f9; }
+.meal-sheet-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+.meal-sheet-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; color: #6b6b6b; }
+.meal-sheet-head b { color: var(--ink); }
+.meal-label { font-size: 12px; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: #f3f3f3; color: var(--ink); }
+.meal-memo { margin: 0; font-size: 15px; word-break: keep-all; overflow-wrap: anywhere; }
+.meal-actions { display: flex; gap: 10px; margin-left: auto; }
+.meal-actions a, .meal-actions button { padding: 0; border: 0; background: none; color: #6b6b6b; font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; }
+
+/* ── 식단 올리기 · 고치기 ── */
+.meals-new { padding-top: 28px; padding-bottom: 32px; }
+.meals-back { display: inline-block; font-size: 14px; color: #6b6b6b; text-decoration: none; margin-bottom: 10px; }
+.meal-field-label { display: block; font-weight: 600; font-size: 14px; margin: 18px 0 8px; padding: 0; }
+.meal-optional { color: #999; font-weight: 400; }
+.meal-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.meal-chip { padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer; }
+.meal-chip[aria-checked="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.meal-drop { position: relative; height: 220px; border: 1.5px dashed #cfcfcf; border-radius: 16px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 8px; color: #8a8a8a; background: #f6f7f9; font-size: 14px; overflow: hidden; cursor: pointer; }
+.meal-drop.has-photo { border-style: solid; border-color: var(--line); }
+.meal-drop img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.meal-drop-cam { width: 52px; height: 52px; border-radius: 50%; background: #fff; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.meal-drop:focus-within { outline: 3px solid #2F5BEA; outline-offset: 2px; }
+.meal-memo-box { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; }
+.meal-memo-box input { flex: 1; min-width: 0; border: 0; outline: 0; padding: 12px 0; font: inherit; font-size: 15px; background: transparent; }
+.meal-memo-count { color: #aaa; font-size: 14px; font-variant-numeric: tabular-nums; }
+.meal-memo-box:focus-within { border-color: var(--ink); }
+.meal-villas { border: 0; margin: 0; padding: 0; }
+.meal-villa { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 8px 0; cursor: pointer; }
+.meal-villa input { width: 20px; height: 20px; margin: 0; accent-color: var(--ink); }
+.btn.meal-submit { margin-top: 22px; padding: 15px; }
+.meal-submit-note { font-size: 12px; color: #6b6b6b; margin: 8px 0 0; text-align: center; }

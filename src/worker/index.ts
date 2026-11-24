@@ -15,6 +15,7 @@ import { city } from "./city/routes";
 import { recruit } from "./recruit/routes";
 import { price } from "./price/routes";
 import { push } from "./push/routes";
+import { meals } from "./meals/routes";
 import { sendReminders } from "./push/service";
 import { settleThrough } from "./cron/settle";
 import { now } from "./clock";
@@ -39,6 +40,7 @@ app.route("/", city);
 app.route("/", recruit);
 app.route("/", price);
 app.route("/", push);
+app.route("/", meals);
 
 /** 저녁 9시(KST) 운동 알림 크론 (wrangler.jsonc triggers.crons 와 같은 문자열) */
 export const REMINDER_CRON = "0 12 * * *";

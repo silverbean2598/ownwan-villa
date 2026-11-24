@@ -50,7 +50,17 @@ export function urlOf(e: Pick<NewEvent, "type" | "payload" | "userId">): string 
   const villaId = typeof p.villaId === "string" ? p.villaId : "";
   if (e.type === "battle_challenged" || e.type === "battle_result") return villaId ? `/battle/${villaId}` : "/villa";
   if (e.type === "league_rank") return "/ranking";
-  if (e.type === "cheered" || e.type === "commented") return `/room/${e.userId}/board`;
+  if (e.type === "cheered" || e.type === "commented") {
+    // 식단 응원 · 댓글: 그 아파트 · 그날 식당으로
+    if (typeof p.mealId === "string") {
+      const q = new URLSearchParams();
+      if (villaId) q.set("villa", villaId);
+      if (typeof p.day === "string") q.set("day", p.day);
+      const qs = q.toString();
+      return `/meals${qs ? `?${qs}` : ""}`;
+    }
+    return `/room/${e.userId}/board`;
+  }
   return villaId ? `/villa/${villaId}` : "/villa";
 }
 

@@ -13,6 +13,7 @@ import { LOCKED_MSG, isLocked, recordFailure, resetFailures } from "../auth/lock
 import { deletePhotoBlobs } from "../storage";
 import { leaveAllVillas } from "../villa/service";
 import { cheerCleanupForUser } from "../cheer/routes";
+import { deleteMealPhotosOf, mealCleanupForUser } from "../meals/routes";
 
 export const profile = new Hono<AppEnv>();
 
@@ -85,12 +86,14 @@ profile.delete("/api/me", requireUser, async (c) => {
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare("SELECT id, r2_key FROM certs WHERE user_id = ?").bind(userId).all<{ id: string; r2_key: string | null }>();
   await deletePhotoBlobs(c.env, results);
+  await deleteMealPhotosOf(c.env, userId);
   // 사는 아파트 모두에서 나간다 (아파트마다 방장 승계 · 해체)
   await leaveAllVillas(c.env, userId);
   const q = (sql: string) => c.env.DB.prepare(sql).bind(userId);
   await c.env.DB.batch([
     c.env.DB.prepare("DELETE FROM reports WHERE reporter_id = ? OR cert_id IN (SELECT id FROM certs WHERE user_id = ?)").bind(userId, userId),
     ...cheerCleanupForUser(c.env, userId),
+    ...mealCleanupForUser(c.env, userId),
     q("DELETE FROM cert_villas WHERE cert_id IN (SELECT id FROM certs WHERE user_id = ?)"),
     q("DELETE FROM certs WHERE user_id = ?"),
     q("DELETE FROM inventory WHERE user_id = ?"),

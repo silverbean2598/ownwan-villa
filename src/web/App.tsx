@@ -20,6 +20,9 @@ import { Battle } from "./pages/Battle";
 import { Terms } from "./pages/Terms";
 import { Privacy } from "./pages/Privacy";
 import { EventCenter } from "./components/EventCenter";
+import { TabBar } from "./components/TabBar";
+import { Meals } from "./pages/Meals";
+import { MealNew } from "./pages/MealNew";
 
 export function App() {
   return (
@@ -42,11 +45,15 @@ export function App() {
         <Route path="/shop" element={<Shop />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/city" element={<City />} />
+        <Route path="/meals" element={<Meals />} />
+        <Route path="/meals/new" element={<MealNew />} />
+        <Route path="/meals/:id/edit" element={<MealNew />} />
         <Route path="/ranking" element={<Ranking />} />
         <Route path="/battle/:id" element={<Battle />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
       </Routes>
+      <TabBar />
       <EventCenter />
     </BrowserRouter>
   );

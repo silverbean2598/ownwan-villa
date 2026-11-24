@@ -71,7 +71,7 @@ export function timeAgo(ms: number, nowMs = Date.now()): string {
 }
 
 type Props = {
-  item: BoardItemData;
+  item: Pick<BoardItemData, "cheerCount" | "cheeredByMe" | "commentCount">;
   mine: boolean;
   open: boolean;
   onCheer: () => void;
@@ -109,8 +109,21 @@ export function CheerBar({ item, mine, open, onCheer, onToggleThread, children }
 
 type Comment = { id: string; userId: string; nickname: string; avatar: AvatarSpec; body: string; createdAt: number; canDelete: boolean };
 
-/** 펼친 댓글: 목록 + 입력. 개수가 바뀌면 onCount 로 알린다 */
-export function CommentThread({ certId, onCount }: { certId: string; onCount: (n: number) => void }) {
+/**
+ * 펼친 댓글: 목록 + 입력. 개수가 바뀌면 onCount 로 알린다.
+ * base · deleteBase: 댓글 API 주소 (식단 댓글은 /api/meals/:id · /api/meal-comments). 없으면 인증 기록 댓글
+ */
+export function CommentThread({
+  certId,
+  onCount,
+  base = `/api/certs/${certId}`,
+  deleteBase = "/api/comments",
+}: {
+  certId: string;
+  onCount: (n: number) => void;
+  base?: string;
+  deleteBase?: string;
+}) {
   const [list, setList] = useState<Comment[] | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -118,7 +131,7 @@ export function CommentThread({ certId, onCount }: { certId: string; onCount: (n
 
   useEffect(() => {
     let alive = true;
-    api<Comment[]>(`/api/certs/${certId}/comments`)
+    api<Comment[]>(`${base}/comments`)
       .then((r) => {
         if (!alive) return;
         setList(r);
@@ -146,7 +159,7 @@ export function CommentThread({ certId, onCount }: { certId: string; onCount: (n
     setBusy(true);
     setError("");
     try {
-      const c = await api<Comment>(`/api/certs/${certId}/comments`, { method: "POST", body: JSON.stringify({ body }) });
+      const c = await api<Comment>(`${base}/comments`, { method: "POST", body: JSON.stringify({ body }) });
       update((xs) => [...xs, c]);
       setText("");
     } catch (e) {
@@ -159,7 +172,7 @@ export function CommentThread({ certId, onCount }: { certId: string; onCount: (n
   async function remove(id: string) {
     setError("");
     try {
-      await api(`/api/comments/${id}`, { method: "DELETE" });
+      await api(`${deleteBase}/${id}`, { method: "DELETE" });
       update((xs) => xs.filter((c) => c.id !== id));
     } catch (e) {
       setError(msg(e));
