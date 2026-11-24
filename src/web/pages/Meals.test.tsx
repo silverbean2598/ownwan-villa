@@ -33,6 +33,7 @@ function mockApi(villas: V[], meals: unknown[] = [], pointsLeftToday = 10) {
       if (path.startsWith("/api/meals?")) return ok({ day: "", today: "", pointsLeftToday, meals });
       if (path === "/api/meals") return ok({ mealId: "m1", points: 5, duplicate: false, villaIds: ["A"] });
       if (path.endsWith("/report")) return ok({ hidden: true });
+      if (method === "DELETE") return ok({ ok: true, refunded: 0 });
       return ok({ ok: true });
     }),
   );
@@ -148,6 +149,31 @@ describe("Meals", () => {
     expect(host.querySelector(".meal-sheet-hidden")).not.toBeNull();
     expect(host.querySelector('.meal-sheet [aria-label="식단 신고"]')).toBeNull();
     expect(sections()[4].querySelector(".meal-mini-hidden")).not.toBeNull();
+  });
+
+  it("villa_owner_sees_delete_on_others_meals_including_hidden", async () => {
+    const base = { photoUrl: "/p", createdAt: Date.now(), edited: false, cheerCount: 0, cheeredByMe: false, commentCount: 0, memo: null, mine: false, canDelete: true };
+    mockApi([{ id: "A", name: "에이아파트" }], [
+      { ...base, id: "m2", userId: "x", nickname: "이웃", mealType: "lunch" },
+      { ...base, id: "m3", userId: "y", nickname: "옆집", mealType: "dinner", hidden: true, photoUrl: undefined },
+    ]);
+    await mount(<Meals />, "/meals");
+    await act(async () => sections()[3].querySelector<HTMLButtonElement>(".meal-mini")!.click());
+    // 가려진 식단: 신고는 없고 삭제만
+    expect(host.querySelector('.meal-sheet [aria-label="식단 신고"]')).toBeNull();
+    expect(host.querySelector('.meal-sheet [aria-label="식단 수정"]')).toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>('.meal-sheet [aria-label="식단 삭제"]')!.click());
+    expect(host.querySelector('.confirm-overlay[aria-label="식단 삭제"] p')!.textContent).toBe("이 사진을 지울까요? 지운 사진은 되돌릴 수 없어요.");
+    const ok = Array.from(host.querySelectorAll<HTMLButtonElement>('.confirm-overlay[aria-label="식단 삭제"] button')).find((b) => b.textContent === "삭제하기")!;
+    await act(async () => ok.click());
+    await flush();
+    expect(calls.some((c) => c.path === "/api/meals/m3" && c.method === "DELETE")).toBe(true);
+    expect(host.querySelector(".action-toast")!.textContent).toBe("지웠어요");
+    expect(sections()[3].querySelector(".meal-sec-empty")).not.toBeNull();
+    // 보이는 남의 식단에는 신고와 삭제가 함께
+    await act(async () => sections()[1].querySelector<HTMLButtonElement>(".meal-mini")!.click());
+    expect(host.querySelector('.meal-sheet [aria-label="식단 신고"]')).not.toBeNull();
+    expect(host.querySelector('.meal-sheet [aria-label="식단 삭제"]')).not.toBeNull();
   });
 
   it("no_report_button_on_my_meal", async () => {

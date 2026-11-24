@@ -18,6 +18,8 @@ export type MealItem = {
   /** 가려진 식단(신고 3건)은 사진 주소가 없다 */
   photoUrl?: string;
   hidden?: boolean;
+  /** 내 식단이거나, 내가 이 아파트 방장이면 지울 수 있다 */
+  canDelete?: boolean;
   createdAt: number;
   edited: boolean;
   mine: boolean;
@@ -179,7 +181,9 @@ export function Meals() {
       const r = await api<{ refunded: number }>(`/api/meals/${it.id}`, { method: "DELETE" });
       setOpenId(null);
       setItems((xs) => xs && xs.filter((x) => x.id !== it.id));
-      setNote(r.refunded > 0 ? `식단을 지웠어요. ${r.refunded}P를 돌려놨어요` : "식단을 지웠어요");
+      // 방장이 남의 식단을 지우면 인증 사진 삭제처럼 "지웠어요" 안내만
+      if (it.mine) setNote(r.refunded > 0 ? `식단을 지웠어요. ${r.refunded}P를 돌려놨어요` : "식단을 지웠어요");
+      else setToast("지웠어요");
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "지우지 못했어요. 다시 해 주세요");
     }
@@ -290,19 +294,26 @@ export function Meals() {
                     <button type="button" aria-label="식단 삭제" onClick={() => setConfirmDel(opened)}>삭제</button>
                   </span>
                 ) : (
-                  // 남의 식단: 가려지지 않았을 때만 신고
-                  !opened.hidden && (
+                  // 남의 식단: 가려지지 않았을 때만 신고, 방장이면 (가려졌어도) 삭제
+                  (!opened.hidden || opened.canDelete) && (
                     <span className="meal-actions">
-                      <button
-                        type="button"
-                        aria-label="식단 신고"
-                        onClick={() => {
-                          setReportErr("");
-                          setConfirmReport(opened);
-                        }}
-                      >
-                        신고하기
-                      </button>
+                      {!opened.hidden && (
+                        <button
+                          type="button"
+                          aria-label="식단 신고"
+                          onClick={() => {
+                            setReportErr("");
+                            setConfirmReport(opened);
+                          }}
+                        >
+                          신고하기
+                        </button>
+                      )}
+                      {opened.canDelete && (
+                        <button type="button" aria-label="식단 삭제" onClick={() => setConfirmDel(opened)}>
+                          삭제
+                        </button>
+                      )}
                     </span>
                   )
                 )}
@@ -339,10 +350,10 @@ export function Meals() {
       {confirmDel && (
         <div className="confirm-overlay" role="dialog" aria-modal="true" aria-label="식단 삭제">
           <div className="confirm-box">
-            <p>이 식단을 지울까요? 받은 포인트도 돌려놔요.</p>
+            <p>{confirmDel.mine ? "이 식단을 지울까요? 받은 포인트도 돌려놔요." : "이 사진을 지울까요? 지운 사진은 되돌릴 수 없어요."}</p>
             <div className="row">
               <button type="button" className="btn ghost" onClick={() => setConfirmDel(null)}>취소</button>
-              <button type="button" className="btn" onClick={() => void remove(confirmDel)}>지우기</button>
+              <button type="button" className="btn" onClick={() => void remove(confirmDel)}>{confirmDel.mine ? "지우기" : "삭제하기"}</button>
             </div>
           </div>
         </div>

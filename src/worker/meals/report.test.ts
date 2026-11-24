@@ -174,9 +174,55 @@ describe("villa owner moderates meal comments", () => {
     expect((await send("DELETE", `/api/meal-comments/${c.id}`, owner.cookie)).status).toBe(403);
   });
 
-  it("owner_cannot_delete_the_meal_itself", async () => {
-    const { owner, mealId } = await setup();
+});
+
+describe("villa owner deletes meals (인증 사진 방장 삭제와 같은 규칙)", () => {
+  const pts = async (u: U) => (await env.DB.prepare("SELECT points FROM users WHERE id = ?").bind(u.id).first<{ points: number }>())!.points;
+
+  it("owner_deletes_others_meal_without_taking_points_back", async () => {
+    const { owner, author, villaId, mealId } = await setup();
+    const before = await pts(author);
+    const listed = (await (await send("GET", `/api/meals?villa=${villaId}`, owner.cookie)).json()) as { meals: { id: string; canDelete: boolean }[] };
+    expect(listed.meals.find((m) => m.id === mealId)!.canDelete).toBe(true);
+    const r = await send("DELETE", `/api/meals/${mealId}`, owner.cookie);
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ ok: true, refunded: 0 });
+    expect(await pts(author)).toBe(before);
+    const row = await env.DB.prepare("SELECT deleted_at IS NOT NULL AS gone, refunded FROM meals WHERE id = ?").bind(mealId).first();
+    expect(row).toEqual({ gone: 1, refunded: 0 });
+    // 그날 상한에는 계속 센다: 지워진 5P + 새로 받은 5P → 남은 포인트 5P
+    await meal(author);
+    const left = (await (await send("GET", `/api/meals?villa=${villaId}`, author.cookie)).json()) as { pointsLeftToday: number };
+    expect(left.pointsLeftToday).toBe(5);
+  });
+
+  it("owner_can_delete_hidden_meal", async () => {
+    const { owner, others, mealId } = await setup();
+    for (const o of others) await report(o, mealId);
+    expect(await hidden(mealId)).toBe(1);
+    expect((await send("DELETE", `/api/meals/${mealId}`, owner.cookie)).status).toBe(200);
+  });
+
+  it("regular_member_and_other_villa_owner_get_403", async () => {
+    const { others, villaId, mealId } = await setup();
+    const listed = (await (await send("GET", `/api/meals?villa=${villaId}`, others[0].cookie)).json()) as { meals: { id: string; canDelete: boolean }[] };
+    expect(listed.meals.find((m) => m.id === mealId)!.canDelete).toBe(false);
+    const r = await send("DELETE", `/api/meals/${mealId}`, others[0].cookie);
+    expect(r.status).toBe(403);
+    expect(await errorOf(r)).toBe("지울 수 있는 권한이 없어요");
+    const stranger = await signup();
+    await villaOf(stranger);
+    expect((await send("DELETE", `/api/meals/${mealId}`, stranger.cookie)).status).toBe(403);
+    expect(await env.DB.prepare("SELECT deleted_at FROM meals WHERE id = ?").bind(mealId).first()).toEqual({ deleted_at: null });
+  });
+
+  it("owner_cannot_delete_after_author_left_the_villa", async () => {
+    const { owner, author, villaId, mealId } = await setup();
+    await send("POST", `/api/villas/${villaId}/leave`, author.cookie, {});
     expect((await send("DELETE", `/api/meals/${mealId}`, owner.cookie)).status).toBe(403);
+    // 작가 본인은 여전히 지울 수 있고, 포인트를 되돌린다
+    const r = await send("DELETE", `/api/meals/${mealId}`, author.cookie);
+    expect(await r.json()).toEqual({ ok: true, refunded: 5 });
   });
 });
 

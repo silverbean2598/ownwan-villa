@@ -226,6 +226,8 @@ meals.get("/api/meals", requireUser, async (c) => {
       id: string; user_id: string; nickname: string; avatar: string; meal_type: MealType; memo: string | null; hidden: number;
       created_at: number; updated_at: number; cheerCount: number; cheeredByMe: number; commentCount: number;
     }>();
+  // 이 아파트의 방장이면 목록의 식단(작성자가 이 아파트에 산다)을 모두 지울 수 있다
+  const iAmOwner = !!(await c.env.DB.prepare("SELECT 1 AS ok FROM villas WHERE id = ? AND owner_id = ?").bind(villaId, me).first());
   // 오늘(KST) 식단으로 더 받을 수 있는 포인트 (올리기 화면 안내용)
   const earned = await c.env.DB.prepare("SELECT COALESCE(SUM(points - refunded), 0) AS n FROM meals WHERE user_id = ? AND day = ?")
     .bind(me, today)
@@ -247,6 +249,7 @@ meals.get("/api/meals", requireUser, async (c) => {
       createdAt: r.created_at,
       edited: !r.hidden && r.updated_at !== r.created_at,
       mine: r.user_id === me,
+      canDelete: r.user_id === me || iAmOwner,
       cheerCount: r.cheerCount,
       cheeredByMe: !!r.cheeredByMe,
       commentCount: r.commentCount,
@@ -321,24 +324,26 @@ function cleanupForMeal(env: Env, mealId: string): D1PreparedStatement[] {
 }
 
 /**
- * 식단 지우기: 작성자 본인만. 행은 남기고(deleted_at) 사진 · 메모 · 응원 · 댓글 · 신고는 지운다.
- * 받은 포인트는 되돌린다(빼낸다). 이미 써서 모자라면 남은 만큼만 빼고, 못 뺀 만큼은 그날 받은 포인트로 계속 센다
- * (지우고 다시 올려 포인트를 늘리지 못하게)
+ * 식단 지우기: 작성자 본인, 또는 방장(식단이 올라간 아파트의 방장이고 작성자도 그 아파트에 산다 — 인증 사진 삭제와 같은 규칙).
+ * 행은 남기고(deleted_at) 사진 · 메모 · 응원 · 댓글 · 신고는 지운다.
+ * 작성자가 지우면 받은 포인트를 되돌린다(빼낸다). 이미 써서 모자라면 남은 만큼만 빼고, 못 뺀 만큼은 그날 받은 포인트로 계속 센다
+ * (지우고 다시 올려 포인트를 늘리지 못하게). 방장이 지우면 작성자 포인트는 그대로 두고(refunded = 0) 그날 상한에도 계속 센다.
  */
 meals.delete("/api/meals/:id", requireUser, async (c) => {
   const userId = c.get("userId");
   const meal = await findMeal(c.env, c.req.param("id"));
-  if (!meal || !(await canViewMeal(c.env, userId, meal))) return jsonError(c, 404, NOT_FOUND);
-  if (meal.user_id !== userId) return jsonError(c, 403, "내가 올린 식단만 지울 수 있어요");
+  if (!meal) return jsonError(c, 404, NOT_FOUND);
+  const byAuthor = meal.user_id === userId;
+  if (!byAuthor && !(await isMealModerator(c.env, userId, meal))) return jsonError(c, 403, "지울 수 있는 권한이 없어요");
   const [, , , , , del] = await c.env.DB.batch([
     ...cleanupForMeal(c.env, meal.id),
     c.env.DB.prepare(
       `UPDATE meals SET deleted_at = ?1, memo = NULL,
-         refunded = MIN(points, COALESCE((SELECT points FROM users WHERE id = ?3), 0))
+         refunded = CASE WHEN ?4 = 1 THEN MIN(points, COALESCE((SELECT points FROM users WHERE id = ?3), 0)) ELSE 0 END
        WHERE id = ?2 AND user_id = ?3 AND deleted_at IS NULL`,
-    ).bind(now(), meal.id, userId),
-    // 바로 앞 문장이 실제로 지웠을 때만 (두 번 눌러도 한 번만 뺀다)
-    c.env.DB.prepare("UPDATE users SET points = points - (SELECT refunded FROM meals WHERE id = ?1) WHERE id = ?2 AND changes() = 1").bind(meal.id, userId),
+    ).bind(now(), meal.id, meal.user_id, byAuthor ? 1 : 0),
+    // 바로 앞 문장이 실제로 지웠을 때만 (두 번 눌러도 한 번만 뺀다). 방장이 지웠으면 refunded = 0 이라 그대로
+    c.env.DB.prepare("UPDATE users SET points = points - (SELECT refunded FROM meals WHERE id = ?1) WHERE id = ?2 AND changes() = 1").bind(meal.id, meal.user_id),
   ]);
   if (!del.meta.changes) return jsonError(c, 404, NOT_FOUND);
   if (meal.r2_key) await deletePhotoBlob(c.env, blobRef(meal.r2_key));
