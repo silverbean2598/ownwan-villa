@@ -43,12 +43,12 @@ const sharedVillaOf = (meal: string, author: string, viewer: string) => `EXISTS 
 
 type MealRow = {
   id: string; user_id: string; day: string; meal_type: MealType; r2_key: string | null; memo: string | null;
-  points: number; duplicate: number; created_at: number; updated_at: number;
+  points: number; duplicate: number; hidden: number; created_at: number; updated_at: number;
 };
 
 async function findMeal(env: Env, id: string): Promise<MealRow | null> {
   return env.DB.prepare(
-    "SELECT id, user_id, day, meal_type, r2_key, memo, points, duplicate, created_at, updated_at FROM meals WHERE id = ? AND deleted_at IS NULL",
+    "SELECT id, user_id, day, meal_type, r2_key, memo, points, duplicate, hidden, created_at, updated_at FROM meals WHERE id = ? AND deleted_at IS NULL",
   )
     .bind(id)
     .first<MealRow>();
@@ -66,6 +66,30 @@ async function visibleMeal(env: Env, viewerId: string, id: string): Promise<{ me
   if (!meal) return { status: 404, message: NOT_FOUND };
   if (!(await canViewMeal(env, viewerId, meal))) return { status: 403, message: FORBIDDEN };
   return { meal };
+}
+
+/** 응원 · 댓글 · 사진을 쓸 수 있는 식단: 볼 수 있고 가려지지 않음 (인증 기록처럼 가려진 식단은 404) */
+async function openMeal(env: Env, viewerId: string, id: string): Promise<{ meal: MealRow } | { status: number; message: string }> {
+  const found = await visibleMeal(env, viewerId, id);
+  if ("meal" in found && found.meal.hidden) return { status: 404, message: NOT_FOUND };
+  return found;
+}
+
+/**
+ * viewer 가 이 식단의 댓글을 정리할 수 있는 방장인지 (인증 기록의 isModeratorOf 와 같은 규칙):
+ * 식단이 올라간 (해체되지 않은) 아파트 중 viewer 가 방장인 아파트가 있고, 작성자와 viewer 가 둘 다 그 아파트에 지금 산다
+ */
+export async function isMealModerator(env: Env, viewerId: string, meal: { id: string; user_id: string }): Promise<boolean> {
+  const row = await env.DB.prepare(
+    `SELECT 1 AS ok FROM meal_villas mv
+     JOIN villas v ON v.id = mv.villa_id AND v.dissolved_at IS NULL AND v.owner_id = ?1
+     JOIN memberships a ON a.villa_id = mv.villa_id AND a.user_id = ?2 AND a.left_at IS NULL
+     JOIN memberships o ON o.villa_id = mv.villa_id AND o.user_id = ?1 AND o.left_at IS NULL
+     WHERE mv.meal_id = ?3`,
+  )
+    .bind(viewerId, meal.user_id, meal.id)
+    .first();
+  return !!row;
 }
 
 /** 사진 저장소 참조: 식단은 저장 키를 그대로 사진 id 로 쓴다 (사진을 바꿔도 예전 사진만 골라 지울 수 있게) */
@@ -188,10 +212,10 @@ meals.get("/api/meals", requireUser, async (c) => {
   const day = c.req.query("day") || today;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day > today || day < oldest) return jsonError(c, 400, BAD_DAY);
   const { results } = await c.env.DB.prepare(
-    `SELECT m.id, m.user_id, u.nickname, u.avatar, m.meal_type, m.memo, m.created_at, m.updated_at,
-       (SELECT COUNT(*) FROM meal_cheers WHERE meal_id = m.id) AS cheerCount,
-       EXISTS (SELECT 1 FROM meal_cheers WHERE meal_id = m.id AND user_id = ?3) AS cheeredByMe,
-       (SELECT COUNT(*) FROM meal_comments WHERE meal_id = m.id) AS commentCount
+    `SELECT m.id, m.user_id, u.nickname, u.avatar, m.meal_type, m.memo, m.hidden, m.created_at, m.updated_at,
+       CASE WHEN m.hidden THEN 0 ELSE (SELECT COUNT(*) FROM meal_cheers WHERE meal_id = m.id) END AS cheerCount,
+       CASE WHEN m.hidden THEN 0 ELSE EXISTS (SELECT 1 FROM meal_cheers WHERE meal_id = m.id AND user_id = ?3) END AS cheeredByMe,
+       CASE WHEN m.hidden THEN 0 ELSE (SELECT COUNT(*) FROM meal_comments WHERE meal_id = m.id) END AS commentCount
      FROM meal_villas mv JOIN meals m ON m.id = mv.meal_id JOIN users u ON u.id = m.user_id
      WHERE mv.villa_id = ?1 AND m.day = ?2 AND m.deleted_at IS NULL
        AND EXISTS (SELECT 1 FROM memberships a WHERE a.villa_id = ?1 AND a.user_id = m.user_id AND a.left_at IS NULL)
@@ -199,7 +223,7 @@ meals.get("/api/meals", requireUser, async (c) => {
   )
     .bind(villaId, day, me)
     .all<{
-      id: string; user_id: string; nickname: string; avatar: string; meal_type: MealType; memo: string | null;
+      id: string; user_id: string; nickname: string; avatar: string; meal_type: MealType; memo: string | null; hidden: number;
       created_at: number; updated_at: number; cheerCount: number; cheeredByMe: number; commentCount: number;
     }>();
   // 오늘(KST) 식단으로 더 받을 수 있는 포인트 (올리기 화면 안내용)
@@ -216,10 +240,12 @@ meals.get("/api/meals", requireUser, async (c) => {
       nickname: r.nickname,
       avatar: safeAvatar(r.avatar),
       mealType: r.meal_type,
-      memo: r.memo,
-      photoUrl: photoUrl(r),
+      hidden: !!r.hidden,
+      // 가려진 식단은 사진 · 메모를 내보내지 않는다 (인증 기록과 같다)
+      memo: r.hidden ? null : r.memo,
+      ...(r.hidden ? {} : { photoUrl: photoUrl(r) }),
       createdAt: r.created_at,
-      edited: r.updated_at !== r.created_at,
+      edited: !r.hidden && r.updated_at !== r.created_at,
       mine: r.user_id === me,
       cheerCount: r.cheerCount,
       cheeredByMe: !!r.cheeredByMe,
@@ -234,7 +260,10 @@ meals.get("/api/meals/:id", requireUser, async (c) => {
   const found = await visibleMeal(c.env, me, c.req.param("id"));
   if ("status" in found) return jsonError(c, found.status, found.message);
   const m = found.meal;
-  return c.json({ id: m.id, userId: m.user_id, day: m.day, mealType: m.meal_type, memo: m.memo, photoUrl: photoUrl(m), createdAt: m.created_at, mine: m.user_id === me });
+  return c.json({
+    id: m.id, userId: m.user_id, day: m.day, mealType: m.meal_type, createdAt: m.created_at, mine: m.user_id === me, hidden: !!m.hidden,
+    ...(m.hidden ? { memo: null } : { memo: m.memo, photoUrl: photoUrl(m) }),
+  });
 });
 
 /**
@@ -287,11 +316,12 @@ function cleanupForMeal(env: Env, mealId: string): D1PreparedStatement[] {
     env.DB.prepare("DELETE FROM events WHERE substr(id, 1, length(?1) + 9) = 'cheered:' || ?1 || ':'").bind(mealId),
     env.DB.prepare("DELETE FROM meal_cheers WHERE meal_id = ?").bind(mealId),
     env.DB.prepare("DELETE FROM meal_comments WHERE meal_id = ?").bind(mealId),
+    env.DB.prepare("DELETE FROM meal_reports WHERE meal_id = ?").bind(mealId),
   ];
 }
 
 /**
- * 식단 지우기: 작성자 본인만. 행은 남기고(deleted_at) 사진 · 메모 · 응원 · 댓글은 지운다.
+ * 식단 지우기: 작성자 본인만. 행은 남기고(deleted_at) 사진 · 메모 · 응원 · 댓글 · 신고는 지운다.
  * 받은 포인트는 되돌린다(빼낸다). 이미 써서 모자라면 남은 만큼만 빼고, 못 뺀 만큼은 그날 받은 포인트로 계속 센다
  * (지우고 다시 올려 포인트를 늘리지 못하게)
  */
@@ -300,7 +330,7 @@ meals.delete("/api/meals/:id", requireUser, async (c) => {
   const meal = await findMeal(c.env, c.req.param("id"));
   if (!meal || !(await canViewMeal(c.env, userId, meal))) return jsonError(c, 404, NOT_FOUND);
   if (meal.user_id !== userId) return jsonError(c, 403, "내가 올린 식단만 지울 수 있어요");
-  const [, , , , del] = await c.env.DB.batch([
+  const [, , , , , del] = await c.env.DB.batch([
     ...cleanupForMeal(c.env, meal.id),
     c.env.DB.prepare(
       `UPDATE meals SET deleted_at = ?1, memo = NULL,
@@ -317,7 +347,7 @@ meals.delete("/api/meals/:id", requireUser, async (c) => {
 });
 
 meals.get("/api/meals/:id/photo", requireUser, async (c) => {
-  const found = await visibleMeal(c.env, c.get("userId"), c.req.param("id"));
+  const found = await openMeal(c.env, c.get("userId"), c.req.param("id"));
   if ("status" in found) return jsonError(c, found.status, found.status === 404 ? "사진을 찾을 수 없어요" : found.message);
   if (!found.meal.r2_key) return jsonError(c, 404, "사진을 찾을 수 없어요");
   const obj = await getPhotoBlob(c.env, blobRef(found.meal.r2_key));
@@ -327,9 +357,31 @@ meals.get("/api/meals/:id/photo", requireUser, async (c) => {
   });
 });
 
+/** 이만큼 신고되면 식단을 가린다 (인증 사진과 같다) */
+const HIDE_AT = 3;
+
+/**
+ * 식단 신고 (인증 사진 신고와 같은 규칙 · 문구): 같은 아파트 입주민이 남의 식단을 사람당 한 번.
+ * 3명이 신고하면 가려진다(사진 · 메모를 내보내지 않고, 응원 · 댓글을 막는다). 되돌리기 · 알림은 없다
+ */
+meals.post("/api/meals/:id/report", requireUser, async (c) => {
+  const viewerId = c.get("userId");
+  const meal = await findMeal(c.env, c.req.param("id"));
+  if (!meal) return jsonError(c, 404, "사진을 찾을 수 없어요");
+  if (!(await canViewMeal(c.env, viewerId, meal))) return jsonError(c, 403, "같은 아파트 입주민만 신고할 수 있어요");
+  if (meal.user_id === viewerId) return jsonError(c, 400, "내 사진은 신고할 수 없어요");
+  // 신고 추가와 가림 판정을 한 묶음으로: 동시에 들어와도 마지막 신고가 3건을 본다
+  await c.env.DB.batch([
+    c.env.DB.prepare("INSERT OR IGNORE INTO meal_reports (meal_id, reporter_id) VALUES (?1, ?2)").bind(meal.id, viewerId),
+    c.env.DB.prepare("UPDATE meals SET hidden = 1 WHERE id = ?1 AND (SELECT COUNT(*) FROM meal_reports WHERE meal_id = ?1) >= ?2").bind(meal.id, HIDE_AT),
+  ]);
+  const row = await c.env.DB.prepare("SELECT hidden FROM meals WHERE id = ?").bind(meal.id).first<{ hidden: number }>();
+  return c.json({ hidden: !!row?.hidden });
+});
+
 // ── 응원 · 댓글 (인증 응원 · 댓글과 같은 규칙) ──
 
-const VISIBLE = "EXISTS (SELECT 1 FROM meals WHERE id = ?1 AND deleted_at IS NULL)";
+const VISIBLE = "EXISTS (SELECT 1 FROM meals WHERE id = ?1 AND deleted_at IS NULL AND hidden = 0)";
 
 /** 알림을 누르면 열 아파트: 식단이 올라간 아파트 중 작성자와 보낸 사람이 함께 사는 곳 */
 async function sharedVillaFor(env: Env, mealId: string, authorId: string, viewerId: string): Promise<string> {
@@ -346,7 +398,7 @@ async function sharedVillaFor(env: Env, mealId: string, authorId: string, viewer
 
 meals.post("/api/meals/:id/cheer", requireUser, async (c) => {
   const userId = c.get("userId");
-  const found = await visibleMeal(c.env, userId, c.req.param("id"));
+  const found = await openMeal(c.env, userId, c.req.param("id"));
   if ("status" in found) return jsonError(c, found.status, found.status === 403 ? "같은 아파트 입주민만 응원할 수 있어요" : found.message);
   const { meal } = found;
   if (meal.user_id === userId) return jsonError(c, 400, "내 식단에는 응원할 수 없어요");
@@ -380,7 +432,7 @@ const toComment = (r: CommentRow, canDelete: boolean) => ({ ...r, avatar: safeAv
 
 meals.get("/api/meals/:id/comments", requireUser, async (c) => {
   const userId = c.get("userId");
-  const found = await visibleMeal(c.env, userId, c.req.param("id"));
+  const found = await openMeal(c.env, userId, c.req.param("id"));
   if ("status" in found) return jsonError(c, found.status, found.message);
   const { meal } = found;
   const { results } = await c.env.DB.prepare(
@@ -390,7 +442,8 @@ meals.get("/api/meals/:id/comments", requireUser, async (c) => {
   )
     .bind(meal.id)
     .all<CommentRow>();
-  return c.json(results.map((r) => toComment(r, meal.user_id === userId || r.userId === userId)));
+  const moderator = meal.user_id === userId || (await isMealModerator(c.env, userId, meal));
+  return c.json(results.map((r) => toComment(r, moderator || r.userId === userId)));
 });
 
 meals.post("/api/meals/:id/comments", requireUser, async (c) => {
@@ -398,7 +451,7 @@ meals.post("/api/meals/:id/comments", requireUser, async (c) => {
   const b = await c.req.json().catch(() => null);
   const body = typeof b?.body === "string" ? b.body.trim() : "";
   if (body.length < 1 || body.length > COMMENT_MAX) return jsonError(c, 400, BAD_COMMENT);
-  const found = await visibleMeal(c.env, userId, c.req.param("id"));
+  const found = await openMeal(c.env, userId, c.req.param("id"));
   if ("status" in found) return jsonError(c, found.status, found.message);
   const { meal } = found;
   const t = now();
@@ -414,7 +467,7 @@ meals.post("/api/meals/:id/comments", requireUser, async (c) => {
     c.env.DB.prepare("INSERT INTO comment_log (user_id, created_at) SELECT ?1, ?2 WHERE changes() = 1").bind(userId, t),
   ]);
   if (!r.meta.changes) {
-    const again = await visibleMeal(c.env, userId, meal.id);
+    const again = await openMeal(c.env, userId, meal.id);
     return "status" in again ? jsonError(c, again.status, again.message) : jsonError(c, 429, TOO_MANY);
   }
   const me = (await c.env.DB.prepare("SELECT nickname, avatar FROM users WHERE id = ?").bind(userId).first<{ nickname: string; avatar: string }>())!;
@@ -430,12 +483,14 @@ meals.post("/api/meals/:id/comments", requireUser, async (c) => {
 meals.delete("/api/meal-comments/:id", requireUser, async (c) => {
   const userId = c.get("userId");
   const row = await c.env.DB.prepare(
-    "SELECT m.id, m.user_id AS authorId, t.user_id AS ownerId FROM meal_comments m JOIN meals t ON t.id = m.meal_id WHERE m.id = ?",
+    "SELECT m.id, m.user_id AS authorId, t.user_id AS ownerId, t.id AS mealId FROM meal_comments m JOIN meals t ON t.id = m.meal_id WHERE m.id = ?",
   )
     .bind(c.req.param("id"))
-    .first<{ id: string; authorId: string; ownerId: string }>();
+    .first<{ id: string; authorId: string; ownerId: string; mealId: string }>();
   if (!row) return jsonError(c, 404, "댓글을 찾을 수 없어요");
-  if (row.authorId !== userId && row.ownerId !== userId) return jsonError(c, 403, "지울 수 있는 권한이 없어요");
+  // 댓글 작성자 · 식단 작성자 · 방장(식단이 올라간 아파트, 작성자와 함께 산다)만
+  const allowed = row.authorId === userId || row.ownerId === userId || (await isMealModerator(c.env, userId, { id: row.mealId, user_id: row.ownerId }));
+  if (!allowed) return jsonError(c, 403, "지울 수 있는 권한이 없어요");
   await c.env.DB.batch([
     c.env.DB.prepare("DELETE FROM events WHERE id = 'commented:' || ?").bind(row.id),
     c.env.DB.prepare("DELETE FROM meal_comments WHERE id = ?").bind(row.id),
@@ -455,6 +510,7 @@ export async function deleteMealPhotosOf(env: Env, userId: string): Promise<void
 export function mealCleanupForUser(env: Env, userId: string): D1PreparedStatement[] {
   const mine = "user_id = ?1 OR meal_id IN (SELECT id FROM meals WHERE user_id = ?1)";
   return [
+    env.DB.prepare("DELETE FROM meal_reports WHERE reporter_id = ?1 OR meal_id IN (SELECT id FROM meals WHERE user_id = ?1)").bind(userId),
     env.DB.prepare("DELETE FROM events WHERE id IN (SELECT 'commented:' || id FROM meal_comments WHERE user_id = ?1)").bind(userId),
     env.DB.prepare(`DELETE FROM meal_cheers WHERE ${mine}`).bind(userId),
     env.DB.prepare(`DELETE FROM meal_comments WHERE ${mine}`).bind(userId),

@@ -15,7 +15,9 @@ export type MealItem = {
   nickname: string;
   mealType: MealType;
   memo: string | null;
-  photoUrl: string;
+  /** 가려진 식단(신고 3건)은 사진 주소가 없다 */
+  photoUrl?: string;
+  hidden?: boolean;
   createdAt: number;
   edited: boolean;
   mine: boolean;
@@ -68,6 +70,9 @@ export function Meals() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [thread, setThread] = useState(false);
   const [confirmDel, setConfirmDel] = useState<MealItem | null>(null);
+  const [confirmReport, setConfirmReport] = useState<MealItem | null>(null);
+  const [reportErr, setReportErr] = useState("");
+  const [toast, setToast] = useState("");
   const [note, setNote] = useState<string>((location.state as { note?: string } | null)?.note ?? "");
   const cheering = useRef(new Set<string>());
 
@@ -120,6 +125,12 @@ export function Meals() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [openId]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(""), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const patch = (id: string, p: Partial<MealItem>) => setItems((xs) => xs && xs.map((x) => (x.id === id ? { ...x, ...p } : x)));
 
@@ -174,6 +185,22 @@ export function Meals() {
     }
   }
 
+  /** 신고 (인증 사진 신고와 같은 문구 · 흐름). 3명이 신고해 가려지면 그 자리에서 가린다 */
+  async function sendReport(it: MealItem) {
+    setReportErr("");
+    try {
+      const r = await api<{ hidden: boolean }>(`/api/meals/${it.id}/report`, { method: "POST" });
+      setConfirmReport(null);
+      setToast("신고했어요");
+      if (r.hidden) {
+        setThread(false);
+        patch(it.id, { hidden: true, photoUrl: undefined, memo: null, cheerCount: 0, cheeredByMe: false, commentCount: 0, edited: false });
+      }
+    } catch (e) {
+      setReportErr(e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
+    }
+  }
+
   const newPath = `/meals/new${villaId ? `?villa=${encodeURIComponent(villaId)}` : ""}`;
 
   if (villas && villas.length === 0) {
@@ -223,14 +250,16 @@ export function Meals() {
                 <div className="meal-grid">
                   {list.map((m) => (
                     <button key={m.id} type="button" className="meal-mini" onClick={() => open(m.id)} aria-label={`${m.nickname} 님의 ${MEAL_LABEL[m.mealType]} 크게 보기`}>
-                      <img src={m.photoUrl} alt="" loading="lazy" />
+                      {m.hidden || !m.photoUrl ? <span className="meal-mini-hidden">가려진 사진</span> : <img src={m.photoUrl} alt="" loading="lazy" />}
                       <span className="meal-mini-body">
-                        {m.memo && <span className="meal-mini-memo">{m.memo}</span>}
+                        {m.memo && !m.hidden && <span className="meal-mini-memo">{m.memo}</span>}
                         <span className="meal-mini-who">
                           <span><b>{m.nickname}</b> {clock(m.createdAt)}</span>
-                          <span>
-                            <span className={m.cheeredByMe ? "heart on" : "heart"}>{m.cheeredByMe ? "♥" : "♡"}</span> {m.cheerCount} · 💬 {m.commentCount}
-                          </span>
+                          {!m.hidden && (
+                            <span>
+                              <span className={m.cheeredByMe ? "heart on" : "heart"}>{m.cheeredByMe ? "♥" : "♡"}</span> {m.cheerCount} · 💬 {m.commentCount}
+                            </span>
+                          )}
                         </span>
                       </span>
                     </button>
@@ -245,21 +274,44 @@ export function Meals() {
         <div className="meal-sheet-backdrop" onClick={(e) => e.target === e.currentTarget && setOpenId(null)}>
           <div className="meal-sheet" role="dialog" aria-modal="true" aria-label={`${opened.nickname} 님의 ${MEAL_LABEL[opened.mealType]}`}>
             <button type="button" className="meal-sheet-close" aria-label="닫기" onClick={() => setOpenId(null)}>✕</button>
-            <img className="meal-sheet-photo" src={opened.photoUrl} alt={`${opened.nickname} 님의 ${MEAL_LABEL[opened.mealType]}`} />
+            {opened.hidden || !opened.photoUrl ? (
+              <div className="meal-sheet-photo meal-sheet-hidden">가려진 사진</div>
+            ) : (
+              <img className="meal-sheet-photo" src={opened.photoUrl} alt={`${opened.nickname} 님의 ${MEAL_LABEL[opened.mealType]}`} />
+            )}
             <div className="meal-sheet-body">
               <div className="meal-sheet-head">
                 <span className="meal-label">{MEAL_LABEL[opened.mealType]}</span>
                 <span><b>{opened.nickname}</b> · {clock(opened.createdAt)}{opened.edited ? " · 수정됨" : ""}</span>
-                {opened.mine && (
+                {opened.mine ? (
                   <span className="meal-actions">
-                    <Link to={`/meals/${opened.id}/edit`} aria-label="식단 수정">수정</Link>
+                    {/* 가려진 식단은 지우기만 (인증 기록처럼 가려진 글에는 수정 버튼이 없다) */}
+                    {!opened.hidden && <Link to={`/meals/${opened.id}/edit`} aria-label="식단 수정">수정</Link>}
                     <button type="button" aria-label="식단 삭제" onClick={() => setConfirmDel(opened)}>삭제</button>
                   </span>
+                ) : (
+                  // 남의 식단: 가려지지 않았을 때만 신고
+                  !opened.hidden && (
+                    <span className="meal-actions">
+                      <button
+                        type="button"
+                        aria-label="식단 신고"
+                        onClick={() => {
+                          setReportErr("");
+                          setConfirmReport(opened);
+                        }}
+                      >
+                        신고하기
+                      </button>
+                    </span>
+                  )
                 )}
               </div>
-              {opened.memo && <p className="meal-memo">{opened.memo}</p>}
-              <CheerBar item={opened} mine={opened.mine} open={thread} onCheer={() => void cheer(opened)} onToggleThread={() => setThread(!thread)} />
-              {thread && (
+              {opened.memo && !opened.hidden && <p className="meal-memo">{opened.memo}</p>}
+              {!opened.hidden && (
+                <CheerBar item={opened} mine={opened.mine} open={thread} onCheer={() => void cheer(opened)} onToggleThread={() => setThread(!thread)} />
+              )}
+              {thread && !opened.hidden && (
                 <CommentThread
                   certId={opened.id}
                   base={`/api/meals/${opened.id}`}
@@ -271,6 +323,19 @@ export function Meals() {
           </div>
         </div>
       )}
+      {confirmReport && (
+        <div className="confirm-overlay" role="dialog" aria-modal="true" aria-label="신고하기">
+          <div className="confirm-box">
+            <p>이 사진을 신고할까요? 3명이 신고하면 사진이 가려져요.</p>
+            {reportErr && <p className="error" role="alert">{reportErr}</p>}
+            <div className="row">
+              <button type="button" className="btn ghost" onClick={() => setConfirmReport(null)}>취소</button>
+              <button type="button" className="btn" onClick={() => void sendReport(confirmReport)}>신고하기</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {toast && <div className="action-toast" role="status">{toast}</div>}
       {confirmDel && (
         <div className="confirm-overlay" role="dialog" aria-modal="true" aria-label="식단 삭제">
           <div className="confirm-box">

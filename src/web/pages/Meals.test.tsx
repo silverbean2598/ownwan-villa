@@ -32,6 +32,7 @@ function mockApi(villas: V[], meals: unknown[] = [], pointsLeftToday = 10) {
       if (path === "/api/me/villas") return ok(villas.map((x) => ({ ownerId: "o", public: false, memberCount: 2, joinedAt: 0, certifiedToday: false, ...x })));
       if (path.startsWith("/api/meals?")) return ok({ day: "", today: "", pointsLeftToday, meals });
       if (path === "/api/meals") return ok({ mealId: "m1", points: 5, duplicate: false, villaIds: ["A"] });
+      if (path.endsWith("/report")) return ok({ hidden: true });
       return ok({ ok: true });
     }),
   );
@@ -114,6 +115,48 @@ describe("Meals", () => {
     await act(async () => sections()[3].querySelector<HTMLButtonElement>(".meal-mini")!.click());
     expect(host.querySelector('.meal-sheet [aria-label="식단 수정"]')).toBeNull();
     expect(host.querySelector(".meal-sheet .cheer-bar")).not.toBeNull();
+  });
+
+  it("report_from_sheet_then_hidden_card", async () => {
+    const base = { photoUrl: "/p", createdAt: Date.now(), edited: false, cheerCount: 2, cheeredByMe: false, commentCount: 1, memo: "라면" };
+    mockApi([{ id: "A", name: "에이아파트" }], [
+      { ...base, id: "m2", userId: "x", nickname: "이웃", mealType: "late", mine: false },
+      { ...base, id: "m3", userId: "me", nickname: "나", mealType: "snack", mine: true, hidden: true, photoUrl: undefined, memo: null, cheerCount: 0, commentCount: 0 },
+    ]);
+    await mount(<Meals />, "/meals");
+    // 가려진 식단: 작은 카드에 "가려진 사진", 메모 · 수 없음. 내 것이면 크게 보기에서 삭제만
+    const snack = sections()[2];
+    expect(snack.querySelector(".meal-mini-hidden")!.textContent).toBe("가려진 사진");
+    expect(snack.querySelector("img")).toBeNull();
+    expect(snack.querySelector(".meal-mini-who")!.textContent).not.toContain("💬");
+    await act(async () => snack.querySelector<HTMLButtonElement>(".meal-mini")!.click());
+    expect(host.querySelector(".meal-sheet-hidden")!.textContent).toBe("가려진 사진");
+    expect(host.querySelector('.meal-sheet [aria-label="식단 수정"]')).toBeNull();
+    expect(host.querySelector('.meal-sheet [aria-label="식단 삭제"]')).not.toBeNull();
+    expect(host.querySelector('.meal-sheet [aria-label="식단 신고"]')).toBeNull();
+    expect(host.querySelector(".meal-sheet .cheer-bar")).toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>('.meal-sheet [aria-label="닫기"]')!.click());
+    // 남의 식단: 신고하기 → 확인 → 신고했어요, 3명째라 가려진다
+    await act(async () => sections()[4].querySelector<HTMLButtonElement>(".meal-mini")!.click());
+    await act(async () => host.querySelector<HTMLButtonElement>('.meal-sheet [aria-label="식단 신고"]')!.click());
+    expect(host.querySelector('[aria-label="신고하기"] p')!.textContent).toBe("이 사진을 신고할까요? 3명이 신고하면 사진이 가려져요.");
+    const confirm = Array.from(host.querySelectorAll<HTMLButtonElement>('[aria-label="신고하기"] button')).find((b) => b.textContent === "신고하기")!;
+    await act(async () => confirm.click());
+    await flush();
+    expect(calls.some((c) => c.path === "/api/meals/m2/report" && c.method === "POST")).toBe(true);
+    expect(host.querySelector(".action-toast")!.textContent).toBe("신고했어요");
+    expect(host.querySelector(".meal-sheet-hidden")).not.toBeNull();
+    expect(host.querySelector('.meal-sheet [aria-label="식단 신고"]')).toBeNull();
+    expect(sections()[4].querySelector(".meal-mini-hidden")).not.toBeNull();
+  });
+
+  it("no_report_button_on_my_meal", async () => {
+    mockApi([{ id: "A", name: "에이아파트" }], [
+      { photoUrl: "/p", createdAt: Date.now(), edited: false, cheerCount: 0, cheeredByMe: false, commentCount: 0, memo: null, id: "m1", userId: "me", nickname: "나", mealType: "lunch", mine: true },
+    ]);
+    await mount(<Meals />, "/meals");
+    await act(async () => sections()[1].querySelector<HTMLButtonElement>(".meal-mini")!.click());
+    expect(host.querySelector('.meal-sheet [aria-label="식단 신고"]')).toBeNull();
   });
 
   it("day_label", () => {
