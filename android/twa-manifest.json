@@ -1,0 +1,48 @@
+{
+  "packageId": "com.ownwanvilla.app",
+  "host": "ownwan-villa.silverbin2598.workers.dev",
+  "name": "오운완아파트",
+  "launcherName": "오운완아파트",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#FFFFFF",
+  "themeColorDark": "#FFFFFF",
+  "navigationColor": "#FFFFFF",
+  "navigationColorDark": "#FFFFFF",
+  "navigationDividerColor": "#FFFFFF",
+  "navigationDividerColorDark": "#FFFFFF",
+  "backgroundColor": "#FFFFFF",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://ownwan-villa.silverbin2598.workers.dev/icon-512.png",
+  "maskableIconUrl": "https://ownwan-villa.silverbin2598.workers.dev/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./upload-key.jks",
+    "alias": "upload"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://ownwan-villa.silverbin2598.workers.dev/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://ownwan-villa.silverbin2598.workers.dev/",
+  "minSdkVersion": 24,
+  "fingerprints": [
+    {
+      "name": "upload",
+      "value": "BA:89:1F:05:45:3B:ED:6E:18:8C:1C:12:1D:5D:5E:D3:31:2F:99:9C:48:E7:4C:C7:60:5A:B3:95:DF:F1:9C:20"
+    }
+  ],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "appVersion": "1.0.0"
+}

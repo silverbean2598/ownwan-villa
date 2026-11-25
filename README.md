@@ -19,3 +19,4 @@ npm test        # 전체 테스트
 - 설계 문서 : `docs/superpowers/specs/2026-11-18-ownwan-villa-design.md`
 - 1차 개발 계획 : `docs/superpowers/plans/2026-11-18-ownwan-villa-phase1.md`
 - 오픈 점검표 : `docs/launch-checklist.md`
+- 안드로이드 앱(플레이스토어) : `docs/android-release.md`

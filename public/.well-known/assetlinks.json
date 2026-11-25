@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.ownwanvilla.app",
+      "sha256_cert_fingerprints": [
+        "BA:89:1F:05:45:3B:ED:6E:18:8C:1C:12:1D:5D:5E:D3:31:2F:99:9C:48:E7:4C:C7:60:5A:B3:95:DF:F1:9C:20"
+      ]
+    }
+  }
+]
