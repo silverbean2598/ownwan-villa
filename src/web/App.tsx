@@ -19,6 +19,7 @@ import { Ranking } from "./pages/Ranking";
 import { Battle } from "./pages/Battle";
 import { Terms } from "./pages/Terms";
 import { Privacy } from "./pages/Privacy";
+import { AccountDelete } from "./pages/AccountDelete";
 import { EventCenter } from "./components/EventCenter";
 import { TabBar } from "./components/TabBar";
 import { Meals } from "./pages/Meals";
@@ -52,6 +53,7 @@ export function App() {
         <Route path="/battle/:id" element={<Battle />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/account-delete" element={<AccountDelete />} />
       </Routes>
       <TabBar />
       <EventCenter />

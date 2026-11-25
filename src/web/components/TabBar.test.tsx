@@ -27,7 +27,7 @@ afterEach(() => {
 
 describe("showTabBar", () => {
   it("hidden_on_pre_login_pages", () => {
-    for (const p of ["/", "/signup", "/signup/code", "/login", "/recover", "/kakao/nickname", "/join/abc", "/onboard", "/terms", "/privacy"]) {
+    for (const p of ["/", "/signup", "/signup/code", "/login", "/recover", "/kakao/nickname", "/join/abc", "/onboard", "/terms", "/privacy", "/account-delete"]) {
       expect(showTabBar(p)).toBe(false);
     }
   });
