@@ -320,7 +320,7 @@ export async function renderRoomCard({ member, penthouse, villaName }: RoomCardI
   const [icon, room] = await Promise.all([
     loadImage(ICON),
     sceneImage(
-      createElement(RoomScene, { sport: member.sport, lit, avatar: member.avatar, penthouse, variant: "detail", placements: member.placements }),
+      createElement(RoomScene, { sport: member.sport, lit, avatar: member.avatar, penthouse, variant: "detail", placements: member.placements, theme: member.theme }),
       rw,
       rh,
       cache,
@@ -463,7 +463,7 @@ export async function renderVillaCard({ villa, meId }: VillaCardInput): Promise<
     loadImage(ICON),
     ...tiles.map((t) =>
       sceneImage(
-        createElement(RoomScene, { sport: t.m.sport, lit: t.m.certifiedToday, avatar: t.m.avatar, penthouse: t.ph, placements: t.m.placements }),
+        createElement(RoomScene, { sport: t.m.sport, lit: t.m.certifiedToday, avatar: t.m.avatar, penthouse: t.ph, placements: t.m.placements, theme: t.m.theme }),
         t.w,
         t.sh,
         cache,

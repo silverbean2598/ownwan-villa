@@ -8,14 +8,24 @@ import { FurnitureIcon } from "../components/furniture";
 import { WearPreview } from "../components/WearPreview";
 import "../components/villa.css";
 import { pokeEvents } from "../events/poke";
+import { PremiumShop } from "../components/premium/PremiumShop";
 
-type ShopData = { points: number; sport: Sport | null; owned: string[]; penthouse: boolean };
+type ShopData = {
+  points: number;
+  sport: Sport | null;
+  owned: string[];
+  penthouse: boolean;
+  placements: { slot: string; itemId: string }[];
+  premiumOwned: string[];
+  theme: string | null;
+};
 type Me = { id: string; avatar: AvatarSpec };
 
 export const SHOP_TABS = [
   { id: "furniture", label: "가구" },
   { id: "outfit", label: "옷" },
   { id: "accessory", label: "소품" },
+  { id: "premium", label: "프리미엄" },
 ] as const;
 export type ShopTab = (typeof SHOP_TABS)[number]["id"];
 
@@ -51,7 +61,8 @@ export function Shop() {
       try {
         const me = await api<Me>("/api/me");
         const shop = await api<ShopData>("/api/shop");
-        if (alive) setData({ ...shop, meId: me.id, avatar: me.avatar ?? DEFAULT_AVATAR });
+        if (alive)
+          setData({ ...shop, placements: shop.placements ?? [], premiumOwned: shop.premiumOwned ?? [], theme: shop.theme ?? null, meId: me.id, avatar: me.avatar ?? DEFAULT_AVATAR });
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) return nav("/login?next=/shop", { replace: true });
         if (alive) setError(e instanceof ApiError ? e.message : "문제가 생겼어요. 잠시 후 다시 해 주세요");
@@ -103,7 +114,9 @@ export function Shop() {
   const help =
     tab === "furniture"
       ? "산 가구는 내 방에서 [가구 놓기]로 놓을 수 있어요."
-      : "산 옷 · 소품은 설정의 [캐릭터 꾸미기]에서 입을 수 있어요.";
+      : tab === "premium"
+        ? "방 전체를 바꾸는 테마예요. 내 방에 미리 입혀 볼 수 있어요."
+        : "산 옷 · 소품은 설정의 [캐릭터 꾸미기]에서 입을 수 있어요.";
 
   return (
     <main className="villa-page shop-page">
@@ -127,7 +140,7 @@ export function Shop() {
         ))}
       </div>
       <p className="muted shop-help">
-        {help} {tab !== "furniture" && <Link to="/settings#avatar">꾸미러 가기</Link>}
+        {help} {(tab === "outfit" || tab === "accessory") && <Link to="/settings#avatar">꾸미러 가기</Link>}
       </p>
       {buyError && <p className="error" role="alert">{buyError}</p>}
       {tab === "furniture" &&
@@ -146,6 +159,14 @@ export function Shop() {
             </ul>
           </section>
         ))}
+      {tab === "premium" && (
+        <PremiumShop
+          data={data}
+          itemId={params.get("item")}
+          onOpen={(id) => setParams(id ? { tab: "premium", item: id } : { tab: "premium" }, { replace: false })}
+          onTheme={(theme) => setData((d) => d && { ...d, theme })}
+        />
+      )}
       {tab === "outfit" && (
         <section className="shop-sec">
           <h2>운동복</h2>

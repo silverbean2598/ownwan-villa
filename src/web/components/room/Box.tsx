@@ -1,5 +1,7 @@
 import { useId } from "react";
 import { furnitureUrl, type FurnitureRes } from "../furniture";
+import type { ThemeId } from "../../../shared/premium";
+import { ThemePaper } from "./xmas";
 // 한 점 투시 인형의 집 상자(뒷벽 · 옆벽 · 천장 · 나무 바닥). 좌표는 viewBox 단위.
 export type Geom = { W: number; H: number; bx0: number; bx1: number; by0: number; by1: number };
 
@@ -50,7 +52,8 @@ export function floorPt(g: Geom, a: number, f: number) {
   return [x0 + (x1 - x0) * a, y];
 }
 
-export function Box({ g, c, sw }: { g: Geom; c: Palette; sw: number }) {
+/** paper: 방 테마 벽지(징두리 위 벽면을 무늬로 덮는다) */
+export function Box({ g, c, sw, paper, lit = true }: { g: Geom; c: Palette; sw: number; paper?: ThemeId | null; lit?: boolean }) {
   const { W, H, bx0, bx1, by0, by1 } = g;
   const id = useId().replace(/:/g, "");
   const line = { stroke: c.ink, strokeWidth: sw, strokeLinejoin: "round" as const };
@@ -77,6 +80,7 @@ export function Box({ g, c, sw }: { g: Geom; c: Palette; sw: number }) {
           <stop offset="0" stopColor={c.ink} stopOpacity="0.12" />
           <stop offset="1" stopColor={c.ink} stopOpacity="0" />
         </linearGradient>
+        {paper && <ThemePaper id={`${id}wp`} theme={paper} lit={lit} u={bh / 54} x={bx0} y={by0} />}
         <linearGradient id={`${id}fl`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={c.ink} stopOpacity="0.16" />
           <stop offset="0.35" stopColor={c.ink} stopOpacity="0" />
@@ -88,17 +92,20 @@ export function Box({ g, c, sw }: { g: Geom; c: Palette; sw: number }) {
       <polygon points={pts([[0, 0], [W, 0], [bx1, by0], [bx0, by0]])} fill={c.ceil} {...line} />
       {/* 옆벽: 벽 · 징두리 · 걸레받이 · 앞쪽으로 갈수록 옅은 그늘 */}
       <polygon points={pts([[0, 0], [bx0, by0], [bx0, by1], [0, H]])} fill={c.side} />
+      {paper && <polygon data-part="wallpaper" points={pts([[0, 0], [bx0, by0], [bx0, by1 - wh], [0, H - wh * z]])} fill={`url(#${id}wp)`} />}
       <polygon points={pts([[0, H - wh * z], [bx0, by1 - wh], [bx0, by1], [0, H]])} fill={c.wain} />
       <polygon points={pts([[0, H - bb * z], [bx0, by1 - bb], [bx0, by1], [0, H]])} fill={c.base} />
       <line x1={0} y1={H - wh * z} x2={bx0} y2={by1 - wh} stroke={c.base} strokeWidth={sw * 0.9} />
       <polygon points={pts([[0, 0], [bx0, by0], [bx0, by1], [0, H]])} fill={`url(#${id}sl)`} {...line} />
       <polygon points={pts([[W, 0], [W, H], [bx1, by1], [bx1, by0]])} fill={c.side} />
+      {paper && <polygon data-part="wallpaper" points={pts([[W, 0], [W, H - wh * z], [bx1, by1 - wh], [bx1, by0]])} fill={`url(#${id}wp)`} />}
       <polygon points={pts([[W, H - wh * z], [bx1, by1 - wh], [bx1, by1], [W, H]])} fill={c.wain} />
       <polygon points={pts([[W, H - bb * z], [bx1, by1 - bb], [bx1, by1], [W, H]])} fill={c.base} />
       <line x1={W} y1={H - wh * z} x2={bx1} y2={by1 - wh} stroke={c.base} strokeWidth={sw * 0.9} />
       <polygon points={pts([[W, 0], [W, H], [bx1, by1], [bx1, by0]])} fill={`url(#${id}sr)`} {...line} />
       {/* 뒷벽 */}
       <rect x={bx0} y={by0} width={bx1 - bx0} height={bh} fill={c.back} />
+      {paper && <rect data-part="wallpaper" x={bx0} y={by0} width={bx1 - bx0} height={bh - wh} fill={`url(#${id}wp)`} />}
       <rect x={bx0} y={by1 - wh} width={bx1 - bx0} height={wh} fill={c.wain} />
       {Array.from({ length: 5 }, (_, i) => {
         const x = bx0 + ((bx1 - bx0) * (i + 1)) / 6;

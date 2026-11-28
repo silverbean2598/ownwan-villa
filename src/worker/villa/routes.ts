@@ -98,6 +98,7 @@ async function villaDetail(env: AppEnv["Bindings"], villaId: string, userId: str
   const day = kstDay(now());
   const { results } = await env.DB.prepare(
     `SELECT u.id AS userId, u.nickname, u.sport, u.avatar, m.floor, m.streak, u.streak AS userStreak,
+       CASE WHEN EXISTS (SELECT 1 FROM premium_owned po WHERE po.user_id = u.id AND po.item_id = u.theme) THEN u.theme END AS theme,
        ${certifiedInVilla("u.id", "?1", "m.villa_id")} AS certifiedToday,
        EXISTS (SELECT 1 FROM certs c WHERE c.user_id = u.id AND c.day = ?1 AND ${CERTIFIED_PHOTO}) AS certifiedAnywhere
      FROM memberships m JOIN users u ON u.id = m.user_id
@@ -106,7 +107,7 @@ async function villaDetail(env: AppEnv["Bindings"], villaId: string, userId: str
     .bind(day, v.id)
     .all<{
       userId: string; nickname: string; sport: string | null; avatar: string; floor: number; streak: number; userStreak: number;
-      certifiedToday: number; certifiedAnywhere: number;
+      theme: string | null; certifiedToday: number; certifiedAnywhere: number;
     }>();
   const pl = await env.DB.prepare(
     `SELECT p.user_id AS userId, p.slot, p.item_id AS itemId FROM placements p

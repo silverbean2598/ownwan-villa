@@ -9,6 +9,9 @@ import { Chandelier, PenthouseDecor } from "./room/Penthouse";
 import { Furniture } from "./furniture";
 import { depthScale, matrixAttr, placeSlot, sceneGeom, standPoint, type Placed } from "./furniture/layout";
 import { isSlot, type Slot } from "../../shared/catalog";
+import { isThemeId } from "../../shared/premium";
+import { XmasDecor } from "./room/XmasDecor";
+import { XMAS_TRIM } from "./room/xmas";
 
 type Props = {
   sport: Sport;
@@ -21,6 +24,8 @@ type Props = {
   board?: ReactNode;
   /** 놓은 가구 */
   placements?: { slot: string; itemId: string }[];
+  /** 켜 둔 방 테마(프리미엄). 벽지를 바꾸고 테마 장식을 놓는다. 가구 5칸은 그대로 */
+  theme?: string | null;
 };
 
 // 새 캐릭터 그림에 기구가 들어 있는 종목: 켜진 방에서는 방 기구를 그리지 않는다
@@ -28,10 +33,13 @@ type Props = {
 export const SPRITE_HAS_EQUIP = new Set<Sport>(["climbing", "pilates", "yoga", "hometraining"]);
 
 /** 인형의 집 상자 방. 불이 켜지면 종목 자세로 운동하고, 꺼지면 달빛 아래 잠잔다. */
-export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "tile", board, placements = [] }: Props) {
+export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "tile", board, placements = [], theme: themeIn = null }: Props) {
   const detail = variant === "detail";
+  const theme = isThemeId(themeIn) ? themeIn : null;
   const { g, u, k: du } = sceneGeom(variant, penthouse);
-  const c = penthouse ? (lit ? PALETTE.phLit : PALETTE.phUnlit) : lit ? PALETTE.lit : PALETTE.unlit;
+  const base = penthouse ? (lit ? PALETTE.phLit : PALETTE.phUnlit) : lit ? PALETTE.lit : PALETTE.unlit;
+  // 크리스마스 테마: 보통 방은 징두리 · 걸레받이를 옅은 산타 빨강으로 (펜트하우스는 원래 나무색)
+  const c = theme === "xmas" && !penthouse ? { ...base, ...(lit ? XMAS_TRIM.lit : XMAS_TRIM.unlit) } : base;
   const sw = 1.1 * Math.max(1, u * 0.6);
   const bw = g.bx1 - g.bx0;
   const pose = lit ? sport : "sleep";
@@ -78,9 +86,9 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
   const lampX = g.bx0 + bw * (detail ? 0.5 : penthouse ? 0.4 : 0.42);
 
   return (
-    <div className={`scene ${variant} s-${sport}${penthouse ? " ph-scene" : ""}`}>
+    <div className={`scene ${variant} s-${sport}${penthouse ? " ph-scene" : ""}`} data-theme={theme ?? undefined}>
       <svg className="scene-bg" viewBox={`0 0 ${g.W} ${g.H}`} aria-hidden="true" preserveAspectRatio="xMidYMid meet">
-        {!lit && placed.length > 0 && (
+        {!lit && (placed.length > 0 || theme) && (
           <defs>
             {/* 꺼진 방의 가구는 어둡게. 뒤 가구는 위에 어둠막이 한 번 더 덮인다 */}
             <filter id={`${fid}b`} colorInterpolationFilters="sRGB">
@@ -91,7 +99,7 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
             </filter>
           </defs>
         )}
-        <Box g={g} c={c} sw={sw} />
+        <Box g={g} c={c} sw={sw} paper={theme} lit={lit} />
         {/* 방 상세는 왼쪽 벽에 진짜 게시판(HTML)을 붙인다. 게시판 없이 그릴 때(공유 카드)는 코르크판 그림 */}
         {(!detail || !board) && <Cork g={g} sw={sw * 0.8} ink={c.ink} lit={lit} />}
         {win && <Window {...win} lit={lit} sw={sw * 0.8} ink={c.ink} />}
@@ -101,6 +109,7 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
         ) : (
           <Pendant x={lampX} top={g.by0 - 3 * u} w={10 * u} lit={lit} floorY={g.by1 + 6 * u} res={detail ? "full" : "sm"} />
         )}
+        {theme && <XmasDecor layer="back" g={g} u={u} variant={variant} penthouse={penthouse} lit={lit} sw={sw} res={detail ? "full" : "sm"} dim={`${fid}b`} />}
         {furniture(placed.filter((p) => !p.front), `${fid}b`)}
         {showEquip && (
           <g transform={`translate(${ex} ${fy}) scale(${k})`}>
@@ -117,7 +126,9 @@ export function RoomScene({ sport, lit, avatar, penthouse = false, variant = "ti
             />
           </>
         )}
+        {theme && !lit && <XmasDecor layer="glow" g={g} u={u} variant={variant} penthouse={penthouse} lit={lit} sw={sw} res={detail ? "full" : "sm"} dim="" />}
         <SpriteAvatar spec={avatar} size={size} pose={pose} x={avX} y={avY} />
+        {theme && <XmasDecor layer="front" g={g} u={u} variant={variant} penthouse={penthouse} lit={lit} sw={sw} res={detail ? "full" : "sm"} dim={`${fid}f`} />}
         {furniture(placed.filter((p) => p.front), `${fid}f`)}
         <Frame g={g} c={c} sw={sw} />
       </svg>
