@@ -10,7 +10,7 @@
 - [ ] 가구 목록과 가격 (지금은 임시 25종)
 
 ## 프리미엄 상품 (크리스마스 테마, 2026-11-25)
-- [ ] 배포 전 마이그레이션 `0020_premium.sql` 적용 (premium_owned 테이블 · users.theme 열)
+- 마이그레이션 `0020_premium.sql`(premium_owned 테이블 · users.theme 열)은 main 병합 때 배포 작업이 자동으로 적용한다 (새 테이블 · 빈 열만 더해 안전)
 - [ ] 결제 연결: 지금 구매 버튼은 "결제 준비 중이에요. 곧 열려요!" 안내만 한다 (`src/shared/premium.ts` PREMIUM_PAY_READY). 결제가 끝나면 premium_owned 에 넣는다
 - [ ] 시즌이 끝나면 목록에서 내릴지, 산 사람은 계속 켜 둘 수 있게 둘지 정하기
 
