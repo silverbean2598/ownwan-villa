@@ -98,6 +98,7 @@ profile.delete("/api/me", requireUser, async (c) => {
     q("DELETE FROM certs WHERE user_id = ?"),
     q("DELETE FROM inventory WHERE user_id = ?"),
     q("DELETE FROM placements WHERE user_id = ?"),
+    q("DELETE FROM premium_owned WHERE user_id = ?"),
     q("DELETE FROM sessions WHERE user_id = ?"),
     q("DELETE FROM user_identities WHERE user_id = ?"),
     q("DELETE FROM recovery_requests WHERE user_id = ?"),

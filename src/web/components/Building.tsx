@@ -20,6 +20,8 @@ export type Member = {
   /** 오늘 어느 아파트든 올렸다 */
   certifiedAnywhere?: boolean;
   placements: { slot: string; itemId: string }[];
+  /** 켜 둔 방 테마(프리미엄). 없으면 null */
+  theme?: string | null;
 };
 
 const PER_ROW = 3;

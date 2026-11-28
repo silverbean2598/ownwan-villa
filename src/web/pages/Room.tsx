@@ -227,6 +227,7 @@ export function Room() {
             penthouse={penthouse}
             variant="detail"
             placements={placements}
+            theme={member.theme}
             board={
               <section className="left-wall" aria-label="게시판">
                 <Link className="board-link" to={roomPath(member.userId, villaId, true)} aria-label="전체 기록 보기">

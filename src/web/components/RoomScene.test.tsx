@@ -145,4 +145,37 @@ describe("RoomScene", () => {
     const scale = (slot: string) => Number(h.match(new RegExp(`data-slot="${slot}" data-plane="floor" transform="matrix\\(([\\d.]+)`))![1]);
     expect(scale("floor3")).toBeGreaterThan(scale("floor2"));
   });
+  it("xmas_theme_adds_wallpaper_and_decor_in_every_room_kind", () => {
+    for (const penthouse of [false, true])
+      for (const variant of ["tile", "detail"] as const)
+        for (const lit of [true, false]) {
+          const h = renderToStaticMarkup(<RoomScene sport="gym" lit={lit} avatar={DEFAULT_AVATAR} penthouse={penthouse} variant={variant} theme="xmas" />);
+          const tag = `${penthouse ? "ph" : "room"} ${variant} ${lit ? "lit" : "unlit"}`;
+          expect(h, tag).toContain('data-theme="xmas"');
+          expect(h, tag).toContain('data-part="wallpaper"');
+          for (const part of ["xmas-garland", "xmas-wreath", "xmas-fireplace", "xmas-gifts", "xmas-snowman", "xmas-rug"]) expect(h, `${tag} ${part}`).toContain(`data-part="${part}"`);
+          // 밤에는 벽난로 · 전구가 빛난다
+          if (lit) expect(h, tag).not.toContain('data-part="xmas-glow"');
+          else expect(h, tag).toContain('data-part="xmas-glow"');
+        }
+  });
+  it("no_or_unknown_theme_keeps_the_plain_room", () => {
+    for (const theme of [null, undefined, "halloween"]) {
+      const h = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} theme={theme} />);
+      expect(h).not.toContain("data-theme=");
+      expect(h).not.toContain('data-part="wallpaper"');
+      expect(h).not.toContain("xmas-");
+    }
+  });
+  it("theme_keeps_placed_furniture", () => {
+    const placements = [
+      { slot: "wall2", itemId: "wall-clock" },
+      { slot: "floor1", itemId: "bench" },
+      { slot: "floor2", itemId: "xmas-tree" },
+      { slot: "floor3", itemId: "plant" },
+      { slot: "wall1", itemId: "landscape-frame" },
+    ];
+    const h = renderToStaticMarkup(<RoomScene sport="gym" lit avatar={DEFAULT_AVATAR} variant="detail" placements={placements} theme="xmas" />);
+    for (const p of placements) expect(h).toContain(`data-slot="${p.slot}"`);
+  });
 });
